@@ -1,0 +1,573 @@
+import 'dart:convert';
+
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:intl/intl.dart';
+
+import '../controllers/invoice_controller.dart';
+import '../controllers/receipt_controller.dart';
+import '../models/invoice_history_model.dart';
+
+class InvoiceDetailScreen extends StatelessWidget {
+  final InvoiceSummary invoice;
+
+  InvoiceDetailScreen({Key? key, required this.invoice}) : super(key: key);
+
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return 'N/A';
+    try {
+      final dt = DateTime.parse(dateStr).toLocal();
+      return DateFormat('MMM dd, yyyy HH:mm').format(dt);
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  void _showCancelBottomSheet(BuildContext context) {
+    if (invoice.irn == null) {
+      Get.snackbar('Error', 'Cannot cancel an invoice without an IRN.');
+      return;
+    }
+
+    final controller = Get.put(CancelInvoiceController());
+    final reasonController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1F1F1F),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 24,
+            right: 24,
+            top: 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Cancel Invoice',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Provide a reason code to cancel this invoice on the tax authority logs.',
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: reasonController,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Reason Code (e.g. 1)',
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  filled: true,
+                  fillColor: const Color(0xFF181818),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              Obx(
+                () => ElevatedButton(
+                  onPressed: controller.isSubmitting.value
+                      ? null
+                      : () {
+                          if (reasonController.text.isNotEmpty) {
+                            controller
+                                .cancelInvoice(
+                                  invoice.irn!,
+                                  reasonController.text,
+                                )
+                                .then((_) => Navigator.pop(context));
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF3366),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 50),
+                  ),
+                  child: controller.isSubmitting.value
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'Submit Cancellation',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSalesReceiptBottomSheet(BuildContext context) {
+    if (invoice.irn == null) {
+      Get.snackbar('Error', 'Cannot register a receipt without an IRN.');
+      return;
+    }
+
+    final controller = Get.put(ReceiptController());
+    final amountController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1F1F1F),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 24,
+            right: 24,
+            top: 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Register Sales Receipt',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Register cash collections applied to this Invoice.',
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Collected Amount (ETB)',
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  filled: true,
+                  fillColor: const Color(0xFF181818),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              Obx(
+                () => ElevatedButton(
+                  onPressed: controller.isSubmittingReceipt.value
+                      ? null
+                      : () {
+                          if (amountController.text.isNotEmpty) {
+                            controller
+                                .registerSalesReceipt(
+                                  invoice.irn!,
+                                  amountController.text,
+                                )
+                                .then((_) => Navigator.pop(context));
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00FFB3),
+                    foregroundColor: Colors.black,
+                    minimumSize: const Size(double.infinity, 50),
+                  ),
+                  child: controller.isSubmittingReceipt.value
+                      ? const CircularProgressIndicator(color: Colors.black)
+                      : const Text(
+                          'Register Sales Receipt',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showWithholdingBottomSheet(BuildContext context) {
+    if (invoice.irn == null) {
+      Get.snackbar('Error', 'Cannot register withholding without an IRN.');
+      return;
+    }
+
+    final controller = Get.put(ReceiptController());
+    final pretaxController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1F1F1F),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 24,
+            right: 24,
+            top: 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Register Withholding',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Submit dynamic 2% withholding tax adjustments for this invoice.',
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: pretaxController,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Pre-Tax Amount (ETB)',
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  filled: true,
+                  fillColor: const Color(0xFF181818),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              Obx(
+                () => ElevatedButton(
+                  onPressed: controller.isSubmittingWithholding.value
+                      ? null
+                      : () {
+                          final pretax =
+                              double.tryParse(pretaxController.text) ?? 0;
+                          if (pretax > 0) {
+                            controller
+                                .registerWithholding(
+                                  invoice.irn!,
+                                  invoice.buyer.tin ?? '',
+                                  pretax,
+                                )
+                                .then((_) => Navigator.pop(context));
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00FFB3),
+                    foregroundColor: Colors.black,
+                    minimumSize: const Size(double.infinity, 50),
+                  ),
+                  child: controller.isSubmittingWithholding.value
+                      ? const CircularProgressIndicator(color: Colors.black)
+                      : const Text(
+                          'Register 2% Withholding',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value, {bool isHighlight = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: isHighlight ? const Color(0xFF00FFB3) : Colors.white,
+                fontWeight: isHighlight ? FontWeight.bold : FontWeight.normal,
+                fontSize: isHighlight ? 16 : 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currency = invoice.totals.currency ?? 'ETB';
+    final itemsList =
+        (invoice.requestPayload?['ItemList'] as List<dynamic>?) ?? [];
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF121212),
+      appBar: AppBar(
+        title: const Text(
+          'Invoice Details',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: const Color(0xFF1F1F1F),
+        automaticallyImplyLeading: true,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1F1F1F),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Summary',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildInfoRow('Buyer', invoice.buyer.legalName ?? 'N/A'),
+                  _buildInfoRow('Buyer TIN', invoice.buyer.tin ?? 'N/A'),
+                  _buildInfoRow(
+                    'Document No.',
+                    invoice.documentNumber ?? 'N/A',
+                  ),
+                  _buildInfoRow('Date', _formatDate(invoice.createdAt)),
+                  _buildInfoRow('Status', invoice.status ?? 'Unknown'),
+                  const Divider(color: Color(0xFF333333), height: 32),
+                  _buildInfoRow(
+                    'Total Value',
+                    '${invoice.totals.totalValue ?? '0.00'} $currency',
+                    isHighlight: true,
+                  ),
+                  _buildInfoRow(
+                    'Tax Value',
+                    '${invoice.totals.taxValue ?? '0.00'} $currency',
+                  ),
+                  _buildInfoRow(
+                    'Discount',
+                    '${invoice.totals.discount ?? '0.00'} $currency',
+                  ),
+                ],
+              ),
+            ),
+
+            if (invoice.signedQr != null) ...[
+              const SizedBox(height: 24),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Image.memory(
+                    base64Decode(invoice.signedQr!),
+                    width: 150,
+                    height: 150,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.qr_code,
+                      size: 150,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Center(
+                child: Text(
+                  'IRN: ${invoice.irn ?? 'N/A'}',
+                  style: const TextStyle(color: Colors.grey, fontSize: 10),
+                ),
+              ),
+            ],
+
+            if (itemsList.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              const Text(
+                'Line Items',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...itemsList.map((item) {
+                final Map<String, dynamic> itemMap =
+                    item as Map<String, dynamic>;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1F1F1F),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              itemMap['ProductDescription']?.toString() ??
+                                  'Item',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${itemMap['Quantity']} x ${itemMap['UnitPrice']} $currency',
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        '${itemMap['TotalLineAmount']} $currency',
+                        style: const TextStyle(
+                          color: Color(0xFF00FFB3),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ],
+
+            const SizedBox(height: 32),
+            const Text(
+              'Actions',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _ActionCard(
+                    icon: CupertinoIcons.clear_circled,
+                    title: 'Cancel',
+                    color: const Color(0xFFFF3366),
+                    onTap: () => _showCancelBottomSheet(context),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _ActionCard(
+                    icon: CupertinoIcons.money_dollar,
+                    title: 'Receipt',
+                    color: const Color(0xFF00FFB3),
+                    onTap: () => _showSalesReceiptBottomSheet(context),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _ActionCard(
+                    icon: CupertinoIcons.percent,
+                    title: 'Withholding',
+                    color: const Color(0xFF00FFB3),
+                    onTap: () => _showWithholdingBottomSheet(context),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ActionCard({
+    required this.icon,
+    required this.title,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1F1F1F),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF2A2A2A)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
