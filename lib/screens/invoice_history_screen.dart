@@ -44,20 +44,20 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
     }
   }
 
-  Widget _buildStatusBadge(String? status) {
+  Widget _buildStatusBadge(String? status, ThemeData theme) {
     Color bgColor;
     Color textColor;
     String text;
 
     switch (status?.toUpperCase()) {
       case 'A':
-        bgColor = const Color(0xFF00FFB3).withOpacity(0.2);
-        textColor = const Color(0xFF00FFB3);
+        bgColor = theme.primaryColor.withOpacity(0.2);
+        textColor = theme.primaryColor;
         text = 'Active';
         break;
       case 'C':
-        bgColor = const Color(0xFFFF3366).withOpacity(0.2);
-        textColor = const Color(0xFFFF3366);
+        bgColor = theme.colorScheme.secondary.withOpacity(0.2);
+        textColor = theme.colorScheme.secondary;
         text = 'Cancelled';
         break;
       default:
@@ -85,26 +85,27 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Invoices',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.bold, color: theme.appBarTheme.foregroundColor ?? Colors.white),
         ),
-        backgroundColor: const Color(0xFF1F1F1F),
+        backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(CupertinoIcons.refresh),
+            icon: Icon(CupertinoIcons.refresh, color: theme.appBarTheme.foregroundColor),
             onPressed: () => _controller.fetchInvoices(refresh: true),
           ),
         ],
       ),
       body: Obx(() {
         if (_controller.isLoading.value) {
-          return const Center(
-            child: CircularProgressIndicator(color: Color(0xFF00FFB3)),
+          return Center(
+            child: CircularProgressIndicator(color: theme.primaryColor),
           );
         }
 
@@ -113,22 +114,22 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
+                Icon(
                   CupertinoIcons.exclamationmark_triangle,
-                  color: Color(0xFFFF3366),
+                  color: theme.colorScheme.secondary,
                   size: 48,
                 ),
                 const SizedBox(height: 16),
                 Text(
                   _controller.errorMessage.value,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: theme.textTheme.bodyLarge?.color),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () => _controller.fetchInvoices(refresh: true),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF333333),
-                    foregroundColor: Colors.white,
+                    backgroundColor: theme.cardColor,
+                    foregroundColor: theme.textTheme.bodyLarge?.color,
                   ),
                   child: const Text('Retry'),
                 ),
@@ -158,8 +159,8 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
         }
 
         return RefreshIndicator(
-          color: const Color(0xFF00FFB3),
-          backgroundColor: const Color(0xFF1F1F1F),
+          color: theme.primaryColor,
+          backgroundColor: theme.cardColor,
           onRefresh: () => _controller.fetchInvoices(refresh: true),
           child: ListView.separated(
             controller: _scrollController,
@@ -175,10 +176,10 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
             separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               if (index == _controller.invoices.length) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16),
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   child: Center(
-                    child: CircularProgressIndicator(color: Color(0xFF00FFB3)),
+                    child: CircularProgressIndicator(color: theme.primaryColor),
                   ),
                 );
               }
@@ -199,9 +200,9 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1F1F1F),
+                    color: theme.cardColor,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF2A2A2A)),
+                    border: Border.all(color: theme.dividerColor),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,8 +213,8 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                           Expanded(
                             child: Text(
                               buyerName,
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: theme.textTheme.bodyLarge?.color,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
@@ -221,7 +222,7 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          _buildStatusBadge(invoice.status),
+                          _buildStatusBadge(invoice.status, theme),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -247,8 +248,8 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                           ),
                           Text(
                             '$totalValue $currency',
-                            style: const TextStyle(
-                              color: Color(0xFF00FFB3),
+                            style: TextStyle(
+                              color: theme.primaryColor,
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                             ),
@@ -271,8 +272,8 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
             withNavBar: false,
           );
         },
-        backgroundColor: const Color(0xFF00FFB3),
-        foregroundColor: Colors.black,
+        backgroundColor: theme.primaryColor,
+        foregroundColor: theme.scaffoldBackgroundColor,
         icon: const Icon(CupertinoIcons.add),
         label: const Text(
           'New Invoice',

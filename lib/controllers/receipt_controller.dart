@@ -85,3 +85,44 @@ class ReceiptController extends GetxController {
     isSubmittingWithholding.value = false;
   }
 }
+
+class ReceiptFetchController extends GetxController {
+  final String invoiceIrn;
+  ReceiptFetchController({required this.invoiceIrn});
+
+  var isLoading = true.obs;
+  var receipts = <ReceiptSummary>[].obs;
+  var errorMessage = ''.obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+    fetchReceipts();
+  }
+
+  Future<void> fetchReceipts() async {
+    isLoading.value = true;
+    errorMessage.value = '';
+    try {
+      await ApiService.fetchReceiptsByIrn(
+        invoiceIrn,
+        onSuccess: (data) {
+          if (data is List) {
+            receipts.value = data.map((e) => ReceiptSummary.fromJson(e)).toList();
+          } else if (data is Map<String, dynamic>) {
+            receipts.value = [ReceiptSummary.fromJson(data)];
+          } else {
+            receipts.value = [];
+          }
+        },
+        onFailure: (error, response) {
+          errorMessage.value = 'Failed to load receipts';
+        },
+      );
+    } catch (e) {
+      errorMessage.value = 'An error occurred';
+    } finally {
+      isLoading.value = false;
+    }
+  }
+}

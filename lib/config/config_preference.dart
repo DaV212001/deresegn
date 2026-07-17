@@ -18,6 +18,9 @@ class ConfigPreference {
   static const String keyAccessToken = 'access_token';
   static const String keyRefreshToken = 'refresh_token';
 
+  // Theme Keys
+  static const String keyIsDarkMode = 'is_dark_mode';
+
   static Future<void> init() async {
     _accessToken = await _storage.read(key: keyAccessToken);
     _refreshToken = await _storage.read(key: keyRefreshToken);
@@ -71,16 +74,16 @@ class ConfigPreference {
     await _storage.write(key: keyTin, value: tin);
   }
 
-  static Future<String?> getClientId() async =>
+  static Future<String> getClientId() async =>
       (await _storage.read(key: keyClientId)) ??
       "127ae9ad-8de2-4856-ba88-4e6a49ad10d0";
-  static Future<String?> getClientSecret() async =>
+  static Future<String> getClientSecret() async =>
       (await _storage.read(key: keyClientSecret)) ??
       "d3ddb848-9daa-44ab-8d96-374fcc8c9e6b";
-  static Future<String?> getApiKey() async =>
+  static Future<String> getApiKey() async =>
       (await _storage.read(key: keyApiKey)) ??
       "dc481579-a6e7-4594-abcf-5493e261685e";
-  static Future<String?> getTin() async =>
+  static Future<String> getTin() async =>
       (await _storage.read(key: keyTin)) ?? "0000037187";
 
   static Future<void> clearDeviceCredentials() async {
@@ -88,5 +91,14 @@ class ConfigPreference {
     await _storage.delete(key: keyClientSecret);
     await _storage.delete(key: keyApiKey);
     await _storage.delete(key: keyTin);
+  }
+
+  static Future<bool> isDarkMode() async {
+    final value = await _storage.read(key: keyIsDarkMode);
+    return value != 'false'; // Default to true if not set
+  }
+
+  static Future<void> setDarkMode(bool isDark) async {
+    await _storage.write(key: keyIsDarkMode, value: isDark.toString());
   }
 }

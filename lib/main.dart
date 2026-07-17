@@ -6,30 +6,30 @@ import 'config/config_preference.dart';
 import 'controllers/auth_controller.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/setup_terminal_screen.dart';
+import 'theme/app_theme.dart';
+import 'theme/theme_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ConfigPreference.init();
+  final themeService = Get.put(ThemeService());
 
-  runApp(const DeresegnApp());
+  runApp(DeresegnApp(themeService: themeService));
 }
 
 class DeresegnApp extends StatelessWidget {
-  const DeresegnApp({Key? key}) : super(key: key);
+  final ThemeService themeService;
+  
+  const DeresegnApp({Key? key, required this.themeService}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
       title: 'Deresegn Client',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        primaryColor: const Color(0xFF00FFB3),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF00FFB3),
-          secondary: Color(0xFFFF3366),
-        ),
-      ),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeService.themeMode,
       initialRoute: '/dashboard',
       getPages: [
         GetPage(name: '/splash', page: () => SplashScreen()),
@@ -51,15 +51,16 @@ class SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color(0xFF121212),
+    final theme = Theme.of(context);
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt_long, size: 80, color: Color(0xFF00FFB3)),
+            Icon(Icons.receipt_long, size: 80, color: theme.primaryColor),
             SizedBox(height: 24),
-            CircularProgressIndicator(color: Color(0xFF00FFB3)),
+            CircularProgressIndicator(color: theme.primaryColor),
             SizedBox(height: 16),
             Text(
               'Initializing Security Module...',

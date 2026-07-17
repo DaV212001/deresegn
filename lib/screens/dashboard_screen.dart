@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
 
 import 'invoice_generator_screen.dart';
@@ -20,30 +21,31 @@ class DashboardScreen extends StatelessWidget {
     ];
   }
 
-  List<PersistentBottomNavBarItem> _navBarsItems() {
+  List<PersistentBottomNavBarItem> _navBarsItems(BuildContext context) {
+    final theme = Theme.of(context);
     return [
       PersistentBottomNavBarItem(
         icon: const Icon(CupertinoIcons.plus_square, size: 20),
         title: ("Register"),
-        activeColorPrimary: const Color(0xFF00FFB3),
+        activeColorPrimary: theme.primaryColor,
         inactiveColorPrimary: CupertinoColors.systemGrey,
       ),
       PersistentBottomNavBarItem(
         icon: const Icon(CupertinoIcons.square_list, size: 20),
         title: ("History"),
-        activeColorPrimary: const Color(0xFF00FFB3),
+        activeColorPrimary: theme.primaryColor,
         inactiveColorPrimary: CupertinoColors.systemGrey,
       ),
       PersistentBottomNavBarItem(
         icon: const Icon(CupertinoIcons.archivebox, size: 20),
         title: ("Products"),
-        activeColorPrimary: const Color(0xFF00FFB3),
+        activeColorPrimary: theme.primaryColor,
         inactiveColorPrimary: CupertinoColors.systemGrey,
       ),
       PersistentBottomNavBarItem(
         icon: const Icon(CupertinoIcons.settings),
         title: ("Settings"),
-        activeColorPrimary: const Color(0xFF00FFB3),
+        activeColorPrimary: theme.primaryColor,
         inactiveColorPrimary: CupertinoColors.systemGrey,
       ),
     ];
@@ -51,12 +53,13 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return PersistentTabView(
       context,
       controller: _controller,
       screens: _buildScreens(),
-      items: _navBarsItems(),
-      backgroundColor: const Color(0xFF1F1F1F),
+      items: _navBarsItems(context),
+      backgroundColor: theme.bottomNavigationBarTheme.backgroundColor ?? theme.cardColor,
       handleAndroidBackButtonPress: true,
       resizeToAvoidBottomInset: true,
       stateManagement: true,

@@ -176,4 +176,26 @@ class ApiService {
       onFailure: onFailure,
     );
   }
+
+  static Future<void> fetchReceiptsByIrn(
+    String irn, {
+    Function(dynamic)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    await DioService.dioGet(
+      path: '/api/receipts/irn/$irn',
+      options: Options(
+        headers: {
+          'Authorization': "Bearer ${ConfigPreference.getAccessToken()}",
+        },
+      ),
+      onSuccess: (response) {
+        if (onSuccess != null && response.data != null) {
+          final data = response.data['data'];
+          onSuccess(data);
+        }
+      },
+      onFailure: onFailure,
+    );
+  }
 }

@@ -26,7 +26,10 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
   final _itemDescController = TextEditingController();
   final _itemPriceController = TextEditingController();
   final _itemQtyController = TextEditingController();
+  final _itemDiscountController = TextEditingController();
   final _itemCodeController = TextEditingController();
+  final _incomeWithholdController = TextEditingController(text: '0.00');
+  final _txnWithholdController = TextEditingController(text: '0.00');
 
   final List<String> _natureOfSuppliesOptions = ['goods', 'service', 'other'];
   final List<String> _unitOptions = ['PCS', 'KG', 'LTR', 'MTR', 'DAY', 'HR'];
@@ -37,6 +40,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
   bool _isExciseTaxable = false;
   bool _saveToCatalog = false;
   bool _isWalkIn = false;
+  bool _isFromCatalog = false;
 
   @override
   void initState() {
@@ -51,6 +55,12 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
     _itemDescController.addListener(() {
       setState(() {});
     });
+    _incomeWithholdController.addListener(
+      () => _controller.incomeWithholdValue.value = _incomeWithholdController.text,
+    );
+    _txnWithholdController.addListener(
+      () => _controller.txnWithholdValue.value = _txnWithholdController.text,
+    );
 
     // Clear UI controllers when the controller's state is cleared
     ever(_controller.generatedQrCode, (String qr) {
@@ -68,6 +78,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
         _itemDescController.clear();
         _itemPriceController.clear();
         _itemQtyController.clear();
+        _itemDiscountController.clear();
         _itemCodeController.clear();
         setState(() {
           _isWalkIn = false;
@@ -78,8 +89,9 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           'New Invoice',
@@ -90,13 +102,13 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
             letterSpacing: -1,
           ),
         ),
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: 0,
         bottom: TabBar(
           controller: _tabController,
-          indicator: const UnderlineTabIndicator(
-            borderSide: BorderSide(width: 4.0, color: Color(0xFF00FFB3)),
-            insets: EdgeInsets.symmetric(horizontal: 48.0),
+          indicator: UnderlineTabIndicator(
+            borderSide: BorderSide(width: 4.0, color: theme.primaryColor),
+            insets: const EdgeInsets.symmetric(horizontal: 48.0),
           ),
           labelStyle: const TextStyle(
             fontWeight: FontWeight.w900,
@@ -108,8 +120,8 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
             fontSize: 12,
             letterSpacing: 1,
           ),
-          indicatorColor: const Color(0xFF00FFB3),
-          labelColor: const Color(0xFF00FFB3),
+          indicatorColor: theme.primaryColor,
+          labelColor: theme.primaryColor,
           unselectedLabelColor: Colors.grey.withOpacity(0.6),
           tabs: const [
             Tab(text: 'BUYER'),
@@ -126,6 +138,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
   }
 
   Widget _buildBuyerTab() {
+    final theme = Theme.of(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -134,9 +147,9 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFF1F1F1F),
+              color: theme.cardColor,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withOpacity(0.05)),
+              border: Border.all(color: theme.dividerColor),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,20 +159,20 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF00FFB3).withOpacity(0.1),
+                        color: theme.primaryColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.person_search_rounded,
-                        color: Color(0xFF00FFB3),
+                        color: theme.primaryColor,
                         size: 20,
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Text(
+                    Text(
                       'Customer Info',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: theme.textTheme.bodyLarge?.color,
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
                       ),
@@ -222,13 +235,13 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
           ElevatedButton(
             onPressed: () => _tabController.animateTo(1),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1F1F1F),
-              foregroundColor: const Color(0xFF00FFB3),
+              backgroundColor: theme.cardColor,
+              foregroundColor: theme.primaryColor,
               minimumSize: const Size(double.infinity, 56),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              side: BorderSide(color: const Color(0xFF00FFB3).withOpacity(0.3)),
+              side: BorderSide(color: theme.primaryColor.withOpacity(0.3)),
             ),
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -275,6 +288,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                     _selectedUnit = selection.unit;
                     _itemExciseRate = selection.exciseTaxRate;
                     _isExciseTaxable = selection.isExciseTaxable;
+                    _isFromCatalog = true;
                     _controller.selectedTaxCategory.value = taxCategories
                         .firstWhere(
                           (c) => c.code == selection.taxCode,
@@ -287,6 +301,12 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                       controller.addListener(() {
                         if (_itemDescController.text != controller.text) {
                           _itemDescController.text = controller.text;
+                          if (_isFromCatalog && focusNode.hasFocus) {
+                            setState(() {
+                              _isFromCatalog = false;
+                              _itemCodeController.clear();
+                            });
+                          }
                         }
                       });
                       return _buildTextFieldCustom(
@@ -317,6 +337,15 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                       isNumber: true,
                     ),
                   ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildTextField(
+                      'Discount',
+                      _itemDiscountController,
+                      isNumber: true,
+                      icon: Icons.percent_rounded,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -339,7 +368,9 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                       'Unit',
                       _selectedUnit,
                       _unitOptions,
-                      (val) => setState(() => _selectedUnit = val!),
+                      _isFromCatalog
+                          ? null
+                          : (val) => setState(() => _selectedUnit = val!),
                     ),
                   ),
                 ],
@@ -383,11 +414,13 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                       final price =
                           double.tryParse(_itemPriceController.text) ?? 0;
                       final qty = double.tryParse(_itemQtyController.text) ?? 0;
+                      final discount = double.tryParse(_itemDiscountController.text) ?? 0;
                       if (desc.isNotEmpty && price > 0 && qty > 0) {
                         final item = InvoiceItem(
                           description: desc,
                           unitPrice: price,
                           quantity: qty,
+                          discount: discount,
                           taxCategory: _controller.selectedTaxCategory.value,
                           natureOfSupplies: _selectedNature,
                           unit: _selectedUnit,
@@ -401,8 +434,10 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                         _itemDescController.clear();
                         _itemPriceController.clear();
                         _itemQtyController.clear();
+                        _itemDiscountController.clear();
                         _itemCodeController.clear();
                         setState(() {
+                          _isFromCatalog = false;
                           _saveToCatalog = false;
                           _itemExciseRate = 0.0;
                           _isExciseTaxable = false;
@@ -625,6 +660,12 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                       'Excise Tax',
                       '${_controller.totalExcise.toStringAsFixed(2)} ETB',
                     ),
+                  if (_controller.totalDiscount > 0)
+                    _buildSummaryRow(
+                      'Discount',
+                      '${_controller.totalDiscount.toStringAsFixed(2)} ETB',
+                      highlight: true,
+                    ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 16),
                     child: Divider(color: Colors.white10, height: 1),
@@ -649,6 +690,27 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 32),
+                  const Text('Additional Details', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  _buildDropdownField<String>(
+                    'Transaction Type',
+                    _controller.transactionType.value,
+                    ['B2C', 'B2B', 'B2G', 'B2E'],
+                    (val) => _controller.transactionType.value = val!,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    'Income Withholding',
+                    _incomeWithholdController,
+                    isNumber: true,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    'Transaction Withholding',
+                    _txnWithholdController,
+                    isNumber: true,
                   ),
                   const SizedBox(height: 32),
                   if (_controller.generatedQrCode.value.isNotEmpty)
@@ -793,7 +855,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
     String label,
     T value,
     List<T> items,
-    void Function(T?) onChanged, {
+    void Function(T?)? onChanged, {
     String Function(T)? itemBuilder,
   }) {
     return DropdownButtonFormField<T>(

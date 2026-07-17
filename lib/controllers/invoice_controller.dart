@@ -45,6 +45,7 @@ class InvoiceItem {
   String itemCode;
   String natureOfSupplies;
   String unit;
+  double discount;
 
   InvoiceItem({
     required this.description,
@@ -60,11 +61,14 @@ class InvoiceItem {
     this.itemCode = '',
     this.natureOfSupplies = 'goods',
     this.unit = 'PCS',
+    this.discount = 0.0,
   });
 
   double get netValue => unitPrice * quantity;
-  double get exciseAmount => isExciseTaxable ? netValue * exciseRate : 0.0;
-  double get vatBase => netValue + exciseAmount;
+  double get discountAmount => discount;
+  double get afterDiscount => netValue - discountAmount;
+  double get exciseAmount => isExciseTaxable ? afterDiscount * exciseRate : 0.0;
+  double get vatBase => afterDiscount + exciseAmount;
   double get vatAmount => vatBase * taxCategory.rate;
   double get totalLineAmount => vatBase + vatAmount;
 }
@@ -78,6 +82,9 @@ class InvoiceController extends GetxController {
   var buyerName = ''.obs;
   var items = <InvoiceItem>[].obs;
   var paymentMode = 'CASH'.obs;
+  var transactionType = 'B2C'.obs;
+  var incomeWithholdValue = '0.00'.obs;
+  var txnWithholdValue = '0.00'.obs;
   var selectedTaxCategory = taxCategories.first.obs;
   var availableSupplies = <SupplyItem>[].obs;
   var isLoadingSupplies = false.obs;
@@ -170,10 +177,13 @@ class InvoiceController extends GetxController {
   }
 
   double get totalPreTax => items.fold(0, (sum, item) => sum + item.netValue);
+  double get totalDiscount =>
+      items.fold(0, (sum, item) => sum + item.discountAmount);
   double get totalExcise =>
       items.fold(0, (sum, item) => sum + item.exciseAmount);
   double get totalVat => items.fold(0, (sum, item) => sum + item.vatAmount);
-  double get grandTotal => totalPreTax + totalExcise + totalVat;
+  double get grandTotal =>
+      items.fold(0, (sum, item) => sum + item.totalLineAmount);
 
   void addItem(
     String desc,
@@ -185,6 +195,7 @@ class InvoiceController extends GetxController {
     String itemCode = '',
     String natureOfSupplies = 'goods',
     String unit = 'PCS',
+    double discount = 0.0,
   }) {
     items.add(
       InvoiceItem(
@@ -197,6 +208,7 @@ class InvoiceController extends GetxController {
         itemCode: itemCode,
         natureOfSupplies: natureOfSupplies,
         unit: unit,
+        discount: discount,
       ),
     );
   }
@@ -210,6 +222,9 @@ class InvoiceController extends GetxController {
     buyerName.value = '';
     items.clear();
     paymentMode.value = 'CASH';
+    transactionType.value = 'B2C';
+    incomeWithholdValue.value = '0.00';
+    txnWithholdValue.value = '0.00';
     selectedTaxCategory.value = taxCategories.first;
     generatedQrCode.value = '';
   }
@@ -272,12 +287,12 @@ class InvoiceController extends GetxController {
         "NatureOfSupplies": item.natureOfSupplies,
         "UnitPrice": item.unitPrice.toStringAsFixed(2),
         "TotalLineAmount": item.totalLineAmount.toStringAsFixed(2),
-        "PreTaxValue": item.netValue.toStringAsFixed(2),
+        "PreTaxValue": item.afterDiscount.toStringAsFixed(2),
         "Unit": item.unit,
         "TaxCode": item.taxCategory.code,
         "TaxAmount": item.vatAmount.toStringAsFixed(2),
         "Quantity": item.quantity.toStringAsFixed(2),
-        "Discount": "0.00",
+        "Discount": item.discountAmount.toStringAsFixed(2),
         "ExciseTaxValue": item.exciseAmount.toStringAsFixed(2),
         "ProductDescription": item.description,
         "ItemCode": item.itemCode.isNotEmpty
@@ -293,7 +308,7 @@ class InvoiceController extends GetxController {
         "Reason": "Reason:-",
         "Date": _formatInvoiceDate(DateTime.now()),
       },
-      transactionType: "B2C",
+      transactionType: transactionType.value,
       sourceSystem: {
         "SystemType": "POS",
         "CashierName": cashierName,
@@ -332,11 +347,11 @@ class InvoiceController extends GetxController {
       valueDetails: {
         "TotalValue": grandTotal.toStringAsFixed(2),
         "TaxValue": totalVat.toStringAsFixed(2),
-        "Discount": "0.00",
+        "Discount": totalDiscount.toStringAsFixed(2),
         "ExciseValue": totalExcise.toStringAsFixed(2),
         "InvoiceCurrency": "ETB",
-        "IncomeWithholdValue": "0.00",
-        "TransactionWithholdValue": "0.00",
+        "IncomeWithholdValue": incomeWithholdValue.value,
+        "TransactionWithholdValue": txnWithholdValue.value,
       },
       paymentDetails: {
         "PaymentTerm": paymentMode.value,

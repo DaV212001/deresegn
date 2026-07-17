@@ -193,19 +193,20 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Catalog',
           style: TextStyle(
-            color: Colors.white,
+            color: theme.appBarTheme.foregroundColor ?? Colors.white,
             fontWeight: FontWeight.w900,
             fontSize: 24,
             letterSpacing: -1,
           ),
         ),
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: 0,
         actions: [
           Padding(
@@ -215,12 +216,12 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
               icon: Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1F1F1F),
+                  color: theme.cardColor,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.refresh_rounded,
-                  color: Color(0xFF00FFB3),
+                  color: theme.primaryColor,
                   size: 20,
                 ),
               ),
@@ -244,16 +245,16 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
               decoration: InputDecoration(
                 hintText: 'Search items or codes...',
                 hintStyle: TextStyle(
-                  color: Colors.white.withOpacity(0.3),
+                  color: theme.textTheme.bodyLarge?.color?.withOpacity(0.3),
                   fontSize: 14,
                 ),
-                prefixIcon: const Icon(
+                prefixIcon: Icon(
                   Icons.search_rounded,
-                  color: Color(0xFF00FFB3),
+                  color: theme.primaryColor,
                   size: 20,
                 ),
                 filled: true,
-                fillColor: const Color(0xFF1F1F1F),
+                fillColor: theme.cardColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
@@ -280,15 +281,13 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? const Color(0xFF00FFB3)
-                              : const Color(0xFF1F1F1F),
+                              ? theme.primaryColor
+                              : theme.cardColor,
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: isSelected
                               ? [
                                   BoxShadow(
-                                    color: const Color(
-                                      0xFF00FFB3,
-                                    ).withOpacity(0.3),
+                                    color: theme.primaryColor.withOpacity(0.3),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),
@@ -410,8 +409,8 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddSupplyDialog,
-        backgroundColor: const Color(0xFF00FFB3),
-        child: const Icon(Icons.add, color: Colors.black),
+        backgroundColor: theme.primaryColor,
+        child: Icon(Icons.add, color: theme.scaffoldBackgroundColor),
       ),
     );
   }

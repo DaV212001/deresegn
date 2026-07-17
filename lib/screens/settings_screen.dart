@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../config/app_settings.dart';
+import '../theme/theme_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   @override
@@ -43,31 +45,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final themeService = Get.find<ThemeService>();
+
     if (_isLoading) {
-      return const Scaffold(backgroundColor: Color(0xFF121212), body: Center(child: CircularProgressIndicator()));
+      return Scaffold(backgroundColor: theme.scaffoldBackgroundColor, body: Center(child: CircularProgressIndicator(color: theme.primaryColor)));
     }
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
-      appBar: AppBar(title: const Text('Invoice Settings'), backgroundColor: const Color(0xFF1F1F1F)),
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(title: const Text('Invoice Settings'), backgroundColor: theme.appBarTheme.backgroundColor),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            _buildTextField('Default Cashier Name', _cashierController),
+            Obx(() => SwitchListTile(
+                  title: Text('Dark Mode', style: TextStyle(color: theme.textTheme.bodyLarge?.color)),
+                  value: themeService.isDarkMode,
+                  onChanged: (val) => themeService.toggleTheme(),
+                  activeColor: theme.primaryColor,
+                  contentPadding: EdgeInsets.zero,
+                )),
+            const Divider(),
             const SizedBox(height: 16),
-            _buildTextField('POS System Number', _systemController),
+            _buildTextField('Default Cashier Name', _cashierController, theme),
             const SizedBox(height: 16),
-            _buildTextField('Default City', _cityController),
+            _buildTextField('POS System Number', _systemController, theme),
             const SizedBox(height: 16),
-            _buildTextField('Seller Trade Name', _tradeController),
+            _buildTextField('Default City', _cityController, theme),
             const SizedBox(height: 16),
-            _buildTextField('Seller VAT Number', _vatController),
+            _buildTextField('Seller Trade Name', _tradeController, theme),
+            const SizedBox(height: 16),
+            _buildTextField('Seller VAT Number', _vatController, theme),
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: _saveSettings,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00FFB3),
-                foregroundColor: Colors.black,
+                backgroundColor: theme.primaryColor,
+                foregroundColor: theme.scaffoldBackgroundColor, // Ensure text is visible on primary color
                 minimumSize: const Size(double.infinity, 50),
               ),
               child: const Text('Save Settings', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -78,15 +92,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller) {
+  Widget _buildTextField(String label, TextEditingController controller, ThemeData theme) {
     return TextField(
       controller: controller,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: theme.textTheme.bodyLarge?.color),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: Colors.grey),
         filled: true,
-        fillColor: const Color(0xFF181818),
+        fillColor: theme.inputDecorationTheme.fillColor,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
       ),
     );

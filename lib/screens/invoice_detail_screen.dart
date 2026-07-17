@@ -8,11 +8,20 @@ import 'package:intl/intl.dart';
 import '../controllers/invoice_controller.dart';
 import '../controllers/receipt_controller.dart';
 import '../models/invoice_history_model.dart';
+import '../services/invoice_pdf_service.dart';
+import 'pdf_preview_screen.dart';
 
 class InvoiceDetailScreen extends StatelessWidget {
   final InvoiceSummary invoice;
 
-  InvoiceDetailScreen({Key? key, required this.invoice}) : super(key: key);
+  InvoiceDetailScreen({Key? key, required this.invoice}) : super(key: key) {
+    if (invoice.irn != null) {
+      Get.put(
+        ReceiptFetchController(invoiceIrn: invoice.irn!),
+        tag: invoice.irn,
+      );
+    }
+  }
 
   String _formatDate(String? dateStr) {
     if (dateStr == null) return 'N/A';
@@ -33,9 +42,10 @@ class InvoiceDetailScreen extends StatelessWidget {
     final controller = Get.put(CancelInvoiceController());
     final reasonController = TextEditingController();
 
+    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1F1F1F),
+      backgroundColor: theme.cardColor,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -52,10 +62,10 @@ class InvoiceDetailScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Cancel Invoice',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: theme.textTheme.bodyLarge?.color,
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
@@ -69,12 +79,12 @@ class InvoiceDetailScreen extends StatelessWidget {
               TextField(
                 controller: reasonController,
                 keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: theme.textTheme.bodyLarge?.color),
                 decoration: InputDecoration(
                   labelText: 'Reason Code (e.g. 1)',
                   labelStyle: const TextStyle(color: Colors.grey),
                   filled: true,
-                  fillColor: const Color(0xFF181818),
+                  fillColor: theme.inputDecorationTheme.fillColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide.none,
@@ -126,9 +136,10 @@ class InvoiceDetailScreen extends StatelessWidget {
     final controller = Get.put(ReceiptController());
     final amountController = TextEditingController();
 
+    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1F1F1F),
+      backgroundColor: theme.cardColor,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -145,10 +156,10 @@ class InvoiceDetailScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Register Sales Receipt',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: theme.textTheme.bodyLarge?.color,
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
@@ -162,12 +173,12 @@ class InvoiceDetailScreen extends StatelessWidget {
               TextField(
                 controller: amountController,
                 keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: theme.textTheme.bodyLarge?.color),
                 decoration: InputDecoration(
                   labelText: 'Collected Amount (ETB)',
                   labelStyle: const TextStyle(color: Colors.grey),
                   filled: true,
-                  fillColor: const Color(0xFF181818),
+                  fillColor: theme.inputDecorationTheme.fillColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide.none,
@@ -219,9 +230,10 @@ class InvoiceDetailScreen extends StatelessWidget {
     final controller = Get.put(ReceiptController());
     final pretaxController = TextEditingController();
 
+    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1F1F1F),
+      backgroundColor: theme.cardColor,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -238,10 +250,10 @@ class InvoiceDetailScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Register Withholding',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: theme.textTheme.bodyLarge?.color,
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
@@ -255,12 +267,12 @@ class InvoiceDetailScreen extends StatelessWidget {
               TextField(
                 controller: pretaxController,
                 keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: theme.textTheme.bodyLarge?.color),
                 decoration: InputDecoration(
                   labelText: 'Pre-Tax Amount (ETB)',
                   labelStyle: const TextStyle(color: Colors.grey),
                   filled: true,
-                  fillColor: const Color(0xFF181818),
+                  fillColor: theme.inputDecorationTheme.fillColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide.none,
@@ -306,6 +318,32 @@ class InvoiceDetailScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _generateAndSharePdf(BuildContext context) async {
+    Get.dialog(
+      const Center(child: CircularProgressIndicator(color: Color(0xFF00FFB3))),
+      barrierDismissible: false,
+    );
+    try {
+      final bytes = await InvoicePdfService.generate(invoice);
+      Get.back();
+
+      Get.to(
+        () => PdfPreviewScreen(
+          pdfBytes: bytes,
+          title: 'Invoice ${invoice.documentNumber ?? invoice.id}',
+        ),
+      );
+    } catch (e) {
+      Get.back();
+      Get.snackbar(
+        'Error',
+        'Failed to generate PDF: $e',
+        backgroundColor: const Color(0xFFFF3366).withOpacity(0.1),
+        colorText: Colors.white,
+      );
+    }
+  }
+
   Widget _buildInfoRow(String label, String value, {bool isHighlight = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
@@ -331,20 +369,34 @@ class InvoiceDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final currency = invoice.totals.currency ?? 'ETB';
     final itemsList =
         (invoice.requestPayload?['ItemList'] as List<dynamic>?) ?? [];
 
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Invoice Details',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: theme.appBarTheme.foregroundColor ?? Colors.white,
+          ),
         ),
-        backgroundColor: const Color(0xFF1F1F1F),
+        backgroundColor: theme.appBarTheme.backgroundColor,
         automaticallyImplyLeading: true,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.picture_as_pdf_outlined,
+              color: Color(0xFF4FC3F7),
+            ),
+            tooltip: 'Preview PDF',
+            onPressed: () => _generateAndSharePdf(context),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -355,7 +407,7 @@ class InvoiceDetailScreen extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: const Color(0xFF1F1F1F),
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
@@ -445,7 +497,7 @@ class InvoiceDetailScreen extends StatelessWidget {
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1F1F1F),
+                    color: theme.cardColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -524,7 +576,119 @@ class InvoiceDetailScreen extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 32),
+            if (invoice.irn != null) ...[
+              const Text(
+                'Associated Receipts',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Obx(() {
+                final controller = Get.find<ReceiptFetchController>(
+                  tag: invoice.irn,
+                );
+                if (controller.isLoading.value) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF00FFB3)),
+                  );
+                }
+                if (controller.errorMessage.isNotEmpty) {
+                  return Center(
+                    child: Text(
+                      controller.errorMessage.value,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  );
+                }
+                if (controller.receipts.isEmpty) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        'No receipts found for this invoice.',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  );
+                }
+
+                return Column(
+                  children: controller.receipts.map((receipt) {
+                    final statusColor = receipt.status == 'A'
+                        ? const Color(0xFF00FFB3)
+                        : Colors.orange;
+                    final statusText = receipt.status == 'A'
+                        ? 'Active'
+                        : receipt.status ?? 'Unknown';
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: theme.cardColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: theme.dividerColor),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Receipt #${receipt.receiptNumber ?? 'N/A'}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  statusText,
+                                  style: TextStyle(
+                                    color: statusColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _buildInfoRow(
+                            'Amount',
+                            '${receipt.requestPayload?['CollectedAmount'] ?? '0.00'} ETB',
+                            isHighlight: true,
+                          ),
+                          _buildInfoRow(
+                            'Date',
+                            _formatDate(receipt.requestPayload?['ReceiptDate']),
+                          ),
+                          _buildInfoRow(
+                            'Mode of Payment',
+                            receipt.requestPayload?['TransactionDetails']?['ModeOfPayment'] ??
+                                'Unknown',
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                );
+              }),
+              const SizedBox(height: 40),
+            ],
           ],
         ),
       ),
@@ -547,14 +711,15 @@ class _ActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF1F1F1F),
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF2A2A2A)),
+          border: Border.all(color: theme.dividerColor),
         ),
         child: Column(
           children: [

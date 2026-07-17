@@ -35,16 +35,16 @@ class AuthController extends GetxController {
     final apiKey = await ConfigPreference.getApiKey();
     final tin = await ConfigPreference.getTin();
 
-    if (clientId == null ||
-        clientSecret == null ||
-        apiKey == null ||
-        tin == null) {
-      isLinked.value = false;
-      if (Get.currentRoute != '/setup_unlinked') {
-        Get.offAllNamed('/setup_unlinked');
-      }
-      return;
-    }
+    // if (clientId == null ||
+    //     clientSecret == null ||
+    //     apiKey == null ||
+    //     tin == null) {
+    //   isLinked.value = false;
+    //   if (Get.currentRoute != '/setup_unlinked') {
+    //     Get.offAllNamed('/setup_unlinked');
+    //   }
+    //   return;
+    // }
 
     final request = LoginRequest(
       clientId: clientId,

@@ -81,6 +81,46 @@ class WithholdingReceiptRequest {
     'SourceSystemNumber': sourceSystemNumber,
     'BuyerTIN': buyerTIN,
     'InvoiceDetail': invoiceDetail,
-    'WithholdDetail': withholdDetail,
   };
+}
+
+class ReceiptSummary {
+  final int? id;
+  final String? morId;
+  final String? status;
+  final String? rrn;
+  final String? invoiceIrn;
+  final String? receiptNumber;
+  final String? qr;
+  final bool? isSuccess;
+  final Map<String, dynamic>? requestPayload;
+  final String? createdAt;
+
+  ReceiptSummary({
+    this.id,
+    this.morId,
+    this.status,
+    this.rrn,
+    this.invoiceIrn,
+    this.receiptNumber,
+    this.qr,
+    this.isSuccess,
+    this.requestPayload,
+    this.createdAt,
+  });
+
+  factory ReceiptSummary.fromJson(Map<String, dynamic> json) {
+    return ReceiptSummary(
+      id: json['id'] as int?,
+      morId: json['mor_id']?.toString(),
+      status: json['status']?.toString(),
+      rrn: json['rrn']?.toString(),
+      invoiceIrn: json['invoice_irn']?.toString(),
+      receiptNumber: json['receipt_number']?.toString(),
+      qr: json['qr']?.toString(),
+      isSuccess: json['is_success'] as bool?,
+      requestPayload: json['request_payload'] as Map<String, dynamic>?,
+      createdAt: json['created_at']?.toString(),
+    );
+  }
 }

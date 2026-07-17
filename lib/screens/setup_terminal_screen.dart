@@ -37,11 +37,12 @@ class _SetupTerminalScreenState extends State<SetupTerminalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFF121212), // Deep dark background
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Device Binding Terminal', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-        backgroundColor: const Color(0xFF1F1F1F),
+        title: Text('Device Binding Terminal', style: TextStyle(fontWeight: FontWeight.bold, color: theme.appBarTheme.foregroundColor ?? Colors.white)),
+        backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: 0,
       ),
       body: SafeArea(
@@ -50,19 +51,19 @@ class _SetupTerminalScreenState extends State<SetupTerminalScreen> {
           child: Container(
             padding: const EdgeInsets.all(24.0),
             decoration: BoxDecoration(
-              color: const Color(0xFF1F1F1F),
+              color: theme.cardColor,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF333333)),
+              border: Border.all(color: theme.dividerColor),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
+                Text(
                   'Administrative Setup',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: theme.textTheme.bodyLarge?.color,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -73,24 +74,24 @@ class _SetupTerminalScreenState extends State<SetupTerminalScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
-                _buildTextField('TIN (Tax Identification Number)', _tinController),
+                _buildTextField('TIN (Tax Identification Number)', _tinController, theme),
                 const SizedBox(height: 16),
-                _buildTextField('Client ID', _clientIdController),
+                _buildTextField('Client ID', _clientIdController, theme),
                 const SizedBox(height: 16),
-                _buildTextField('Client Secret', _clientSecretController, obscureText: true),
+                _buildTextField('Client Secret', _clientSecretController, theme, obscureText: true),
                 const SizedBox(height: 16),
-                _buildTextField('API Key', _apiKeyController, obscureText: true),
+                _buildTextField('API Key', _apiKeyController, theme, obscureText: true),
                 const SizedBox(height: 32),
                 Obx(() => ElevatedButton(
                   onPressed: _authController.isLoggingIn.value ? null : _saveCredentials,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00FFB3), // High contrast neon green
-                    foregroundColor: Colors.black,
+                    backgroundColor: theme.primaryColor,
+                    foregroundColor: theme.scaffoldBackgroundColor,
                     padding: const EdgeInsets.symmetric(vertical: 20),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   child: _authController.isLoggingIn.value
-                      ? const CircularProgressIndicator(color: Colors.black)
+                      ? CircularProgressIndicator(color: theme.scaffoldBackgroundColor)
                       : const Text('Bind Device & Start', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 )),
               ],
@@ -101,24 +102,24 @@ class _SetupTerminalScreenState extends State<SetupTerminalScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {bool obscureText = false}) {
+  Widget _buildTextField(String label, TextEditingController controller, ThemeData theme, {bool obscureText = false}) {
     return TextField(
       controller: controller,
       obscureText: obscureText,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: theme.textTheme.bodyLarge?.color),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: Color(0xFF888888)),
         enabledBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: Color(0xFF444444)),
+          borderSide: BorderSide(color: theme.dividerColor),
           borderRadius: BorderRadius.circular(8),
         ),
         focusedBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: Color(0xFF00FFB3)),
+          borderSide: BorderSide(color: theme.primaryColor),
           borderRadius: BorderRadius.circular(8),
         ),
         filled: true,
-        fillColor: const Color(0xFF181818),
+        fillColor: theme.inputDecorationTheme.fillColor,
       ),
     );
   }
