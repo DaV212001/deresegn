@@ -95,7 +95,7 @@ class ConfigPreference {
 
   static Future<bool> isDarkMode() async {
     final value = await _storage.read(key: keyIsDarkMode);
-    return value != 'false'; // Default to true if not set
+    return value == 'true'; // Default to false if not set
   }
 
   static Future<void> setDarkMode(bool isDark) async {
