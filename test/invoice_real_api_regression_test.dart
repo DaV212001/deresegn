@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:deresegn/config/config_preference.dart';
 import 'package:deresegn/config/dio_config.dart';
 import 'package:deresegn/controllers/auth_controller.dart';
+import 'package:deresegn/models/invoice_history_model.dart';
 import 'package:deresegn/screens/invoice_detail_screen.dart';
 import 'package:deresegn/screens/invoice_generator_screen.dart';
 import 'package:flutter/material.dart';
@@ -25,7 +26,14 @@ void main() {
           channel,
           (MethodCall methodCall) async => '.',
         );
-    FlutterSecureStorage.setMockInitialValues({});
+
+    // Set real credentials for the test environment
+    FlutterSecureStorage.setMockInitialValues({
+      'client_id': '127ae9ad-8de2-4856-ba88-4e6a49ad10d0',
+      'client_secret': 'd3ddb848-9daa-44ab-8d96-374fcc8c9e6b',
+      'api_key': 'dc481579-a6e7-4594-abcf-5493e261685e',
+      'tin': '0000037187',
+    });
   });
 
   setUp(() async {
@@ -56,13 +64,24 @@ void main() {
     // 2. Build the UI
     await tester.pumpWidget(
       GetMaterialApp(
-        home: const InvoiceGeneratorScreen(),
+        home: const Scaffold(body: InvoiceGeneratorScreen()),
         theme: ThemeData.dark(),
         getPages: [
           GetPage(
             name: '/invoice-detail',
-            page: () => Container(),
-          ), // Placeholder if needed
+            page: () {
+              final invoice = Get.arguments as InvoiceSummary?;
+              return InvoiceDetailScreen(
+                invoice:
+                    invoice ??
+                    InvoiceSummary(
+                      id: 0,
+                      buyer: BuyerInfo(legalName: 'Test', tin: '000'),
+                      totals: TotalsInfo(totalValue: '0'),
+                    ),
+              );
+            },
+          ),
         ],
       ),
     );

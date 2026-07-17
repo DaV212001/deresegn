@@ -46,10 +46,10 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
 
     Get.dialog(
       AlertDialog(
-        backgroundColor: const Color(0xFF1F1F1F),
+        backgroundColor: Get.theme.cardColor,
         title: Text(
           existingItem == null ? 'Add New Supply' : 'Edit Supply',
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(color: Get.theme.textTheme.bodyLarge?.color),
         ),
         content: SingleChildScrollView(
           child: Column(
@@ -64,8 +64,8 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
               Obx(
                 () => DropdownButtonFormField<TaxCategory>(
                   value: selectedTax.value,
-                  dropdownColor: const Color(0xFF1F1F1F),
-                  style: const TextStyle(color: Colors.white),
+                  dropdownColor: Get.theme.cardColor,
+                  style: TextStyle(color: Get.theme.textTheme.bodyLarge?.color),
                   decoration: _dialogInputDecoration('Tax Category'),
                   items: taxCategories
                       .map(
@@ -81,8 +81,8 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: selectedUnit,
-                dropdownColor: const Color(0xFF1F1F1F),
-                style: const TextStyle(color: Colors.white),
+                dropdownColor: Get.theme.cardColor,
+                style: TextStyle(color: Get.theme.textTheme.bodyLarge?.color),
                 decoration: _dialogInputDecoration('Unit'),
                 items: ['PCS', 'KG', 'LTR', 'MTR', 'DAY', 'HR']
                     .map((u) => DropdownMenuItem(value: u, child: Text(u)))
@@ -92,8 +92,8 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: selectedNature,
-                dropdownColor: const Color(0xFF1F1F1F),
-                style: const TextStyle(color: Colors.white),
+                dropdownColor: Get.theme.cardColor,
+                style: TextStyle(color: Get.theme.textTheme.bodyLarge?.color),
                 decoration: _dialogInputDecoration('Nature'),
                 items: ['goods', 'service', 'other']
                     .map((n) => DropdownMenuItem(value: n, child: Text(n)))
@@ -141,10 +141,10 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
   void _confirmDelete(String id) {
     Get.dialog(
       AlertDialog(
-        backgroundColor: const Color(0xFF1F1F1F),
-        title: const Text(
+        backgroundColor: Get.theme.cardColor,
+        title: Text(
           'Delete Supply',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Get.theme.textTheme.bodyLarge?.color),
         ),
         content: const Text(
           'Are you sure you want to delete this item from the catalog?',
@@ -170,7 +170,7 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
       labelText: label,
       labelStyle: const TextStyle(color: Colors.grey),
       filled: true,
-      fillColor: const Color(0xFF181818),
+      fillColor: Get.theme.inputDecorationTheme.fillColor,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide.none,
@@ -186,7 +186,7 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
     return TextField(
       controller: controller,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: Get.theme.textTheme.bodyLarge?.color),
       decoration: _dialogInputDecoration(label),
     );
   }
@@ -200,7 +200,9 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
         title: Text(
           'Catalog',
           style: TextStyle(
-            color: theme.appBarTheme.foregroundColor ?? Colors.white,
+            color:
+                theme.appBarTheme.foregroundColor ??
+                theme.colorScheme.onSurface,
             fontWeight: FontWeight.w900,
             fontSize: 24,
             letterSpacing: -1,
@@ -241,7 +243,7 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
             child: TextField(
               controller: _searchController,
               onChanged: (val) => _searchQuery.value = val,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: Get.theme.textTheme.bodyLarge?.color),
               decoration: InputDecoration(
                 hintText: 'Search items or codes...',
                 hintStyle: TextStyle(
@@ -353,10 +355,10 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
                               color: Colors.grey,
                             ),
                             const SizedBox(height: 16),
-                            const Text(
+                            Text(
                               'No supplies found',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: theme.textTheme.bodyLarge?.color,
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -423,9 +425,9 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1F1F1F),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.03), width: 1),
+        border: Border.all(color: Theme.of(context).dividerColor, width: 1),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
@@ -464,8 +466,10 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
                               children: [
                                 Text(
                                   item.productDescription,
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge?.color,
                                     fontSize: 17,
                                     fontWeight: FontWeight.bold,
                                     letterSpacing: -0.5,
@@ -505,13 +509,17 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
                           Icon(
                             Icons.straighten_rounded,
                             size: 14,
-                            color: Colors.white.withOpacity(0.3),
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodyLarge?.color?.withOpacity(0.3),
                           ),
                           const SizedBox(width: 4),
                           Text(
                             'Unit: ${item.unit}',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.3),
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyLarge?.color?.withOpacity(0.3),
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
@@ -531,8 +539,10 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
                           ),
                           Text(
                             item.unitPrice.toStringAsFixed(2),
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyLarge?.color,
                               fontSize: 24,
                               fontWeight: FontWeight.w900,
                               letterSpacing: -1,
@@ -575,11 +585,11 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
     return PopupMenuButton<String>(
       icon: Icon(
         Icons.more_horiz_rounded,
-        color: Colors.white.withOpacity(0.3),
+        color: Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.3),
       ),
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(),
-      color: const Color(0xFF2C2C2C),
+      color: Theme.of(context).cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       onSelected: (value) {
         if (value == 'edit') {
@@ -608,10 +618,10 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              const Text(
+              Text(
                 'Edit Item',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -636,10 +646,10 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              const Text(
+              Text(
                 'Delete',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),

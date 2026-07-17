@@ -331,17 +331,17 @@ class InvoiceController extends GetxController {
       buyerDetails: {
         "LegalName": buyerName.value,
         "IdType": "KID",
-        "HouseNumber": "101",
-        "IdNumber": "3333367896666",
+        "HouseNumber": "",
+        "IdNumber": "",
         "Tin": buyerTin.value,
-        "Email": "customer@buyer.com",
-        "Phone": "+251944310004",
+        "Email": "",
+        "Phone": "",
         "City": city,
-        "Region": "1",
-        "Country": "1",
-        "Kebele": "NearAirport",
-        "Wereda": "13",
-        "VatNumber": "43256663343256663322",
+        "Region": "",
+        "Country": "",
+        "Kebele": "",
+        "Wereda": "",
+        "VatNumber": "",
       },
       itemList: itemListMap,
       valueDetails: {
@@ -549,7 +549,7 @@ class InvoiceController extends GetxController {
     Get.dialog(
       barrierDismissible: false,
       Dialog(
-        backgroundColor: const Color(0xFF1F1F1F),
+        backgroundColor: Get.theme.colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -569,10 +569,10 @@ class InvoiceController extends GetxController {
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Invoice Registered',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Get.theme.colorScheme.onSurface,
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
                 ),
@@ -581,7 +581,7 @@ class InvoiceController extends GetxController {
               Text(
                 'Invoice #${invoice.documentNumber} for ${invoice.buyer.legalName} has been successfully registered.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white.withOpacity(0.6)),
+                style: TextStyle(color: Get.theme.colorScheme.onSurface.withOpacity(0.6)),
               ),
               const SizedBox(height: 32),
               ElevatedButton(
@@ -611,7 +611,7 @@ class InvoiceController extends GetxController {
                 child: Text(
                   'View Details',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.5),
+                    color: Get.theme.colorScheme.onSurface.withOpacity(0.5),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -647,8 +647,8 @@ class InvoiceController extends GetxController {
       errorMsg,
       snackPosition: SnackPosition.BOTTOM,
       duration: const Duration(seconds: 5),
-      backgroundColor: const Color(0xFFFF3366).withOpacity(0.1),
-      colorText: Colors.white,
+      backgroundColor: Get.theme.colorScheme.error.withOpacity(0.1),
+      colorText: Get.theme.colorScheme.onError,
     );
   }
 

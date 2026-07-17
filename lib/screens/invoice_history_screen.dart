@@ -91,7 +91,7 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
       appBar: AppBar(
         title: Text(
           'Invoices',
-          style: TextStyle(fontWeight: FontWeight.bold, color: theme.appBarTheme.foregroundColor ?? Colors.white),
+          style: TextStyle(fontWeight: FontWeight.bold, color: theme.appBarTheme.foregroundColor ?? theme.colorScheme.onSurface),
         ),
         backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: 0,

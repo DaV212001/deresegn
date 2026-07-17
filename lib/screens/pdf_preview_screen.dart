@@ -23,11 +23,11 @@ class PdfPreviewScreen extends StatelessWidget {
           title,
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: theme.appBarTheme.foregroundColor ?? Colors.white,
+            color: theme.appBarTheme.foregroundColor ?? theme.colorScheme.onSurface,
           ),
         ),
         backgroundColor: theme.appBarTheme.backgroundColor,
-        iconTheme: IconThemeData(color: theme.appBarTheme.foregroundColor ?? Colors.white),
+        iconTheme: IconThemeData(color: theme.appBarTheme.foregroundColor ?? theme.colorScheme.onSurface),
       ),
       body: PdfPreview(
         build: (format) => pdfBytes,

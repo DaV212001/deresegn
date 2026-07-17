@@ -47,7 +47,9 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _tinController.addListener(
-      () => _controller.buyerTin.value = _tinController.text,
+      () => _controller.buyerTin.value = _tinController.text == '0000000000'
+          ? ''
+          : _tinController.text,
     );
     _nameController.addListener(
       () => _controller.buyerName.value = _nameController.text,
@@ -56,7 +58,8 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
       setState(() {});
     });
     _incomeWithholdController.addListener(
-      () => _controller.incomeWithholdValue.value = _incomeWithholdController.text,
+      () => _controller.incomeWithholdValue.value =
+          _incomeWithholdController.text,
     );
     _txnWithholdController.addListener(
       () => _controller.txnWithholdValue.value = _txnWithholdController.text,
@@ -93,10 +96,12 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'New Invoice',
           style: TextStyle(
-            color: Colors.white,
+            color:
+                theme.appBarTheme.foregroundColor ??
+                theme.colorScheme.onSurface,
             fontWeight: FontWeight.w900,
             fontSize: 24,
             letterSpacing: -1,
@@ -217,10 +222,10 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                         size: 24,
                       ),
                       const SizedBox(width: 8),
-                      const Text(
+                      Text(
                         'Walk-in Customer',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: theme.textTheme.bodyLarge?.color,
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
@@ -243,12 +248,15 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
               ),
               side: BorderSide(color: theme.primaryColor.withOpacity(0.3)),
             ),
-            child: const Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   'Continue to Items',
-                  style: TextStyle(fontWeight: FontWeight.w900),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: Theme.of(context).textTheme.bodyLarge?.color!,
+                  ),
                 ),
                 SizedBox(width: 8),
                 Icon(Icons.arrow_forward_rounded, size: 18),
@@ -337,16 +345,15 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                       isNumber: true,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildTextField(
-                      'Discount',
-                      _itemDiscountController,
-                      isNumber: true,
-                      icon: Icons.percent_rounded,
-                    ),
-                  ),
+                  // const SizedBox(width: 12),
                 ],
+              ),
+              const SizedBox(height: 12),
+              _buildTextField(
+                'Discount',
+                _itemDiscountController,
+                isNumber: true,
+                icon: Icons.percent_rounded,
               ),
               const SizedBox(height: 12),
               Row(
@@ -414,7 +421,8 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                       final price =
                           double.tryParse(_itemPriceController.text) ?? 0;
                       final qty = double.tryParse(_itemQtyController.text) ?? 0;
-                      final discount = double.tryParse(_itemDiscountController.text) ?? 0;
+                      final discount =
+                          double.tryParse(_itemDiscountController.text) ?? 0;
                       if (desc.isNotEmpty && price > 0 && qty > 0) {
                         final item = InvoiceItem(
                           description: desc,
@@ -463,7 +471,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
             ],
           ),
         ),
-        const Divider(color: Colors.white10, height: 1),
+        Divider(color: Theme.of(context).dividerColor, height: 1),
         Expanded(
           child: Obx(
             () => ListView.separated(
@@ -482,8 +490,8 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
           child: ElevatedButton(
             onPressed: () => _tabController.animateTo(2),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1F1F1F),
-              foregroundColor: Colors.white,
+              backgroundColor: Theme.of(context).cardColor,
+              foregroundColor: Theme.of(context).textTheme.bodyLarge?.color,
               minimumSize: const Size(double.infinity, 56),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -502,9 +510,9 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
   Widget _buildInvoiceItemCard(InvoiceItem item, int index) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1F1F1F),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -526,8 +534,10 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                               children: [
                                 Text(
                                   item.description,
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge?.color,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 15,
                                   ),
@@ -579,7 +589,9 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                           Text(
                             '${item.quantity.toStringAsFixed(0)} ${item.unit} x ${item.unitPrice.toStringAsFixed(2)}',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.4),
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyLarge?.color?.withOpacity(0.4),
                               fontSize: 12,
                             ),
                           ),
@@ -612,9 +624,9 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: const Color(0xFF1F1F1F),
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withOpacity(0.05)),
+              border: Border.all(color: Theme.of(context).dividerColor),
             ),
             child: Obx(
               () => Column(
@@ -635,10 +647,10 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                         ),
                       ),
                       const SizedBox(width: 12),
-                      const Text(
+                      Text(
                         'Invoice Summary',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
                           fontSize: 18,
                           fontWeight: FontWeight.w900,
                         ),
@@ -666,12 +678,15 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                       '${_controller.totalDiscount.toStringAsFixed(2)} ETB',
                       highlight: true,
                     ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Divider(color: Colors.white10, height: 1),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Divider(
+                      color: Theme.of(context).dividerColor,
+                      height: 1,
+                    ),
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
                         'Total Payable',
@@ -682,17 +697,23 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                       ),
                       Text(
                         '${_controller.grandTotal.toStringAsFixed(2)} ETB',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
                           fontWeight: FontWeight.w900,
-                          fontSize: 22,
+                          fontSize: 20,
                           letterSpacing: -0.5,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 32),
-                  const Text('Additional Details', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text(
+                    'Additional Details',
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   _buildDropdownField<String>(
                     'Transaction Type',
@@ -720,7 +741,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.surface,
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: QrImageView(
@@ -732,7 +753,9 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                           SelectableText(
                             'IRN: ${_controller.generatedQrCode.value}',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.3),
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyLarge?.color?.withOpacity(0.3),
                               fontSize: 10,
                               fontFamily: 'monospace',
                             ),
@@ -781,7 +804,9 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                     child: Text(
                       'Post Test Transaction',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.3),
+                        color: Theme.of(
+                          context,
+                        ).textTheme.bodyLarge?.color?.withOpacity(0.3),
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                       ),
@@ -823,21 +848,24 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
       keyboardType: isNumber
           ? const TextInputType.numberWithOptions(decimal: true)
           : TextInputType.text,
-      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+      style: TextStyle(
+        color: Theme.of(context).textTheme.bodyLarge?.color,
+        fontWeight: FontWeight.w600,
+      ),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(
-          color: Colors.white.withOpacity(0.4),
+          color: Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.4),
           fontSize: 14,
         ),
         prefixIcon: icon != null
             ? Icon(icon, color: const Color(0xFF00FFB3), size: 20)
             : null,
         filled: true,
-        fillColor: const Color(0xFF181818),
+        fillColor: Theme.of(context).inputDecorationTheme.fillColor,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+          borderSide: BorderSide(color: Theme.of(context).dividerColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -860,19 +888,22 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
   }) {
     return DropdownButtonFormField<T>(
       value: value,
-      dropdownColor: const Color(0xFF1F1F1F),
-      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+      dropdownColor: Theme.of(context).cardColor,
+      style: TextStyle(
+        color: Theme.of(context).textTheme.bodyLarge?.color,
+        fontWeight: FontWeight.w600,
+      ),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(
-          color: Colors.white.withOpacity(0.4),
+          color: Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.4),
           fontSize: 14,
         ),
         filled: true,
-        fillColor: const Color(0xFF181818),
+        fillColor: Theme.of(context).inputDecorationTheme.fillColor,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+          borderSide: BorderSide(color: Theme.of(context).dividerColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -910,7 +941,9 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
           Text(
             value,
             style: TextStyle(
-              color: highlight ? const Color(0xFFFF3366) : Colors.white,
+              color: highlight
+                  ? Theme.of(context).colorScheme.secondary
+                  : Theme.of(context).textTheme.bodyLarge?.color,
               fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
               fontSize: isBold ? 20 : 16,
             ),
@@ -955,9 +988,9 @@ class CopyAccessTokenWidget extends StatelessWidget {
               color: Colors.blue,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Text(
+            child: Text(
               'Copy Access Token',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
             ),
           ),
     );
@@ -998,9 +1031,9 @@ class CopyRefreshTokenWidget extends StatelessWidget {
               color: Colors.blue,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Text(
+            child: Text(
               'Copy Refresh Token',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
             ),
           ),
     );

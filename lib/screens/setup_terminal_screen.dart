@@ -41,7 +41,7 @@ class _SetupTerminalScreenState extends State<SetupTerminalScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('Device Binding Terminal', style: TextStyle(fontWeight: FontWeight.bold, color: theme.appBarTheme.foregroundColor ?? Colors.white)),
+        title: Text('Device Binding Terminal', style: TextStyle(fontWeight: FontWeight.bold, color: theme.appBarTheme.foregroundColor ?? theme.colorScheme.onSurface)),
         backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: 0,
       ),

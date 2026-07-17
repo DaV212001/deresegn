@@ -112,7 +112,9 @@ class InvoiceDetailScreen extends StatelessWidget {
                     minimumSize: const Size(double.infinity, 50),
                   ),
                   child: controller.isSubmitting.value
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? CircularProgressIndicator(
+                          color: theme.colorScheme.onPrimary,
+                        )
                       : const Text(
                           'Submit Cancellation',
                           style: TextStyle(fontWeight: FontWeight.bold),
@@ -318,7 +320,10 @@ class InvoiceDetailScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _generateAndSharePdf(BuildContext context) async {
+  Future<void> _generateAndSharePdf(
+    BuildContext context,
+    ThemeData theme,
+  ) async {
     Get.dialog(
       const Center(child: CircularProgressIndicator(color: Color(0xFF00FFB3))),
       barrierDismissible: false,
@@ -338,13 +343,18 @@ class InvoiceDetailScreen extends StatelessWidget {
       Get.snackbar(
         'Error',
         'Failed to generate PDF: $e',
-        backgroundColor: const Color(0xFFFF3366).withOpacity(0.1),
-        colorText: Colors.white,
+        backgroundColor: theme.colorScheme.error.withOpacity(0.1),
+        colorText: theme.colorScheme.onError,
       );
     }
   }
 
-  Widget _buildInfoRow(String label, String value, {bool isHighlight = false}) {
+  Widget _buildInfoRow(
+    BuildContext context,
+    String label,
+    String value, {
+    bool isHighlight = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
@@ -356,7 +366,9 @@ class InvoiceDetailScreen extends StatelessWidget {
               value,
               textAlign: TextAlign.right,
               style: TextStyle(
-                color: isHighlight ? const Color(0xFF00FFB3) : Colors.white,
+                color: isHighlight
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).textTheme.bodyLarge?.color,
                 fontWeight: isHighlight ? FontWeight.bold : FontWeight.normal,
                 fontSize: isHighlight ? 16 : 14,
               ),
@@ -381,7 +393,9 @@ class InvoiceDetailScreen extends StatelessWidget {
           'Invoice Details',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: theme.appBarTheme.foregroundColor ?? Colors.white,
+            color:
+                theme.appBarTheme.foregroundColor ??
+                theme.colorScheme.onSurface,
           ),
         ),
         backgroundColor: theme.appBarTheme.backgroundColor,
@@ -394,7 +408,7 @@ class InvoiceDetailScreen extends StatelessWidget {
               color: Color(0xFF4FC3F7),
             ),
             tooltip: 'Preview PDF',
-            onPressed: () => _generateAndSharePdf(context),
+            onPressed: () => _generateAndSharePdf(context, Theme.of(context)),
           ),
         ],
       ),
@@ -413,34 +427,50 @@ class InvoiceDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Summary',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: theme.textTheme.bodyLarge?.color,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _buildInfoRow('Buyer', invoice.buyer.legalName ?? 'N/A'),
-                  _buildInfoRow('Buyer TIN', invoice.buyer.tin ?? 'N/A'),
                   _buildInfoRow(
+                    context,
+                    'Buyer',
+                    invoice.buyer.legalName ?? 'N/A',
+                  ),
+                  _buildInfoRow(
+                    context,
+                    'Buyer TIN',
+                    invoice.buyer.tin ?? 'N/A',
+                  ),
+                  _buildInfoRow(
+                    context,
                     'Document No.',
                     invoice.documentNumber ?? 'N/A',
                   ),
-                  _buildInfoRow('Date', _formatDate(invoice.createdAt)),
-                  _buildInfoRow('Status', invoice.status ?? 'Unknown'),
+                  _buildInfoRow(
+                    context,
+                    'Date',
+                    _formatDate(invoice.createdAt),
+                  ),
+                  _buildInfoRow(context, 'Status', invoice.status ?? 'Unknown'),
                   const Divider(color: Color(0xFF333333), height: 32),
                   _buildInfoRow(
+                    context,
                     'Total Value',
                     '${invoice.totals.totalValue ?? '0.00'} $currency',
                     isHighlight: true,
                   ),
                   _buildInfoRow(
+                    context,
                     'Tax Value',
                     '${invoice.totals.taxValue ?? '0.00'} $currency',
                   ),
                   _buildInfoRow(
+                    context,
                     'Discount',
                     '${invoice.totals.discount ?? '0.00'} $currency',
                   ),
@@ -454,7 +484,7 @@ class InvoiceDetailScreen extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: theme.colorScheme.surface,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Image.memory(
@@ -481,10 +511,10 @@ class InvoiceDetailScreen extends StatelessWidget {
 
             if (itemsList.isNotEmpty) ...[
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Line Items',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: theme.textTheme.bodyLarge?.color,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -510,7 +540,9 @@ class InvoiceDetailScreen extends StatelessWidget {
                             Text(
                               itemMap['ProductDescription']?.toString() ??
                                   'Item',
-                              style: const TextStyle(color: Colors.white),
+                              style: TextStyle(
+                                color: theme.textTheme.bodyLarge?.color,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -537,10 +569,10 @@ class InvoiceDetailScreen extends StatelessWidget {
             ],
 
             const SizedBox(height: 32),
-            const Text(
+            Text(
               'Actions',
               style: TextStyle(
-                color: Colors.white,
+                color: theme.textTheme.bodyLarge?.color,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -578,10 +610,10 @@ class InvoiceDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
             if (invoice.irn != null) ...[
-              const Text(
+              Text(
                 'Associated Receipts',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: theme.textTheme.bodyLarge?.color,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -640,8 +672,8 @@ class InvoiceDetailScreen extends StatelessWidget {
                             children: [
                               Text(
                                 'Receipt #${receipt.receiptNumber ?? 'N/A'}',
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: theme.textTheme.bodyLarge?.color,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                 ),
@@ -668,15 +700,18 @@ class InvoiceDetailScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
                           _buildInfoRow(
+                            context,
                             'Amount',
                             '${receipt.requestPayload?['CollectedAmount'] ?? '0.00'} ETB',
                             isHighlight: true,
                           ),
                           _buildInfoRow(
+                            context,
                             'Date',
                             _formatDate(receipt.requestPayload?['ReceiptDate']),
                           ),
                           _buildInfoRow(
+                            context,
                             'Mode of Payment',
                             receipt.requestPayload?['TransactionDetails']?['ModeOfPayment'] ??
                                 'Unknown',
@@ -727,7 +762,10 @@ class _ActionCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               title,
-              style: const TextStyle(color: Colors.white, fontSize: 12),
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
+                fontSize: 12,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
