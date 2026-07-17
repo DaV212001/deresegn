@@ -11,12 +11,21 @@ class InvoiceHistoryController extends GetxController {
   var hasError = false.obs;
   var errorMessage = ''.obs;
 
+  var startDate = Rxn<DateTime>();
+  var endDate = Rxn<DateTime>();
+
   int _currentPage = 1;
   int _lastPage = 1;
 
   @override
   void onInit() {
     super.onInit();
+    fetchInvoices(refresh: true);
+  }
+
+  void setDateRange(DateTime? start, DateTime? end) {
+    startDate.value = start;
+    endDate.value = end;
     fetchInvoices(refresh: true);
   }
 
@@ -33,8 +42,17 @@ class InvoiceHistoryController extends GetxController {
 
     hasError.value = false;
 
+    String? startStr = startDate.value != null
+        ? startDate.value!.toIso8601String().split('T')[0]
+        : null;
+    String? endStr = endDate.value != null
+        ? endDate.value!.toIso8601String().split('T')[0]
+        : null;
+
     await ApiService.fetchInvoices(
       page: _currentPage,
+      startDate: startStr,
+      endDate: endStr,
       onSuccess: (response) {
         if (refresh) {
           invoices.assignAll(response.data);

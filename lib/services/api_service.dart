@@ -10,12 +10,18 @@ import 'dio_service.dart';
 class ApiService {
   static Future<void> fetchInvoices({
     int page = 1,
+    String? startDate,
+    String? endDate,
     Function(InvoiceHistoryResponse)? onSuccess,
     Function(Object, Response)? onFailure,
   }) async {
+    final queryParameters = {'page': page.toString()};
+    if (startDate != null) queryParameters['start_date'] = startDate;
+    if (endDate != null) queryParameters['end_date'] = endDate;
+
     await DioService.dioGet(
       path: '/api/invoices',
-      queryParameters: {'page': page.toString()},
+      queryParameters: queryParameters,
       options: Options(
         headers: {
           'Authorization': "Bearer ${ConfigPreference.getAccessToken()}",
