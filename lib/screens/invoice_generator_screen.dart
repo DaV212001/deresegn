@@ -89,6 +89,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
         _itemCodeController.clear();
         setState(() {
           _isWalkIn = false;
+          _tabController.animateTo(0);
         });
       }
     });
