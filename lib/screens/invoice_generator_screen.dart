@@ -97,7 +97,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          'New Invoice',
+          'new_invoice'.tr,
           style: TextStyle(
             color:
                 theme.appBarTheme.foregroundColor ??
@@ -128,10 +128,10 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
           indicatorColor: theme.primaryColor,
           labelColor: theme.primaryColor,
           unselectedLabelColor: Colors.grey.withOpacity(0.6),
-          tabs: const [
-            Tab(text: 'BUYER'),
-            Tab(text: 'ITEMS'),
-            Tab(text: 'SUMMARY'),
+          tabs: [
+            Tab(text: 'buyer_tab'.tr),
+            Tab(text: 'items_tab'.tr),
+            Tab(text: 'summary_tab'.tr),
           ],
         ),
       ),
@@ -175,7 +175,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      'Customer Info',
+                      'customer_info'.tr,
                       style: TextStyle(
                         color: theme.textTheme.bodyLarge?.color,
                         fontSize: 18,
@@ -186,13 +186,13 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                 ),
                 const SizedBox(height: 24),
                 _buildTextField(
-                  'Buyer TIN',
+                  'buyer_tin'.tr,
                   _tinController,
                   icon: Icons.badge_outlined,
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
-                  'Buyer Legal Name',
+                  'buyer_legal_name'.tr,
                   _nameController,
                   icon: Icons.business_outlined,
                 ),
@@ -223,7 +223,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Walk-in Customer',
+                        'walk_in_customer'.tr,
                         style: TextStyle(
                           color: theme.textTheme.bodyLarge?.color,
                           fontSize: 14,
@@ -252,7 +252,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'Continue to Items',
+                  'continue_to_items'.tr,
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     color: Theme.of(context).textTheme.bodyLarge?.color!,
@@ -318,7 +318,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                         }
                       });
                       return _buildTextFieldCustom(
-                        'Item Name / Search',
+                        'item_name_search'.tr,
                         controller,
                         focusNode: focusNode,
                         icon: Icons.search_rounded,
@@ -331,7 +331,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                   Expanded(
                     flex: 2,
                     child: _buildTextField(
-                      'Price',
+                      'price'.tr,
                       _itemPriceController,
                       isNumber: true,
                       icon: Icons.payments_outlined,
@@ -340,7 +340,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildTextField(
-                      'Qty',
+                      'qty'.tr,
                       _itemQtyController,
                       isNumber: true,
                     ),
@@ -350,7 +350,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
               ),
               const SizedBox(height: 12),
               _buildTextField(
-                'Discount',
+                'discount'.tr,
                 _itemDiscountController,
                 isNumber: true,
                 icon: Icons.percent_rounded,
@@ -361,7 +361,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                   Expanded(
                     child: Obx(
                       () => _buildDropdownField<TaxCategory>(
-                        'Tax',
+                        'tax'.tr,
                         _controller.selectedTaxCategory.value,
                         taxCategories,
                         (val) => _controller.selectedTaxCategory.value = val!,
@@ -372,7 +372,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildDropdownField<String>(
-                      'Unit',
+                      'unit'.tr,
                       _selectedUnit,
                       _unitOptions,
                       _isFromCatalog
@@ -406,8 +406,8 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                             size: 20,
                           ),
                           const SizedBox(width: 8),
-                          const Text(
-                            'Save to Catalog',
+                          Text(
+                            'save_to_catalog'.tr,
                             style: TextStyle(color: Colors.grey, fontSize: 12),
                           ),
                         ],
@@ -454,8 +454,8 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                       }
                     },
                     icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text(
-                      'Add Item',
+                    label: Text(
+                      'add_item'.tr,
                       style: TextStyle(fontWeight: FontWeight.w900),
                     ),
                     style: ElevatedButton.styleFrom(
@@ -497,8 +497,8 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            child: const Text(
-              'Review Summary',
+            child: Text(
+              'review_summary'.tr,
               style: TextStyle(fontWeight: FontWeight.w900),
             ),
           ),
@@ -648,7 +648,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        'Invoice Summary',
+                        'invoice_summary'.tr,
                         style: TextStyle(
                           color: Theme.of(context).textTheme.bodyLarge?.color,
                           fontSize: 18,
@@ -659,22 +659,22 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                   ),
                   const SizedBox(height: 24),
                   _buildSummaryRow(
-                    'Subtotal',
+                    'subtotal'.tr,
                     '${_controller.totalPreTax.toStringAsFixed(2)} ETB',
                   ),
                   _buildSummaryRow(
-                    'Tax Amount',
+                    'tax_amount'.tr,
                     '${_controller.totalVat.toStringAsFixed(2)} ETB',
                     highlight: true,
                   ),
                   if (_controller.totalExcise > 0)
                     _buildSummaryRow(
-                      'Excise Tax',
+                      'excise_tax'.tr,
                       '${_controller.totalExcise.toStringAsFixed(2)} ETB',
                     ),
                   if (_controller.totalDiscount > 0)
                     _buildSummaryRow(
-                      'Discount',
+                      'discount'.tr,
                       '${_controller.totalDiscount.toStringAsFixed(2)} ETB',
                       highlight: true,
                     ),
@@ -688,8 +688,8 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Total Payable',
+                      Text(
+                        'total_payable'.tr,
                         style: TextStyle(
                           color: Colors.grey,
                           fontWeight: FontWeight.bold,
@@ -708,7 +708,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                   ),
                   const SizedBox(height: 32),
                   Text(
-                    'Additional Details',
+                    'additional_details'.tr,
                     style: TextStyle(
                       color: Theme.of(context).textTheme.bodyLarge?.color,
                       fontWeight: FontWeight.bold,
@@ -716,20 +716,20 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                   ),
                   const SizedBox(height: 16),
                   _buildDropdownField<String>(
-                    'Transaction Type',
+                    'transaction_type'.tr,
                     _controller.transactionType.value,
                     ['B2C', 'B2B', 'B2G', 'B2E'],
                     (val) => _controller.transactionType.value = val!,
                   ),
                   const SizedBox(height: 12),
                   _buildTextField(
-                    'Income Withholding',
+                    'income_withholding'.tr,
                     _incomeWithholdController,
                     isNumber: true,
                   ),
                   const SizedBox(height: 12),
                   _buildTextField(
-                    'Transaction Withholding',
+                    'transaction_withholding'.tr,
                     _txnWithholdController,
                     isNumber: true,
                   ),
@@ -788,8 +788,8 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                               strokeWidth: 3,
                             ),
                           )
-                        : const Text(
-                            'Submit Invoice',
+                        : Text(
+                            'submit_invoice'.tr,
                             style: TextStyle(
                               fontWeight: FontWeight.w900,
                               fontSize: 16,

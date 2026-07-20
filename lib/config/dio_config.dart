@@ -28,7 +28,7 @@ class AuthInterceptor extends Interceptor {
   Future<void> _redirectToLogin() async {
     await ConfigPreference.clearTokens();
     // In Option B, route to a custom "Device Configuration Unlinked" screen
-    Get.offAllNamed('/setup_unlinked');
+    Get.offAllNamed('/splash');
   }
 
   @override
@@ -116,7 +116,7 @@ class AuthInterceptor extends Interceptor {
       );
 
       final response = await dio.post(
-        '/v1/auth/refresh',
+        '/api/refresh/token',
         data: {'refreshToken': refreshToken},
       );
 

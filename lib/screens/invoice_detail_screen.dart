@@ -390,7 +390,7 @@ class InvoiceDetailScreen extends StatelessWidget {
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          'Invoice Details',
+          'invoice_details'.tr,
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color:
@@ -428,7 +428,7 @@ class InvoiceDetailScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Summary',
+                    'summary'.tr,
                     style: TextStyle(
                       color: theme.textTheme.bodyLarge?.color,
                       fontSize: 18,
@@ -438,40 +438,44 @@ class InvoiceDetailScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   _buildInfoRow(
                     context,
-                    'Buyer',
+                    'buyer'.tr,
                     invoice.buyer.legalName ?? 'N/A',
                   ),
                   _buildInfoRow(
                     context,
-                    'Buyer TIN',
+                    'buyer_tin'.tr,
                     invoice.buyer.tin ?? 'N/A',
                   ),
                   _buildInfoRow(
                     context,
-                    'Document No.',
+                    'document_no'.tr,
                     invoice.documentNumber ?? 'N/A',
                   ),
                   _buildInfoRow(
                     context,
-                    'Date',
+                    'date'.tr,
                     _formatDate(invoice.createdAt),
                   ),
-                  _buildInfoRow(context, 'Status', invoice.status ?? 'Unknown'),
+                  _buildInfoRow(
+                    context,
+                    'status'.tr,
+                    invoice.status ?? 'unknown'.tr,
+                  ),
                   const Divider(color: Color(0xFF333333), height: 32),
                   _buildInfoRow(
                     context,
-                    'Total Value',
+                    'total_value'.tr,
                     '${invoice.totals.totalValue ?? '0.00'} $currency',
                     isHighlight: true,
                   ),
                   _buildInfoRow(
                     context,
-                    'Tax Value',
+                    'tax_value'.tr,
                     '${invoice.totals.taxValue ?? '0.00'} $currency',
                   ),
                   _buildInfoRow(
                     context,
-                    'Discount',
+                    'discount'.tr,
                     '${invoice.totals.discount ?? '0.00'} $currency',
                   ),
                 ],
@@ -512,7 +516,7 @@ class InvoiceDetailScreen extends StatelessWidget {
             if (itemsList.isNotEmpty) ...[
               const SizedBox(height: 24),
               Text(
-                'Line Items',
+                'line_items'.tr,
                 style: TextStyle(
                   color: theme.textTheme.bodyLarge?.color,
                   fontSize: 18,
@@ -570,7 +574,7 @@ class InvoiceDetailScreen extends StatelessWidget {
 
             const SizedBox(height: 32),
             Text(
-              'Actions',
+              'actions'.tr,
               style: TextStyle(
                 color: theme.textTheme.bodyLarge?.color,
                 fontSize: 18,
@@ -583,7 +587,7 @@ class InvoiceDetailScreen extends StatelessWidget {
                 Expanded(
                   child: _ActionCard(
                     icon: CupertinoIcons.clear_circled,
-                    title: 'Cancel',
+                    title: 'cancel'.tr,
                     color: const Color(0xFFFF3366),
                     onTap: () => _showCancelBottomSheet(context),
                   ),
@@ -592,7 +596,7 @@ class InvoiceDetailScreen extends StatelessWidget {
                 Expanded(
                   child: _ActionCard(
                     icon: CupertinoIcons.money_dollar,
-                    title: 'Receipt',
+                    title: 'receipt'.tr,
                     color: const Color(0xFF00FFB3),
                     onTap: () => _showSalesReceiptBottomSheet(context),
                   ),
@@ -601,7 +605,7 @@ class InvoiceDetailScreen extends StatelessWidget {
                 Expanded(
                   child: _ActionCard(
                     icon: CupertinoIcons.percent,
-                    title: 'Withholding',
+                    title: 'withholding'.tr,
                     color: const Color(0xFF00FFB3),
                     onTap: () => _showWithholdingBottomSheet(context),
                   ),
@@ -611,7 +615,7 @@ class InvoiceDetailScreen extends StatelessWidget {
             const SizedBox(height: 32),
             if (invoice.irn != null) ...[
               Text(
-                'Associated Receipts',
+                'associated_receipts'.tr,
                 style: TextStyle(
                   color: theme.textTheme.bodyLarge?.color,
                   fontSize: 18,
@@ -637,11 +641,11 @@ class InvoiceDetailScreen extends StatelessWidget {
                   );
                 }
                 if (controller.receipts.isEmpty) {
-                  return const Center(
+                  return Center(
                     child: Padding(
                       padding: EdgeInsets.all(16.0),
                       child: Text(
-                        'No receipts found for this invoice.',
+                        'no_receipts_found'.tr,
                         style: TextStyle(color: Colors.grey),
                       ),
                     ),
@@ -701,18 +705,18 @@ class InvoiceDetailScreen extends StatelessWidget {
                           const SizedBox(height: 12),
                           _buildInfoRow(
                             context,
-                            'Amount',
+                            'amount'.tr,
                             '${receipt.requestPayload?['CollectedAmount'] ?? '0.00'} ETB',
                             isHighlight: true,
                           ),
                           _buildInfoRow(
                             context,
-                            'Date',
+                            'date'.tr,
                             _formatDate(receipt.requestPayload?['ReceiptDate']),
                           ),
                           _buildInfoRow(
                             context,
-                            'Mode of Payment',
+                            'mode_of_payment'.tr,
                             receipt.requestPayload?['TransactionDetails']?['ModeOfPayment'] ??
                                 'Unknown',
                           ),

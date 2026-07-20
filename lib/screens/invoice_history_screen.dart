@@ -87,17 +87,17 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
       case 'A':
         bgColor = theme.primaryColor.withOpacity(0.2);
         textColor = theme.primaryColor;
-        text = 'Active';
+        text = 'active'.tr;
         break;
       case 'C':
         bgColor = theme.colorScheme.secondary.withOpacity(0.2);
         textColor = theme.colorScheme.secondary;
-        text = 'Cancelled';
+        text = 'cancelled'.tr;
         break;
       default:
         bgColor = Colors.grey.withOpacity(0.2);
         textColor = Colors.grey;
-        text = status ?? 'Unknown';
+        text = status ?? 'unknown'.tr;
     }
 
     return Container(
@@ -124,7 +124,7 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          'Invoices',
+          'invoices'.tr,
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color:
@@ -229,7 +229,7 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                           backgroundColor: theme.cardColor,
                           foregroundColor: theme.textTheme.bodyLarge?.color,
                         ),
-                        child: const Text('Retry'),
+                        child: Text('retry'.tr),
                       ),
                     ],
                   ),
@@ -247,8 +247,8 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                         size: 64,
                       ),
                       const SizedBox(height: 16),
-                      const Text(
-                        'No invoices found',
+                      Text(
+                        'no_invoices_found'.tr,
                         style: TextStyle(color: Colors.grey, fontSize: 18),
                       ),
                     ],
@@ -380,8 +380,8 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
         backgroundColor: theme.primaryColor,
         foregroundColor: theme.scaffoldBackgroundColor,
         icon: const Icon(CupertinoIcons.add),
-        label: const Text(
-          'New Invoice',
+        label: Text(
+          'new_invoice'.tr,
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),

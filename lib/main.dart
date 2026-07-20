@@ -1,3 +1,4 @@
+import 'package:deresegn/utils/app_translations.dart';
 import 'package:deresegn/utils/initial_navigation_middleware.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -19,7 +20,7 @@ void main() async {
 
 class DeresegnApp extends StatelessWidget {
   final ThemeService themeService;
-  
+
   const DeresegnApp({Key? key, required this.themeService}) : super(key: key);
 
   @override
@@ -30,6 +31,9 @@ class DeresegnApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeService.themeMode,
+      translations: AppTranslations(),
+      locale: const Locale('en', 'US'),
+      fallbackLocale: const Locale('en', 'US'),
       initialRoute: '/dashboard',
       getPages: [
         GetPage(name: '/splash', page: () => SplashScreen()),

@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
 
 import 'invoice_generator_screen.dart';
@@ -26,25 +27,25 @@ class DashboardScreen extends StatelessWidget {
     return [
       PersistentBottomNavBarItem(
         icon: const Icon(CupertinoIcons.plus_square, size: 20),
-        title: ("Register"),
+        title: ("register".tr),
         activeColorPrimary: theme.primaryColor,
         inactiveColorPrimary: CupertinoColors.systemGrey,
       ),
       PersistentBottomNavBarItem(
         icon: const Icon(CupertinoIcons.square_list, size: 20),
-        title: ("History"),
+        title: ("history".tr),
         activeColorPrimary: theme.primaryColor,
         inactiveColorPrimary: CupertinoColors.systemGrey,
       ),
       PersistentBottomNavBarItem(
         icon: const Icon(CupertinoIcons.archivebox, size: 20),
-        title: ("Products"),
+        title: ("products".tr),
         activeColorPrimary: theme.primaryColor,
         inactiveColorPrimary: CupertinoColors.systemGrey,
       ),
       PersistentBottomNavBarItem(
         icon: const Icon(CupertinoIcons.settings),
-        title: ("Settings"),
+        title: ("settings".tr),
         activeColorPrimary: theme.primaryColor,
         inactiveColorPrimary: CupertinoColors.systemGrey,
       ),
@@ -59,7 +60,8 @@ class DashboardScreen extends StatelessWidget {
       controller: _controller,
       screens: _buildScreens(),
       items: _navBarsItems(context),
-      backgroundColor: theme.bottomNavigationBarTheme.backgroundColor ?? theme.cardColor,
+      backgroundColor:
+          theme.bottomNavigationBarTheme.backgroundColor ?? theme.cardColor,
       handleAndroidBackButtonPress: true,
       resizeToAvoidBottomInset: true,
       stateManagement: true,
