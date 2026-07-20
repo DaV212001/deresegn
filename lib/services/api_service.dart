@@ -75,6 +75,11 @@ class ApiService {
   }) async {
     await DioService.dioPost(
       path: '/api/cancel/invoice',
+      options: Options(
+        headers: {
+          'Authorization': "Bearer ${ConfigPreference.getAccessToken()}",
+        },
+      ),
       data: request.toJson(),
       onSuccess: onSuccess,
       onFailure: onFailure,
@@ -87,7 +92,12 @@ class ApiService {
     Function(Object, Response)? onFailure,
   }) async {
     await DioService.dioPost(
-      path: '/api/receipt/register',
+      path: '/api/receipt/sales',
+      options: Options(
+        headers: {
+          'Authorization': "Bearer ${ConfigPreference.getAccessToken()}",
+        },
+      ),
       data: request.toJson(),
       onSuccess: onSuccess,
       onFailure: onFailure,
@@ -101,6 +111,11 @@ class ApiService {
   }) async {
     await DioService.dioPost(
       path: '/api/receipt/withholding',
+      options: Options(
+        headers: {
+          'Authorization': "Bearer ${ConfigPreference.getAccessToken()}",
+        },
+      ),
       data: request.toJson(),
       onSuccess: onSuccess,
       onFailure: onFailure,

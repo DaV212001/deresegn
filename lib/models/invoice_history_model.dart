@@ -1,19 +1,23 @@
+import 'dart:convert';
+
 class InvoiceHistoryResponse {
   final List<InvoiceSummary> data;
   final PaginationData pagination;
 
-  InvoiceHistoryResponse({
-    required this.data,
-    required this.pagination,
-  });
+  InvoiceHistoryResponse({required this.data, required this.pagination});
 
   factory InvoiceHistoryResponse.fromJson(Map<String, dynamic> json) {
     return InvoiceHistoryResponse(
-      data: (json['data'] as List<dynamic>?)
-              ?.map((item) => InvoiceSummary.fromJson(item as Map<String, dynamic>))
+      data:
+          (json['data'] as List<dynamic>?)
+              ?.map(
+                (item) => InvoiceSummary.fromJson(item as Map<String, dynamic>),
+              )
               .toList() ??
           [],
-      pagination: PaginationData.fromJson(json['pagination'] as Map<String, dynamic>),
+      pagination: PaginationData.fromJson(
+        json['pagination'] as Map<String, dynamic>,
+      ),
     );
   }
 }
@@ -75,20 +79,38 @@ class InvoiceSummary {
   });
 
   factory InvoiceSummary.fromJson(Map<String, dynamic> json) {
+    dynamic payload = json['request_payload'];
+    if (payload is String) {
+      try {
+        payload = jsonDecode(payload);
+      } catch (_) {}
+    }
+    final payloadMap = payload is Map<String, dynamic> ? payload : null;
+
+    final docNum =
+        json['document_number'] ??
+        json['DocumentNumber'] ??
+        json['documentNumber'] ??
+        payloadMap?['DocumentDetails']?['DocumentNumber'] ??
+        payloadMap?['documentDetails']?['documentNumber'] ??
+        payloadMap?['DocumentNumber'];
+
     return InvoiceSummary(
       id: json['id'] as int,
       irn: json['irn'] as String?,
-      documentNumber: json['document_number'] as String?,
+      documentNumber: docNum?.toString(),
       status: json['status'] as String?,
       ackDate: json['ack_date'] as String?,
       signedQr: json['signed_qr'] as String?,
       signedInvoice: json['signed_invoice'] as String?,
       buyer: BuyerInfo.fromJson(json['buyer'] as Map<String, dynamic>? ?? {}),
-      totals: TotalsInfo.fromJson(json['totals'] as Map<String, dynamic>? ?? {}),
+      totals: TotalsInfo.fromJson(
+        json['totals'] as Map<String, dynamic>? ?? {},
+      ),
       transactionType: json['transaction_type'] as String?,
-      createdAt: json['created_at'] as String?,
-      updatedAt: json['updated_at'] as String?,
-      requestPayload: json['request_payload'] as Map<String, dynamic>?,
+      createdAt: json['created_at']?.toString(),
+      updatedAt: json['updated_at']?.toString(),
+      requestPayload: payloadMap,
     );
   }
 }
@@ -139,11 +161,11 @@ class TotalsInfo {
 
   factory TotalsInfo.fromJson(Map<String, dynamic> json) {
     return TotalsInfo(
-      totalValue: json['total_value'] as String?,
-      taxValue: json['tax_value'] as String?,
-      discount: json['discount'] as String?,
-      exciseValue: json['excise_value'] as String?,
-      currency: json['currency'] as String?,
+      totalValue: json['total_value']?.toString(),
+      taxValue: json['tax_value']?.toString(),
+      discount: json['discount']?.toString(),
+      exciseValue: json['excise_value']?.toString(),
+      currency: json['currency']?.toString(),
     );
   }
 }

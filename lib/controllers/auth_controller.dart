@@ -102,6 +102,7 @@ class AuthController extends GetxController {
 
   String? _parseMessage(dynamic data) {
     if (data == null) return null;
+    if (data is! Map) return data.toString();
     final dynamic message = data['message'] ?? data['messages'];
     if (message == null) return null;
 

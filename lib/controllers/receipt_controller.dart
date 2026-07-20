@@ -4,13 +4,25 @@ import '../config/app_settings.dart';
 import '../config/config_preference.dart';
 import '../models/receipt_models.dart';
 import '../services/api_service.dart';
+import 'invoice_controller.dart';
 
 class ReceiptController extends GetxController {
   var isSubmittingReceipt = false.obs;
   var isSubmittingWithholding = false.obs;
 
-  Future<void> registerSalesReceipt(String invoiceIrn, String amount) async {
+  Future<ReceiptSummary?> registerSalesReceipt(
+    String invoiceIrn,
+    String amount,
+    String documentNumber,
+    String invoiceTotal, {
+    bool showSnackbar = true,
+  }) async {
+    Get.log(
+      "Registering Receipt for IRN: $invoiceIrn, DocNum: $documentNumber, Total: $invoiceTotal",
+    );
     isSubmittingReceipt.value = true;
+    ReceiptSummary? result;
+
     final tin = await ConfigPreference.getTin() ?? '0000037187';
     final systemNumber = await AppSettings.getSystemNumber();
     final cashierName = await AppSettings.getCashierName();
@@ -19,7 +31,7 @@ class ReceiptController extends GetxController {
       receiptNumber: "${DateTime.now().millisecondsSinceEpoch}",
       receiptType: "Sales Receipts",
       reason: "Payment for goods purchased",
-      receiptDate: DateTime.now().toIso8601String(),
+      receiptDate: DateTime.now().toUtc().toIso8601String(),
       receiptCounter: "1",
       sourceSystemType: "POS",
       sourceSystemNumber: systemNumber,
@@ -31,22 +43,48 @@ class ReceiptController extends GetxController {
           "InvoiceIRN": invoiceIrn,
           "PaymentCoverage": "FULL",
           "InvoicePaidAmount": amount,
-          "TotalAmount": amount,
+          "TotalAmount": invoiceTotal,
         },
       ],
       transactionDetails: {
         "ModeOfPayment": "CASH",
-        "DocumentNumber": "46",
+        "DocumentNumber": int.tryParse(documentNumber) ?? documentNumber,
         "CollectorName": cashierName,
       },
     );
 
     await ApiService.registerReceipt(
       request,
-      onSuccess: (r) => Get.snackbar('Success', 'Sales Receipt registered.'),
-      onFailure: (e, r) => Get.snackbar('Error', 'Failed to register receipt.'),
+      onSuccess: (r) {
+        if (showSnackbar) Get.snackbar('Success', 'Sales Receipt registered.');
+        if (r.data != null && r.data['data'] != null) {
+          result = ReceiptSummary.fromJson(r.data['data']);
+        } else if (r.data != null && r.data['body'] != null) {
+          result = ReceiptSummary.fromJson(r.data['body']);
+        } else if (r.data != null) {
+          // Sometimes the object is directly in the response
+          result = ReceiptSummary.fromJson(r.data);
+        }
+
+        if (Get.isRegistered<ReceiptFetchController>(tag: invoiceIrn)) {
+          Get.find<ReceiptFetchController>(tag: invoiceIrn).fetchReceipts();
+        }
+      },
+      onFailure: (e, r) {
+        String errorMsg = 'Failed to register receipt';
+        if (r.data != null) {
+          // Use the same error parsing logic as InvoiceController
+          final controller = Get.find<InvoiceController>();
+          final parsed = controller.parseMessage(r.data);
+          if (parsed != null) errorMsg = parsed;
+        }
+        if (showSnackbar) {
+          Get.snackbar('Error', errorMsg, snackPosition: SnackPosition.BOTTOM);
+        }
+      },
     );
     isSubmittingReceipt.value = false;
+    return result;
   }
 
   Future<void> registerWithholding(
@@ -108,7 +146,9 @@ class ReceiptFetchController extends GetxController {
         invoiceIrn,
         onSuccess: (data) {
           if (data is List) {
-            receipts.value = data.map((e) => ReceiptSummary.fromJson(e)).toList();
+            receipts.value = data
+                .map((e) => ReceiptSummary.fromJson(e))
+                .toList();
           } else if (data is Map<String, dynamic>) {
             receipts.value = [ReceiptSummary.fromJson(data)];
           } else {

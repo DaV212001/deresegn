@@ -35,6 +35,7 @@ class PdfPreviewScreen extends StatelessWidget {
         allowSharing: true,
         canChangeOrientation: false,
         canChangePageFormat: false,
+        canDebug: false,
         initialPageFormat: PdfPageFormat.a4,
         pdfFileName: '${title.replaceAll(' ', '_')}.pdf',
       ),

@@ -1,8 +1,13 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:deresegn/config/dio_config.dart';
 import 'package:dio/dio.dart' as dio_lib;
 import 'package:flutter/material.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:pdf/pdf.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/material.dart' show debugPrint;
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
@@ -11,9 +16,14 @@ import '../config/app_settings.dart';
 import '../config/config_preference.dart';
 import '../models/invoice_history_model.dart';
 import '../models/invoice_models.dart';
+import '../models/receipt_models.dart';
 import '../screens/invoice_detail_screen.dart';
+import '../screens/pdf_preview_screen.dart';
 import '../services/api_service.dart';
+import '../services/invoice_pdf_service.dart';
+import '../services/receipt_pdf_service.dart';
 import 'invoice_history_controller.dart';
+import 'receipt_controller.dart';
 
 class TaxCategory {
   final String code;
@@ -83,6 +93,8 @@ class InvoiceController extends GetxController {
   var items = <InvoiceItem>[].obs;
   var paymentMode = 'CASH'.obs;
   var transactionType = 'B2C'.obs;
+  var documentType = 'CASH_SALE'.obs;
+  var referenceIrn = ''.obs;
   var incomeWithholdValue = '0.00'.obs;
   var txnWithholdValue = '0.00'.obs;
   var selectedTaxCategory = taxCategories.first.obs;
@@ -98,8 +110,8 @@ class InvoiceController extends GetxController {
   Future<void> fetchSupplies() async {
     isLoadingSupplies.value = true;
     await ApiService.fetchSupplies(
-      onSuccess: (supplies) {
-        availableSupplies.assignAll(supplies);
+      onSuccess: (data) {
+        availableSupplies.assignAll(data);
         isLoadingSupplies.value = false;
       },
       onFailure: (error, response) {
@@ -110,55 +122,55 @@ class InvoiceController extends GetxController {
   }
 
   Future<void> saveItemToCatalog(InvoiceItem item) async {
-    final supply = SupplyItem(
-      itemCode: item.itemCode.isNotEmpty
-          ? item.itemCode
-          : "ITEM-${DateTime.now().millisecondsSinceEpoch}",
-      productDescription: item.description,
-      natureOfSupplies: item.natureOfSupplies,
+    final supplyItem = SupplyItem(
+      // description: item.description,
       unitPrice: item.unitPrice,
-      unit: item.unit,
-      taxCode: item.taxCategory.code,
-      discount: 0,
-      exciseTaxRate: item.exciseRate * 100, // Assuming API expects percentage
+      // taxCategory: item.taxCategory.code,
+      exciseTaxRate: item.exciseRate,
       isExciseTaxable: item.isExciseTaxable,
+      itemCode: item.itemCode,
+      natureOfSupplies: item.natureOfSupplies,
+      unit: item.unit,
+      productDescription: item.description,
+      taxCode: item.taxCategory.code,
     );
 
     await ApiService.createSupply(
-      supply,
+      supplyItem,
       onSuccess: (response) {
-        Get.snackbar('Success', 'Item saved to catalog');
+        Get.snackbar('Success', 'Item saved to catalog.');
         fetchSupplies();
       },
       onFailure: (error, response) {
-        Get.snackbar('Error', 'Failed to save item to catalog');
+        Logger().e('Failed to save item to catalog: $error');
+        Get.snackbar('Error', 'Failed to save item to catalog.');
       },
     );
   }
 
   Future<void> updateSupply(String id, InvoiceItem item) async {
-    final supply = SupplyItem(
+    final supplyItem = SupplyItem(
       id: id,
-      itemCode: item.itemCode,
       productDescription: item.description,
-      natureOfSupplies: item.natureOfSupplies,
       unitPrice: item.unitPrice,
-      unit: item.unit,
       taxCode: item.taxCategory.code,
-      discount: 0,
-      exciseTaxRate: item.exciseRate * 100,
+      exciseTaxRate: item.exciseRate,
       isExciseTaxable: item.isExciseTaxable,
+      itemCode: item.itemCode,
+      natureOfSupplies: item.natureOfSupplies,
+      unit: item.unit,
     );
 
     await ApiService.updateSupply(
       id,
-      supply,
+      supplyItem,
       onSuccess: (response) {
-        Get.snackbar('Success', 'Item updated in catalog');
+        Get.snackbar('Success', 'Supply updated.');
         fetchSupplies();
       },
       onFailure: (error, response) {
-        Get.snackbar('Error', 'Failed to update item in catalog');
+        Logger().e('Failed to update supply: $error');
+        Get.snackbar('Error', 'Failed to update supply.');
       },
     );
   }
@@ -167,11 +179,12 @@ class InvoiceController extends GetxController {
     await ApiService.deleteSupply(
       id,
       onSuccess: (response) {
-        Get.snackbar('Success', 'Item deleted from catalog');
+        Get.snackbar('Success', 'Supply deleted.');
         fetchSupplies();
       },
       onFailure: (error, response) {
-        Get.snackbar('Error', 'Failed to delete item from catalog');
+        Logger().e('Failed to delete supply: $error');
+        Get.snackbar('Error', 'Failed to delete supply.');
       },
     );
   }
@@ -223,6 +236,8 @@ class InvoiceController extends GetxController {
     items.clear();
     paymentMode.value = 'CASH';
     transactionType.value = 'B2C';
+    documentType.value = 'CASH_SALE';
+    referenceIrn.value = '';
     incomeWithholdValue.value = '0.00';
     txnWithholdValue.value = '0.00';
     selectedTaxCategory.value = taxCategories.first;
@@ -261,7 +276,7 @@ class InvoiceController extends GetxController {
   }
 
   Future<void> registerFormInvoice() async {
-    if (items.isEmpty || buyerName.value.isEmpty || buyerTin.value.isEmpty) {
+    if (items.isEmpty || buyerName.value.isEmpty) {
       Get.snackbar(
         'Error',
         'Please fill out buyer details and add at least one item.',
@@ -301,10 +316,22 @@ class InvoiceController extends GetxController {
       };
     }).toList();
 
+    String docType = "INV";
+    String payTerm = paymentMode.value;
+    if (documentType.value == 'CREDIT_SALE') {
+      payTerm = "CREDIT";
+    } else if (documentType.value == 'CREDIT_NOTE') {
+      docType = "CN";
+      payTerm = "CREDIT";
+    } else if (documentType.value == 'DEBIT_NOTE') {
+      docType = "DN";
+      payTerm = "CREDIT";
+    }
+
     final request = InvoiceRegisterRequest(
       documentDetails: {
         "DocumentNumber": nextDocNumber.toString(),
-        "Type": "INV",
+        "Type": docType,
         "Reason": "Reason:-",
         "Date": _formatInvoiceDate(DateTime.now()),
       },
@@ -353,13 +380,18 @@ class InvoiceController extends GetxController {
         "IncomeWithholdValue": incomeWithholdValue.value,
         "TransactionWithholdValue": txnWithholdValue.value,
       },
-      paymentDetails: {
-        "PaymentTerm": paymentMode.value,
-        "Mode": paymentMode.value,
-      },
+      paymentDetails: {"PaymentTerm": payTerm, "Mode": paymentMode.value},
       referenceDetails: {
-        "RelatedDocument": null,
-        "PreviousIrn": "null",
+        "RelatedDocument":
+            (documentType.value == 'CREDIT_NOTE' ||
+                documentType.value == 'DEBIT_NOTE')
+            ? referenceIrn.value
+            : null,
+        "PreviousIrn":
+            (documentType.value == 'CREDIT_NOTE' ||
+                documentType.value == 'DEBIT_NOTE')
+            ? referenceIrn.value
+            : "null",
       }, // TODO: revert to null once backend schema is fixed
       version: "1",
     );
@@ -370,8 +402,12 @@ class InvoiceController extends GetxController {
   Future<void> registerSampleInvoice() async {
     isSubmitting.value = true;
     final int nextDocNumber = await _getNextDocumentNumber();
-
     final tin = await ConfigPreference.getTin() ?? '0000037187';
+    final cashierName = await AppSettings.getCashierName();
+    final systemNumber = await AppSettings.getSystemNumber();
+    final tradeName = await AppSettings.getTradeName();
+    final vatNumber = await AppSettings.getVatNumber();
+    final city = await AppSettings.getDefaultCity();
 
     final request = InvoiceRegisterRequest(
       documentDetails: {
@@ -380,100 +416,82 @@ class InvoiceController extends GetxController {
         "Reason": "Reason:-",
         "Date": _formatInvoiceDate(DateTime.now()),
       },
-      transactionType: "B2C",
+      transactionType: "B2B",
       sourceSystem: {
         "SystemType": "POS",
-        "CashierName": "Default Cashier",
-        "SystemNumber": "F86A66EF99",
+        "CashierName": cashierName,
+        "SystemNumber": systemNumber,
         "InvoiceCounter": nextDocNumber,
-        "SalesPersonName": "Default Sales Person",
+        "SalesPersonName": cashierName,
       },
       sellerDetails: {
         "Tin": tin,
-        "LegalName": "Micro Sun & Solution PLC",
-        "City": "101",
-        "Zone": null,
-        "Kebele": null,
-        "SubTin": null,
-        "SubCity": null,
-        "Locality": null,
-        "HouseNumber": null,
+        "LegalName": 'Micro Sun & Solution PLC',
+        "City": city,
         "Wereda": "13",
         "Region": "1",
         "Email": "amanuielt@mssmea.com",
         "Phone": "+251947990585",
         "Country": "1",
-        "TradeName": "MicroSun&SolutionPLC",
-        "VatNumber": "43256663343256663322",
+        "TradeName": tradeName,
+        "VatNumber": vatNumber,
       },
       buyerDetails: {
-        "Zone": null,
-        "SubTin": null,
-        "SubCity": null,
-        "Locality": null,
-        "LegalName": "Walk-in Customer",
+        "LegalName": "Amanuel Teferi",
         "IdType": "KID",
-        "HouseNumber": "101",
-        "IdNumber": "3333367896666",
-        "Tin": "0088514835",
-        "Email": "customer@buyer.com",
-        "Phone": "+251944310004",
-        "City": "101",
-        "Region": "1",
-        "Country": "1",
-        "Kebele": "NearAirport",
-        "Wereda": "13",
-        "VatNumber": "43256663343256663322",
+        "HouseNumber": "",
+        "IdNumber": "",
+        "Tin": "0000037187",
+        "Email": "",
+        "Phone": "",
+        "City": city,
+        "Region": "",
+        "Country": "",
+        "Kebele": "",
+        "Wereda": "",
+        "VatNumber": "",
       },
       itemList: [
         {
-          // "HarmonizationCode": null,
           "LineNumber": 1,
           "NatureOfSupplies": "goods",
-          "UnitPrice": "796.68",
-          "TotalLineAmount": "3664.73",
-          "PreTaxValue": "3186.72",
+          "UnitPrice": "10.00",
+          "TotalLineAmount": "11.50",
+          "PreTaxValue": "10.00",
           "Unit": "PCS",
           "TaxCode": "VAT15",
-          "TaxAmount": "478.01",
-          "Quantity": "4.00",
+          "TaxAmount": "1.50",
+          "Quantity": "1.00",
           "Discount": "0.00",
-          "ExciseTaxValue": 0,
-          "ProductDescription": "ALD-CHR-805BIT60",
-          "ItemCode": "100-JR1-873",
+          "ExciseTaxValue": "0.00",
+          "ProductDescription": "Sample Item",
+          "ItemCode": "ITEM-1",
         },
       ],
       valueDetails: {
-        "TotalValue": "3664.73",
-        "TaxValue": "478.01",
+        "TotalValue": "11.50",
+        "TaxValue": "1.50",
         "Discount": "0.00",
         "ExciseValue": "0.00",
-
-        "ExchangeRate": null,
         "InvoiceCurrency": "ETB",
-        "IncomeWithholdValue": "0.00",
-        "TransactionWithholdValue": "0.00",
       },
       paymentDetails: {"PaymentTerm": "CASH", "Mode": "CASH"},
-      referenceDetails: {"RelatedDocument": null, "PreviousIrn": "null"},
+      referenceDetails: {
+        "RelatedDocument": null,
+        "PreviousIrn": "null",
+      }, // TODO: revert to null once backend schema is fixed
       version: "1",
     );
+
     await _sendInvoiceRequest(request);
   }
 
   String? _extractExpectedValue(dynamic responseData) {
-    if (responseData is Map && responseData['body'] is List) {
-      for (var item in responseData['body']) {
-        if (item is Map && item['errorMessage'] is List) {
-          for (var msg in item['errorMessage']) {
-            final match = RegExp(
-              r'expected\s*:\s*(\d+)',
-            ).firstMatch(msg.toString());
-            if (match != null) {
-              return match.group(1);
-            }
-          }
-        }
+    if (responseData is Map) {
+      final msg = responseData['message'] ?? responseData['errorMessage'];
+      if (msg != null && msg is String && msg.contains('expected value:')) {
+        final match = RegExp(r'expected value: ([\d]+)').firstMatch(msg);
+        return match?.group(1);
       }
     }
     return null;
@@ -487,34 +505,69 @@ class InvoiceController extends GetxController {
       request,
       onSuccess: (response) async {
         final data = response.data;
-        final String irn = (data != null && data['irn'] != null)
-            ? data['irn']
+        final String irn =
+            (data != null &&
+                data['body'] != null &&
+                data['body']['irn'] != null)
+            ? data['body']['irn']
             : "mock_irn_fallback_${DateTime.now().millisecondsSinceEpoch}";
 
-        generatedQrCode.value = irn;
-        Get.snackbar('Success', 'Invoice registered successfully.');
-        isSubmitting.value = false;
+        Get.dialog(
+          Dialog(
+            backgroundColor: Get.theme.colorScheme.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text('Invoice Registered', style: TextStyle(fontWeight: FontWeight.bold, color: Get.theme.colorScheme.primary, fontSize: 16)),
+                  const SizedBox(height: 8),
+                  const Text('Generating receipt & PDF...', textAlign: TextAlign.center),
+                ],
+              ),
+            ),
+          ),
+          barrierDismissible: false,
+        );
+        // Loader is deliberately kept active until receipt completes
 
         // Fetch the invoice from history to ensure we have full details for the prompt
         InvoiceSummary? registeredInvoice;
         try {
           final historyController = Get.put(InvoiceHistoryController());
           await historyController.fetchInvoices(refresh: true);
-          if (historyController.invoices.isNotEmpty) {
-            registeredInvoice = historyController.invoices.firstWhere(
-              (inv) => inv.irn == irn,
-              orElse: () => historyController.invoices.first,
-            );
-          }
+          registeredInvoice = historyController.invoices.firstWhereOrNull(
+            (inv) => inv.irn == irn,
+          );
         } catch (e) {
           Logger().e('Error fetching registered invoice: $e');
         }
 
+        // If not found in history yet, construct a minimal summary from local state
+        if (registeredInvoice == null) {
+          registeredInvoice = InvoiceSummary(
+            id: 0,
+            irn: irn,
+            documentNumber: request.documentDetails['DocumentNumber'],
+            status: 'A',
+            buyer: BuyerInfo(legalName: buyerName.value, tin: buyerTin.value),
+            totals: TotalsInfo(
+              totalValue: grandTotal.toStringAsFixed(2),
+              taxValue: totalVat.toStringAsFixed(2),
+              currency: 'ETB',
+            ),
+            createdAt: DateTime.now().toIso8601String(),
+            requestPayload: request.toJson(),
+          );
+        }
+
         clearForm();
 
-        if (registeredInvoice != null) {
-          _showPostRegistrationDialog(registeredInvoice);
-        }
+        // Automatically register receipt and show combined PDF preview
+        _autoRegisterReceiptAndPreview(registeredInvoice);
       },
       onFailure: (error, response) {
         final dynamic errorData = (error is dio_lib.DioException)
@@ -543,6 +596,93 @@ class InvoiceController extends GetxController {
         isSubmitting.value = false;
       },
     );
+  }
+
+  Future<void> _autoRegisterReceiptAndPreview(InvoiceSummary invoice) async {
+    try {
+      final receiptController = Get.put(ReceiptController());
+      final receipt = await receiptController.registerSalesReceipt(
+        invoice.irn!,
+        invoice.totals.totalValue!,
+        invoice.documentNumber!,
+        invoice.totals.totalValue!,
+        showSnackbar: false,
+      );
+
+      final invoiceBytes = await InvoicePdfService.generate(invoice);
+
+      // If receipt is registered, we can try to show both.
+      // Since merging PDF bytes is non-trivial without extra dependencies,
+      // we'll generate one PDF that contains both if possible,
+      // or just show the invoice if receipt fails.
+
+      Uint8List combinedBytes;
+      if (receipt != null) {
+        // We'll create a new document and add pages from both if we had a PDF merger.
+        // Instead, let's create a combined PDF by calling a specialized method or just appending.
+        // For simplicity, I'll generate the invoice PDF and if receipt exists,
+        // I would ideally append.
+        // Let's see if we can just use pw.Document to create a multi-page PDF.
+
+        final receiptBytes = await ReceiptPdfService.generate(receipt, invoice);
+
+        // As a compromise, let's use a screen that can show multiple PDFs or
+        // just show the invoice and inform about the receipt.
+        // BUT the user asked for "a PDF preview screen that shows both".
+        // Let's try to merge them using the pdf package's widgets.
+
+        combinedBytes = await _generateCombinedPdf(invoice, receipt);
+      } else {
+        combinedBytes = invoiceBytes;
+      }
+
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
+
+      Get.to(
+        () => PdfPreviewScreen(
+          pdfBytes: combinedBytes,
+          title: 'Invoice & Receipt #${invoice.documentNumber}',
+        ),
+      );
+    } catch (e) {
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
+      Logger().e('Error in auto receipt/preview: $e');
+      // Fallback to showing the dialog if something fails
+      _showPostRegistrationDialog(invoice);
+    } finally {
+      isSubmitting.value = false;
+    }
+  }
+
+  Future<Uint8List> _generateCombinedPdf(
+    InvoiceSummary invoice,
+    ReceiptSummary receipt,
+  ) async {
+    pw.Font? ethiopicRegular;
+    try {
+      final regData = await rootBundle.load('assets/fonts/NotoSansEthiopic-Regular.ttf');
+      ethiopicRegular = pw.Font.ttf(regData);
+    } catch (e) {
+      debugPrint('Ethiopic font load error: $e');
+    }
+
+    final pdf = pw.Document(
+      theme: pw.ThemeData.withFont(
+        fontFallback: [if (ethiopicRegular != null) ethiopicRegular],
+      ),
+    );
+
+    // Add Invoice Pages
+    await InvoicePdfService.generateIntoDocument(pdf, invoice);
+
+    // Add Receipt Pages
+    await ReceiptPdfService.generateIntoDocument(pdf, receipt, invoice);
+
+    return pdf.save();
   }
 
   void _showPostRegistrationDialog(InvoiceSummary invoice) {
@@ -581,7 +721,9 @@ class InvoiceController extends GetxController {
               Text(
                 'Invoice #${invoice.documentNumber} for ${invoice.buyer.legalName} has been successfully registered.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Get.theme.colorScheme.onSurface.withOpacity(0.6)),
+                style: TextStyle(
+                  color: Get.theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
               ),
               const SizedBox(height: 32),
               ElevatedButton(
@@ -650,6 +792,10 @@ class InvoiceController extends GetxController {
       backgroundColor: Get.theme.colorScheme.error.withOpacity(0.1),
       colorText: Get.theme.colorScheme.onError,
     );
+  }
+
+  String? parseMessage(dynamic data) {
+    return _parseMessage(data);
   }
 
   String? _parseMessage(dynamic data) {

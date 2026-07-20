@@ -9,6 +9,7 @@ import '../controllers/invoice_controller.dart';
 import '../controllers/receipt_controller.dart';
 import '../models/invoice_history_model.dart';
 import '../services/invoice_pdf_service.dart';
+import '../services/receipt_pdf_service.dart';
 import 'pdf_preview_screen.dart';
 
 class InvoiceDetailScreen extends StatelessWidget {
@@ -198,6 +199,9 @@ class InvoiceDetailScreen extends StatelessWidget {
                                 .registerSalesReceipt(
                                   invoice.irn!,
                                   amountController.text,
+                                  invoice.documentNumber ?? '',
+                                  invoice.totals.totalValue ??
+                                      amountController.text,
                                 )
                                 .then((_) => Navigator.pop(context));
                           }
@@ -601,15 +605,15 @@ class InvoiceDetailScreen extends StatelessWidget {
                     onTap: () => _showSalesReceiptBottomSheet(context),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _ActionCard(
-                    icon: CupertinoIcons.percent,
-                    title: 'withholding'.tr,
-                    color: const Color(0xFF00FFB3),
-                    onTap: () => _showWithholdingBottomSheet(context),
-                  ),
-                ),
+                // const SizedBox(width: 12),
+                // Expanded(
+                //   child: _ActionCard(
+                //     icon: CupertinoIcons.percent,
+                //     title: 'withholding'.tr,
+                //     color: const Color(0xFF00FFB3),
+                //     onTap: () => _showWithholdingBottomSheet(context),
+                //   ),
+                // ),
               ],
             ),
             const SizedBox(height: 32),
@@ -674,31 +678,62 @@ class InvoiceDetailScreen extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'Receipt #${receipt.receiptNumber ?? 'N/A'}',
-                                style: TextStyle(
-                                  color: theme.textTheme.bodyLarge?.color,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: statusColor.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
+                              SizedBox(
+                                width: MediaQuery.of(context).size.width * 0.4,
                                 child: Text(
-                                  statusText,
+                                  'R #${receipt.receiptNumber ?? 'N/A'}',
                                   style: TextStyle(
-                                    color: statusColor,
-                                    fontSize: 12,
+                                    color: theme.textTheme.bodyLarge?.color,
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
+                              ),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: statusColor.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      statusText,
+                                      style: TextStyle(
+                                        color: statusColor,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(CupertinoIcons.printer),
+                                    color: theme.primaryColor,
+                                    onPressed: () async {
+                                      final bytes =
+                                          await ReceiptPdfService.generate(
+                                            receipt,
+                                            invoice,
+                                          );
+                                      if (!context.mounted) return;
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => PdfPreviewScreen(
+                                            pdfBytes: bytes,
+                                            title:
+                                                'Receipt ${receipt.receiptNumber ?? receipt.id}',
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
                               ),
                             ],
                           ),

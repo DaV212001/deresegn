@@ -64,26 +64,53 @@ class InvoicePdfService {
     return words;
   }
 
-  static Future<Uint8List> generate(InvoiceSummary invoice) async {
-    // ── Load Ethiopic font from bundled assets ────────────────────
+  static Future<Uint8List> generate(
+    InvoiceSummary invoice, {
+    bool isPaymentReceipt = false,
+    String? overrideDocNumber,
+    String? overrideIrnTitle,
+    String? overrideIrn,
+    String? overrideQr,
+    String? overrideReferenceIrn,
+  }) async {
     pw.Font? ethiopicRegular;
     try {
-      final regData = await rootBundle.load(
-          'assets/fonts/NotoSansEthiopic-Regular.ttf');
+      final regData = await rootBundle.load('assets/fonts/NotoSansEthiopic-Regular.ttf');
       ethiopicRegular = pw.Font.ttf(regData);
     } catch (e) {
       debugPrint('Ethiopic font load error: $e');
     }
 
-    final List<pw.Font> fontFallback = [
-      if (ethiopicRegular != null) ethiopicRegular,
-    ];
-
     final pdf = pw.Document(
       theme: pw.ThemeData.withFont(
-        fontFallback: fontFallback,
+        fontFallback: [if (ethiopicRegular != null) ethiopicRegular],
       ),
     );
+
+    await generateIntoDocument(
+      pdf,
+      invoice,
+      isPaymentReceipt: isPaymentReceipt,
+      overrideDocNumber: overrideDocNumber,
+      overrideIrnTitle: overrideIrnTitle,
+      overrideIrn: overrideIrn,
+      overrideQr: overrideQr,
+      overrideReferenceIrn: overrideReferenceIrn,
+    );
+
+    return pdf.save();
+  }
+
+  static Future<void> generateIntoDocument(
+    pw.Document pdf,
+    InvoiceSummary invoice, {
+    bool isPaymentReceipt = false,
+    String? overrideDocNumber,
+    String? overrideIrnTitle,
+    String? overrideIrn,
+    String? overrideQr,
+    String? overrideReferenceIrn,
+  }) async {
     final payload = invoice.requestPayload ?? {};
 
     // ── Extract data ──────────────────────────────────────────────
@@ -92,16 +119,22 @@ class InvoicePdfService {
     final docDet = (payload['DocumentDetails'] as Map<String, dynamic>?) ?? {};
     final valDet = (payload['ValueDetails']    as Map<String, dynamic>?) ?? {};
     final payDet = (payload['PaymentDetails']  as Map<String, dynamic>?) ?? {};
+    final refDet = (payload['ReferenceDetails'] as Map<String, dynamic>?) ?? {};
     final srcSys = (payload['SourceSystem']    as Map<String, dynamic>?) ?? {};
     final items  = (payload['ItemList'] as List<dynamic>?) ?? [];
 
-    final docNumber  = _n(docDet['DocumentNumber'] ?? invoice.documentNumber);
+    final docNumber  = overrideDocNumber ?? _n(docDet['DocumentNumber'] ?? invoice.documentNumber);
     final docDate    = _n(docDet['Date'] ?? invoice.createdAt);
     final txType     = _n(payload['TransactionType'] ?? invoice.transactionType, 'B2C');
-    final irn        = _n(invoice.irn);
+    final irnTitle   = overrideIrnTitle ?? 'IRN:';
+    final irn        = overrideIrn ?? _n(invoice.irn);
     final sysNumber  = _n(srcSys['SystemNumber']);
     final cashier    = _n(srcSys['CashierName']);
     final payMode    = _n(payDet['Mode']);
+    
+    final docType = _n(docDet['Type'], 'INV');
+    final payTerm = _n(payDet['PaymentTerm'], 'CASH');
+    final previousIrn = overrideReferenceIrn ?? _n(refDet['PreviousIrn'], '');
 
     final totalValue    = _fmt(valDet['TotalValue']    ?? invoice.totals.totalValue);
     final taxValue      = _fmt(valDet['TaxValue']      ?? invoice.totals.taxValue);
@@ -115,8 +148,9 @@ class InvoicePdfService {
     // ── QR image ─────────────────────────────────────────────────
     pw.MemoryImage? qrImage;
     try {
-      if (invoice.signedQr != null && invoice.signedQr!.isNotEmpty) {
-        qrImage = pw.MemoryImage(base64Decode(invoice.signedQr!));
+      final qrToUse = overrideQr ?? invoice.signedQr;
+      if (qrToUse != null && qrToUse.isNotEmpty) {
+        qrImage = pw.MemoryImage(base64Decode(qrToUse));
       }
     } catch (e) {
       debugPrint('QR decode error: $e');
@@ -181,8 +215,13 @@ class InvoicePdfService {
           txType: txType,
           docNumber: docNumber,
           docDate: docDate,
+          irnTitle: irnTitle,
           irn: irn,
           sysNumber: sysNumber,
+          docType: docType,
+          payTerm: payTerm,
+          previousIrn: previousIrn,
+          isPaymentReceipt: isPaymentReceipt,
           styleWhite: styleWhite,
           styleBody: styleBody,
           styleBold: styleBold,
@@ -297,24 +336,26 @@ class InvoicePdfService {
           pw.SizedBox(height: 10),
 
           // ── Line Items Table ──────────────────────────────────────
-          _buildItemsTable(items, styleSmall, styleBody, tableHead, white, divider, bodyText),
+          if (docType != 'TWTH')
+            _buildItemsTable(items, styleSmall, styleBody, tableHead, white, divider, bodyText),
 
           pw.SizedBox(height: 10),
 
           // ── Financial Summary ─────────────────────────────────────
-          pw.Row(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              // Left: payment
-              pw.Expanded(
-                flex: 3,
-                child: pw.Container(
-                  padding: const pw.EdgeInsets.all(10),
-                  decoration: pw.BoxDecoration(
-                    color: accentBg,
-                    border: pw.Border.all(color: divider, width: 0.5),
-                    borderRadius: pw.BorderRadius.circular(4),
-                  ),
+          if (docType != 'TWTH')
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Left: payment
+                pw.Expanded(
+                  flex: 3,
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(10),
+                    decoration: pw.BoxDecoration(
+                      color: accentBg,
+                      border: pw.Border.all(color: divider, width: 0.5),
+                      borderRadius: pw.BorderRadius.circular(4),
+                    ),
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
@@ -378,7 +419,24 @@ class InvoicePdfService {
                 ),
               ),
             ],
-          ),
+          )
+          else
+            pw.Container(
+              padding: const pw.EdgeInsets.all(16),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: divider, width: 0.5),
+                borderRadius: pw.BorderRadius.circular(4),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('Withholding Summary / የግብር ቅነሳ ማጠቃለያ', style: styleBold),
+                  pw.SizedBox(height: 10),
+                  summaryRow('Withheld Amount', '${_fmt(payload['CollectedAmount'] ?? 0)} ETB'),
+                  summaryRow('Reference Invoice IRN', previousIrn),
+                ]
+              )
+            ),
 
           pw.SizedBox(height: 12),
 
@@ -409,7 +467,7 @@ class InvoicePdfService {
                             color: PdfColor.fromInt(0xFF1A3A5C)),
                       ),
                       pw.SizedBox(height: 4),
-                      pw.Text('IRN: $irn',
+                      pw.Text('$irnTitle $irn',
                           style: pw.TextStyle(
                               fontSize: 6.5,
                               color: bodyText)),
@@ -430,8 +488,6 @@ class InvoicePdfService {
         ],
       ),
     );
-
-    return pdf.save();
   }
 
   // ── Page Header widget ──────────────────────────────────────────
@@ -442,6 +498,11 @@ class InvoicePdfService {
     required String docDate,
     required String irn,
     required String sysNumber,
+    required String docType,
+    required String payTerm,
+    required String previousIrn,
+    bool isPaymentReceipt = false,
+    required String irnTitle,
     required pw.TextStyle styleWhite,
     required pw.TextStyle styleBody,
     required pw.TextStyle styleBold,
@@ -493,7 +554,12 @@ class InvoicePdfService {
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
                     pw.Text(
-                      'እጅ በጅ የሽያጭ ደረሰኝ\nCASH SALES VAT/EXCISE TAX Invoice',
+                      isPaymentReceipt ? 'የክፍያ ደረሰኝ\nPAYMENT RECEIPT'
+                      : docType == 'CN' ? 'የታክስ ክሬዲት ሰነድ\nTax Credit Note' 
+                      : docType == 'DN' ? 'የታክስ ዴቢት ሰነድ\nTax Debit Note' 
+                      : docType == 'TWTH' ? 'ከተከፋይ ሒሳብ ላይ ለተቀነሰ ግብር የተሰጠ ደረሰኝ\nWithholding tax on payment'
+                      : payTerm == 'CREDIT' ? 'ዱቤ የሽያጭ ደረሰኝ\nCREDIT SALES VAT/EXCISE TAX Invoice'
+                      : 'እጅ በጅ የሽያጭ ደረሰኝ\nCASH SALES VAT/EXCISE TAX Invoice',
                       textAlign: pw.TextAlign.right,
                       style: pw.TextStyle(
                           fontSize: 9,
@@ -530,6 +596,10 @@ class InvoicePdfService {
               _metaCell('ቀን / Date', docDate, styleBold, styleSmall),
               pw.SizedBox(width: 16),
               _metaCell('System No.', sysNumber, styleBold, styleSmall),
+              if (docType == 'CN' || docType == 'DN' || isPaymentReceipt) ...[
+                pw.SizedBox(width: 16),
+                _metaCell('Ref IRN', previousIrn.length > 10 ? '${previousIrn.substring(0, 10)}...' : previousIrn, styleBold, styleSmall),
+              ],
               pw.Spacer(),
               pw.Container(
                 padding: const pw.EdgeInsets.symmetric(
@@ -542,7 +612,7 @@ class InvoicePdfService {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
-                    pw.Text('IRN:',
+                    pw.Text(irnTitle,
                         style: pw.TextStyle(
                             fontSize: 6,
                             fontWeight: pw.FontWeight.bold,

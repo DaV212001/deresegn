@@ -30,6 +30,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
   final _itemCodeController = TextEditingController();
   final _incomeWithholdController = TextEditingController(text: '0.00');
   final _txnWithholdController = TextEditingController(text: '0.00');
+  final _referenceIrnController = TextEditingController();
 
   final List<String> _natureOfSuppliesOptions = ['goods', 'service', 'other'];
   final List<String> _unitOptions = ['PCS', 'KG', 'LTR', 'MTR', 'DAY', 'HR'];
@@ -63,6 +64,9 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
     );
     _txnWithholdController.addListener(
       () => _controller.txnWithholdValue.value = _txnWithholdController.text,
+    );
+    _referenceIrnController.addListener(
+      () => _controller.referenceIrn.value = _referenceIrnController.text,
     );
 
     // Clear UI controllers when the controller's state is cleared
@@ -149,6 +153,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // CopyAccessTokenWidget(),
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -722,6 +727,30 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                     (val) => _controller.transactionType.value = val!,
                   ),
                   const SizedBox(height: 12),
+                  Obx(
+                    () => _buildDropdownField<String>(
+                      'Document Type',
+                      _controller.documentType.value,
+                      ['CASH_SALE', 'CREDIT_SALE', 'CREDIT_NOTE', 'DEBIT_NOTE'],
+                      (val) {
+                        _controller.documentType.value = val!;
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Obx(() {
+                    if (_controller.documentType.value == 'CREDIT_NOTE' ||
+                        _controller.documentType.value == 'DEBIT_NOTE') {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: _buildTextField(
+                          'Reference Invoice IRN',
+                          _referenceIrnController,
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }),
                   _buildTextField(
                     'income_withholding'.tr,
                     _incomeWithholdController,

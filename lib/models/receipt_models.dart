@@ -81,6 +81,7 @@ class WithholdingReceiptRequest {
     'SourceSystemNumber': sourceSystemNumber,
     'BuyerTIN': buyerTIN,
     'InvoiceDetail': invoiceDetail,
+    'WithholdDetail': withholdDetail,
   };
 }
 
