@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
 
 import '../controllers/invoice_history_controller.dart';
+import '../services/offline_queue_service.dart';
 import 'invoice_detail_screen.dart';
 import 'invoice_generator_screen.dart';
 
@@ -120,271 +121,418 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: Text(
-          'invoices'.tr,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color:
-                theme.appBarTheme.foregroundColor ??
-                theme.colorScheme.onSurface,
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        appBar: AppBar(
+          title: Text(
+            'invoices'.tr,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color:
+                  theme.appBarTheme.foregroundColor ??
+                  theme.colorScheme.onSurface,
+            ),
+          ),
+          backgroundColor: theme.appBarTheme.backgroundColor,
+          elevation: 0,
+          actions: [
+            IconButton(
+              icon: Icon(
+                CupertinoIcons.calendar,
+                color: theme.appBarTheme.foregroundColor,
+              ),
+              onPressed: () => _selectDateRange(context),
+            ),
+            IconButton(
+              icon: Icon(
+                CupertinoIcons.refresh,
+                color: theme.appBarTheme.foregroundColor,
+              ),
+              onPressed: () {
+                _controller.fetchInvoices(refresh: true);
+                if (Get.isRegistered<OfflineQueueService>()) {
+                   Get.find<OfflineQueueService>().syncQueue();
+                }
+              },
+            ),
+          ],
+          bottom: TabBar(
+            indicatorColor: theme.primaryColor,
+            labelColor: theme.primaryColor,
+            unselectedLabelColor: Colors.grey,
+            tabs: const [
+              Tab(text: 'History'),
+              Tab(text: 'Unsynced'),
+            ],
           ),
         ),
-        backgroundColor: theme.appBarTheme.backgroundColor,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(
-              CupertinoIcons.calendar,
-              color: theme.appBarTheme.foregroundColor,
-            ),
-            onPressed: () => _selectDateRange(context),
-          ),
-          IconButton(
-            icon: Icon(
-              CupertinoIcons.refresh,
-              color: theme.appBarTheme.foregroundColor,
-            ),
-            onPressed: () => _controller.fetchInvoices(refresh: true),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Obx(() {
-            if (_controller.startDate.value == null ||
-                _controller.endDate.value == null) {
-              return const SizedBox.shrink();
-            }
-            final df = DateFormat('MMM dd, yyyy');
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              decoration: BoxDecoration(
-                color: theme.primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: theme.primaryColor.withOpacity(0.2)),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    CupertinoIcons.calendar,
-                    size: 16,
-                    color: theme.primaryColor,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${df.format(_controller.startDate.value!)} - ${df.format(_controller.endDate.value!)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: theme.primaryColor,
-                    ),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () => _controller.setDateRange(null, null),
-                    child: Icon(
-                      CupertinoIcons.clear_circled_solid,
-                      size: 20,
-                      color: theme.primaryColor,
-                    ),
-                  ),
-                ],
-              ),
+        body: TabBarView(
+          children: [
+            _buildHistoryView(theme),
+            _buildUnsyncedView(theme),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () {
+            PersistentNavBarNavigator.pushNewScreen(
+              context,
+              screen: InvoiceGeneratorScreen(),
+              withNavBar: false,
             );
-          }),
-          Expanded(
-            child: Obx(() {
-              if (_controller.isLoading.value) {
-                return Center(
-                  child: CircularProgressIndicator(color: theme.primaryColor),
-                );
-              }
-
-              if (_controller.hasError.value) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        CupertinoIcons.exclamationmark_triangle,
-                        color: theme.colorScheme.secondary,
-                        size: 48,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _controller.errorMessage.value,
-                        style: TextStyle(
-                          color: theme.textTheme.bodyLarge?.color,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () =>
-                            _controller.fetchInvoices(refresh: true),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: theme.cardColor,
-                          foregroundColor: theme.textTheme.bodyLarge?.color,
-                        ),
-                        child: Text('retry'.tr),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              if (_controller.invoices.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        CupertinoIcons.doc_text,
-                        color: Colors.grey.withOpacity(0.5),
-                        size: 64,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'no_invoices_found'.tr,
-                        style: TextStyle(color: Colors.grey, fontSize: 18),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return RefreshIndicator(
-                color: theme.primaryColor,
-                backgroundColor: theme.cardColor,
-                onRefresh: () => _controller.fetchInvoices(refresh: true),
-                child: ListView.separated(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.only(
-                    left: 16,
-                    right: 16,
-                    top: 16,
-                    bottom: 80, // Padding for FAB
-                  ),
-                  itemCount:
-                      _controller.invoices.length +
-                      (_controller.isLoadingMore.value ? 1 : 0),
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    if (index == _controller.invoices.length) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            color: theme.primaryColor,
-                          ),
-                        ),
-                      );
-                    }
-
-                    final invoice = _controller.invoices[index];
-                    final buyerName =
-                        invoice.buyer.legalName ?? 'Unknown Buyer';
-                    final totalValue = invoice.totals.totalValue ?? '0.00';
-                    final currency = invoice.totals.currency ?? 'ETB';
-
-                    return GestureDetector(
-                      onTap: () {
-                        PersistentNavBarNavigator.pushNewScreen(
-                          context,
-                          screen: InvoiceDetailScreen(invoice: invoice),
-                          withNavBar: false,
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: theme.cardColor,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: theme.dividerColor),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    buyerName,
-                                    style: TextStyle(
-                                      color: theme.textTheme.bodyLarge?.color,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                _buildStatusBadge(invoice.status, theme),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'IRN: ${invoice.irn ?? 'N/A'}',
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  _formatDate(invoice.createdAt),
-                                  style: const TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                Text(
-                                  '$totalValue $currency',
-                                  style: TextStyle(
-                                    color: theme.primaryColor,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              );
-            }),
+          },
+          backgroundColor: theme.primaryColor,
+          foregroundColor: theme.scaffoldBackgroundColor,
+          icon: const Icon(CupertinoIcons.add),
+          label: Text(
+            'new_invoice'.tr,
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          PersistentNavBarNavigator.pushNewScreen(
-            context,
-            screen: InvoiceGeneratorScreen(),
-            withNavBar: false,
-          );
-        },
-        backgroundColor: theme.primaryColor,
-        foregroundColor: theme.scaffoldBackgroundColor,
-        icon: const Icon(CupertinoIcons.add),
-        label: Text(
-          'new_invoice'.tr,
-          style: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
     );
+  }
+
+  Widget _buildHistoryView(ThemeData theme) {
+    return Column(
+      children: [
+        Obx(() {
+          if (_controller.startDate.value == null ||
+              _controller.endDate.value == null) {
+            return const SizedBox.shrink();
+          }
+          final df = DateFormat('MMM dd, yyyy');
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            decoration: BoxDecoration(
+              color: theme.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: theme.primaryColor.withOpacity(0.2)),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  CupertinoIcons.calendar,
+                  size: 16,
+                  color: theme.primaryColor,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${df.format(_controller.startDate.value!)} - ${df.format(_controller.endDate.value!)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: theme.primaryColor,
+                  ),
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => _controller.setDateRange(null, null),
+                  child: Icon(
+                    CupertinoIcons.clear_circled_solid,
+                    size: 20,
+                    color: theme.primaryColor,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+        Expanded(
+          child: Obx(() {
+            if (_controller.isLoading.value) {
+              return Center(
+                child: CircularProgressIndicator(color: theme.primaryColor),
+              );
+            }
+
+            if (_controller.hasError.value) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      CupertinoIcons.exclamationmark_triangle,
+                      color: theme.colorScheme.secondary,
+                      size: 48,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _controller.errorMessage.value,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => _controller.fetchInvoices(refresh: true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.cardColor,
+                        foregroundColor: theme.textTheme.bodyLarge?.color,
+                      ),
+                      child: Text('retry'.tr),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            if (_controller.invoices.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      CupertinoIcons.doc_text,
+                      color: Colors.grey.withOpacity(0.5),
+                      size: 64,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'no_invoices_found'.tr,
+                      style: TextStyle(color: Colors.grey, fontSize: 18),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return RefreshIndicator(
+              color: theme.primaryColor,
+              backgroundColor: theme.cardColor,
+              onRefresh: () => _controller.fetchInvoices(refresh: true),
+              child: ListView.separated(
+                controller: _scrollController,
+                padding: const EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 16,
+                  bottom: 80, // Padding for FAB
+                ),
+                itemCount: _controller.invoices.length +
+                    (_controller.isLoadingMore.value ? 1 : 0),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  if (index == _controller.invoices.length) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: theme.primaryColor,
+                        ),
+                      ),
+                    );
+                  }
+
+                  final invoice = _controller.invoices[index];
+                  final buyerName = invoice.buyer.legalName ?? 'Unknown Buyer';
+                  final totalValue = invoice.totals.totalValue ?? '0.00';
+                  final currency = invoice.totals.currency ?? 'ETB';
+
+                  return GestureDetector(
+                    onTap: () {
+                      PersistentNavBarNavigator.pushNewScreen(
+                        context,
+                        screen: InvoiceDetailScreen(invoice: invoice),
+                        withNavBar: false,
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: theme.cardColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: theme.dividerColor),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  buyerName,
+                                  style: TextStyle(
+                                    color: theme.textTheme.bodyLarge?.color,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              _buildStatusBadge(invoice.status, theme),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'IRN: ${invoice.irn ?? 'N/A'}',
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _formatDate(invoice.createdAt),
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                '$totalValue $currency',
+                                style: TextStyle(
+                                  color: theme.primaryColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUnsyncedView(ThemeData theme) {
+    if (!Get.isRegistered<OfflineQueueService>()) {
+      return const Center(child: Text('Offline service unavailable'));
+    }
+    final queueService = Get.find<OfflineQueueService>();
+    
+    return Obx(() {
+      final queue = queueService.queue;
+      
+      if (queue.isEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.cloud_done,
+                color: Colors.green.withOpacity(0.5),
+                size: 64,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'All invoices synced!',
+                style: TextStyle(color: Colors.grey, fontSize: 18),
+              ),
+            ],
+          ),
+        );
+      }
+      
+      return ListView.separated(
+        padding: const EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: 80,
+        ),
+        itemCount: queue.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final item = queue[index];
+          final request = item.request;
+          
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.orange.withOpacity(0.5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.buyerName.isNotEmpty ? item.buyerName : 'Unknown Buyer',
+                        style: TextStyle(
+                          color: theme.textTheme.bodyLarge?.color,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'PENDING',
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Queued at: ${DateFormat('MMM dd, yyyy HH:mm').format(item.queuedAt.toLocal())}',
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${item.grandTotal} ${request.valueDetails['InvoiceCurrency'] ?? 'ETB'}',
+                      style: TextStyle(
+                        color: theme.primaryColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.sync, color: theme.primaryColor),
+                      onPressed: () {
+                        queueService.syncQueue();
+                        Get.snackbar('Sync', 'Attempting to sync pending invoices...', snackPosition: SnackPosition.BOTTOM);
+                      },
+                      tooltip: 'Sync Now',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    });
   }
 }

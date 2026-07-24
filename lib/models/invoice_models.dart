@@ -23,6 +23,21 @@ class InvoiceRegisterRequest {
     required this.version,
   });
 
+  factory InvoiceRegisterRequest.fromJson(Map<String, dynamic> json) {
+    return InvoiceRegisterRequest(
+      documentDetails: json['DocumentDetails'] ?? {},
+      transactionType: json['TransactionType'] ?? '',
+      sourceSystem: json['SourceSystem'] ?? {},
+      sellerDetails: json['SellerDetails'] ?? {},
+      buyerDetails: json['BuyerDetails'] ?? {},
+      itemList: List<Map<String, dynamic>>.from(json['ItemList'] ?? []),
+      valueDetails: json['ValueDetails'] ?? {},
+      paymentDetails: json['PaymentDetails'] ?? {},
+      referenceDetails: json['ReferenceDetails'] ?? {},
+      version: json['Version'] ?? '1',
+    );
+  }
+
   Map<String, dynamic> toJson() => {
     'DocumentDetails': documentDetails,
     'TransactionType': transactionType,
@@ -95,4 +110,36 @@ class SupplyItem {
     'excise_tax_rate': exciseTaxRate,
     'is_excise_taxable': isExciseTaxable,
   };
+}
+
+class QueuedInvoice {
+  final String id;
+  final InvoiceRegisterRequest request;
+  final String buyerName;
+  final String grandTotal;
+  final DateTime queuedAt;
+
+  QueuedInvoice({
+    required this.id,
+    required this.request,
+    required this.buyerName,
+    required this.grandTotal,
+    required this.queuedAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'request': request.toJson(),
+    'buyerName': buyerName,
+    'grandTotal': grandTotal,
+    'queuedAt': queuedAt.toIso8601String(),
+  };
+
+  factory QueuedInvoice.fromJson(Map<String, dynamic> json) => QueuedInvoice(
+    id: json['id'],
+    request: InvoiceRegisterRequest.fromJson(json['request']),
+    buyerName: json['buyerName'] ?? '',
+    grandTotal: json['grandTotal'] ?? '',
+    queuedAt: DateTime.parse(json['queuedAt']),
+  );
 }

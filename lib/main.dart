@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import 'config/config_preference.dart';
 import 'controllers/auth_controller.dart';
+import 'services/offline_queue_service.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/setup_terminal_screen.dart';
 import 'theme/app_theme.dart';
@@ -14,6 +15,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ConfigPreference.init();
   final themeService = Get.put(ThemeService());
+  
+  // Initialize Offline Queue Service
+  await Get.putAsync(() => OfflineQueueService().init());
 
   runApp(DeresegnApp(themeService: themeService));
 }

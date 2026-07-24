@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:deresegn/config/dio_config.dart';
@@ -22,6 +23,7 @@ import '../screens/pdf_preview_screen.dart';
 import '../services/api_service.dart';
 import '../services/invoice_pdf_service.dart';
 import '../services/receipt_pdf_service.dart';
+import '../services/offline_queue_service.dart';
 import 'invoice_history_controller.dart';
 import 'receipt_controller.dart';
 
@@ -587,13 +589,59 @@ class InvoiceController extends GetxController {
         // Automatically register receipt and show combined PDF preview
         _autoRegisterReceiptAndPreview(registeredInvoice);
       },
-      onFailure: (error, response) {
+      onFailure: (error, response) async {
         final dynamic errorData = (error is dio_lib.DioException)
             ? error.response?.data
-            : response.data;
+            : response?.data;
         final int? statusCode = (error is dio_lib.DioException)
             ? error.response?.statusCode
-            : (error is int ? error : response.statusCode);
+            : (error is int ? error : response?.statusCode);
+
+        if (error is dio_lib.DioException) {
+          final isNetworkError = error.type == dio_lib.DioExceptionType.connectionTimeout ||
+                                 error.type == dio_lib.DioExceptionType.sendTimeout ||
+                                 error.type == dio_lib.DioExceptionType.receiveTimeout ||
+                                 error.type == dio_lib.DioExceptionType.connectionError ||
+                                 (error.type == dio_lib.DioExceptionType.unknown && error.error is SocketException);
+          if (isNetworkError) {
+             final queueService = Get.find<OfflineQueueService>();
+             await queueService.addInvoiceToQueue(request, buyerName.value, grandTotal.toStringAsFixed(2));
+             
+             if (Get.isDialogOpen ?? false) {
+               Get.back();
+             }
+             
+             Get.dialog(
+               Dialog(
+                 backgroundColor: Get.theme.colorScheme.surface,
+                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                 child: Padding(
+                   padding: const EdgeInsets.all(24.0),
+                   child: Column(
+                     mainAxisSize: MainAxisSize.min,
+                     children: [
+                       Icon(Icons.cloud_off, size: 48, color: Colors.orange),
+                       const SizedBox(height: 16),
+                       Text('No Connection', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                       const SizedBox(height: 8),
+                       Text('The invoice has been saved offline and will be registered automatically when connection is restored.', textAlign: TextAlign.center),
+                       const SizedBox(height: 24),
+                       ElevatedButton(
+                         onPressed: () => Get.back(),
+                         child: const Text('OK'),
+                       ),
+                     ],
+                   ),
+                 ),
+               ),
+               barrierDismissible: false,
+             );
+             
+             clearForm();
+             isSubmitting.value = false;
+             return;
+          }
+        }
 
         if (retryCount < 1 && statusCode == 406) {
           final expectedValue = _extractExpectedValue(errorData);
@@ -607,6 +655,10 @@ class InvoiceController extends GetxController {
             _sendInvoiceRequest(request, retryCount: retryCount + 1);
             return;
           }
+        }
+
+        if (Get.isDialogOpen ?? false) {
+          Get.back();
         }
 
         _handleError(error, response);
