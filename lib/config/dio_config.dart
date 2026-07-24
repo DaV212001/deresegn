@@ -36,10 +36,10 @@ class AuthInterceptor extends Interceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
+    options.headers['Branch-Id'] = '4';
     if (options.path.contains('login')) {
       return handler.next(options);
     }
-
     if (ConfigPreference.isAccessTokenExpired()) {
       Logger().d('Token expired proactive check. Refreshing...');
       final newToken = await _refreshAccessToken();

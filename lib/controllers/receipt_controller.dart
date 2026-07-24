@@ -15,10 +15,13 @@ class ReceiptController extends GetxController {
     String amount,
     String documentNumber,
     String invoiceTotal, {
+    String modeOfPayment = 'CASH',
+    String? referenceNumber,
+    String? paymentServiceProvider,
     bool showSnackbar = true,
   }) async {
     Get.log(
-      "Registering Receipt for IRN: $invoiceIrn, DocNum: $documentNumber, Total: $invoiceTotal",
+      "Registering Receipt for IRN: $invoiceIrn, DocNum: $documentNumber, Total: $invoiceTotal, Mode: $modeOfPayment",
     );
     isSubmittingReceipt.value = true;
     ReceiptSummary? result;
@@ -26,6 +29,19 @@ class ReceiptController extends GetxController {
     final tin = await ConfigPreference.getTin() ?? '0000037187';
     final systemNumber = await AppSettings.getSystemNumber();
     final cashierName = await AppSettings.getCashierName();
+
+    final Map<String, dynamic> txnDetails = {
+      "ModeOfPayment": modeOfPayment,
+      "DocumentNumber": int.tryParse(documentNumber) ?? documentNumber,
+      "CollectorName": cashierName,
+    };
+    if (referenceNumber != null && referenceNumber.trim().isNotEmpty) {
+      txnDetails["TransactionNumber"] = referenceNumber.trim();
+    }
+    if (paymentServiceProvider != null &&
+        paymentServiceProvider.trim().isNotEmpty) {
+      txnDetails["PaymentServiceProvider"] = paymentServiceProvider.trim();
+    }
 
     final request = ReceiptRegisterRequest(
       receiptNumber: "${DateTime.now().millisecondsSinceEpoch}",
@@ -46,11 +62,7 @@ class ReceiptController extends GetxController {
           "TotalAmount": invoiceTotal,
         },
       ],
-      transactionDetails: {
-        "ModeOfPayment": "CASH",
-        "DocumentNumber": int.tryParse(documentNumber) ?? documentNumber,
-        "CollectorName": cashierName,
-      },
+      transactionDetails: txnDetails,
     );
 
     await ApiService.registerReceipt(

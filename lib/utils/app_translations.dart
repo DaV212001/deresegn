@@ -103,6 +103,13 @@ class AppTranslations extends Translations {
           'income_withholding': 'Income Withholding',
           'transaction_withholding': 'Transaction Withholding',
           'submit_invoice': 'Submit Invoice',
+          'adjustment_reason': 'Adjustment Reason',
+          'currency': 'Currency',
+          'exchange_rate': 'Exchange Rate',
+          'payment_provider': 'Payment Provider',
+          'reference_no': 'Reference No.',
+          'cancellation_reason': 'Cancellation Reason',
+          'cancellation_reason_code': 'Reason Code',
         },
         'am_ET': {
           'settings': 'መቼቶች',
@@ -204,6 +211,13 @@ class AppTranslations extends Translations {
           'income_withholding': 'የገቢ ቅነሳ',
           'transaction_withholding': 'የግብይት ቅነሳ',
           'submit_invoice': 'ደረሰኙን አስገባ',
+          'adjustment_reason': 'የማስተካከያ ምክንያት',
+          'currency': 'የገንዘብ አይነት',
+          'exchange_rate': 'የምንዛሬ ተመን',
+          'payment_provider': 'የክፍያ አገልግሎት ሰጪ',
+          'reference_no': 'የማጣቀሻ ቁጥር',
+          'cancellation_reason': 'የመሰረዝ ምክንያት',
+          'cancellation_reason_code': 'የምክንያት ኮድ',
         },
       };
 }

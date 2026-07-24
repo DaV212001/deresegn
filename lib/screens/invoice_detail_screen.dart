@@ -41,7 +41,14 @@ class InvoiceDetailScreen extends StatelessWidget {
     }
 
     final controller = Get.put(CancelInvoiceController());
-    final reasonController = TextEditingController();
+    String selectedReasonCode = '1';
+
+    final reasonOptions = [
+      {'code': '1', 'label': '1 - Data Entry Error'},
+      {'code': '2', 'label': '2 - Buyer Details Error'},
+      {'code': '3', 'label': '3 - Order Cancelled / Returned'},
+      {'code': '4', 'label': '4 - Duplicate Invoice'},
+    ];
 
     final theme = Theme.of(context);
     showModalBottomSheet(
@@ -52,79 +59,94 @@ class InvoiceDetailScreen extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 24,
-            right: 24,
-            top: 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Cancel Invoice',
-                style: TextStyle(
-                  color: theme.textTheme.bodyLarge?.color,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24,
+                right: 24,
+                top: 24,
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Provide a reason code to cancel this invoice on the tax authority logs.',
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: reasonController,
-                keyboardType: TextInputType.number,
-                style: TextStyle(color: theme.textTheme.bodyLarge?.color),
-                decoration: InputDecoration(
-                  labelText: 'Reason Code (e.g. 1)',
-                  labelStyle: const TextStyle(color: Colors.grey),
-                  filled: true,
-                  fillColor: theme.inputDecorationTheme.fillColor,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'cancel'.tr,
+                    style: TextStyle(
+                      color: theme.textTheme.bodyLarge?.color,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 32),
-              Obx(
-                () => ElevatedButton(
-                  onPressed: controller.isSubmitting.value
-                      ? null
-                      : () {
-                          if (reasonController.text.isNotEmpty) {
-                            controller
-                                .cancelInvoice(
-                                  invoice.irn!,
-                                  reasonController.text,
-                                )
-                                .then((_) => Navigator.pop(context));
-                          }
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF3366),
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 50),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Select a valid reason code to register cancellation on MoR servers.',
+                    style: TextStyle(color: Colors.grey),
                   ),
-                  child: controller.isSubmitting.value
-                      ? CircularProgressIndicator(
-                          color: theme.colorScheme.onPrimary,
-                        )
-                      : const Text(
-                          'Submit Cancellation',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                ),
+                  const SizedBox(height: 24),
+                  DropdownButtonFormField<String>(
+                    value: selectedReasonCode,
+                    dropdownColor: theme.cardColor,
+                    style: TextStyle(color: theme.textTheme.bodyLarge?.color),
+                    decoration: InputDecoration(
+                      labelText: 'cancellation_reason_code'.tr,
+                      labelStyle: const TextStyle(color: Colors.grey),
+                      filled: true,
+                      fillColor: theme.inputDecorationTheme.fillColor,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    items: reasonOptions.map((opt) {
+                      return DropdownMenuItem<String>(
+                        value: opt['code'],
+                        child: Text(opt['label']!),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setModalState(() {
+                          selectedReasonCode = val;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 32),
+                  Obx(
+                    () => ElevatedButton(
+                      onPressed: controller.isSubmitting.value
+                          ? null
+                          : () {
+                              controller
+                                  .cancelInvoice(
+                                    invoice.irn!,
+                                    selectedReasonCode,
+                                  )
+                                  .then((_) => Navigator.pop(context));
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF3366),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
+                      child: controller.isSubmitting.value
+                          ? CircularProgressIndicator(
+                              color: theme.colorScheme.onPrimary,
+                            )
+                          : Text(
+                              'cancel'.tr,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
               ),
-              const SizedBox(height: 24),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -137,7 +159,14 @@ class InvoiceDetailScreen extends StatelessWidget {
     }
 
     final controller = Get.put(ReceiptController());
-    final amountController = TextEditingController();
+    final amountController = TextEditingController(
+      text: invoice.totals.totalValue ?? '',
+    );
+    final refController = TextEditingController();
+    final providerController = TextEditingController();
+    String selectedMode = 'CASH';
+
+    final paymentModes = ['CASH', 'CHEQUE', 'CPO', 'CARD', 'BANK_TRANSFER'];
 
     final theme = Theme.of(context);
     showModalBottomSheet(
@@ -148,80 +177,159 @@ class InvoiceDetailScreen extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 24,
-            right: 24,
-            top: 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Register Sales Receipt',
-                style: TextStyle(
-                  color: theme.textTheme.bodyLarge?.color,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24,
+                right: 24,
+                top: 24,
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Register cash collections applied to this Invoice.',
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                style: TextStyle(color: theme.textTheme.bodyLarge?.color),
-                decoration: InputDecoration(
-                  labelText: 'Collected Amount (ETB)',
-                  labelStyle: const TextStyle(color: Colors.grey),
-                  filled: true,
-                  fillColor: theme.inputDecorationTheme.fillColor,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
-              Obx(
-                () => ElevatedButton(
-                  onPressed: controller.isSubmittingReceipt.value
-                      ? null
-                      : () {
-                          if (amountController.text.isNotEmpty) {
-                            controller
-                                .registerSalesReceipt(
-                                  invoice.irn!,
-                                  amountController.text,
-                                  invoice.documentNumber ?? '',
-                                  invoice.totals.totalValue ??
-                                      amountController.text,
-                                )
-                                .then((_) => Navigator.pop(context));
-                          }
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00FFB3),
-                    foregroundColor: Colors.black,
-                    minimumSize: const Size(double.infinity, 50),
-                  ),
-                  child: controller.isSubmittingReceipt.value
-                      ? const CircularProgressIndicator(color: Colors.black)
-                      : const Text(
-                          'Register Sales Receipt',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'receipt'.tr,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Register sales receipt collection for this invoice.',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: amountController,
+                      keyboardType: TextInputType.number,
+                      style: TextStyle(color: theme.textTheme.bodyLarge?.color),
+                      decoration: InputDecoration(
+                        labelText: 'amount'.tr,
+                        labelStyle: const TextStyle(color: Colors.grey),
+                        filled: true,
+                        fillColor: theme.inputDecorationTheme.fillColor,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
                         ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: selectedMode,
+                      dropdownColor: theme.cardColor,
+                      style: TextStyle(color: theme.textTheme.bodyLarge?.color),
+                      decoration: InputDecoration(
+                        labelText: 'mode_of_payment'.tr,
+                        labelStyle: const TextStyle(color: Colors.grey),
+                        filled: true,
+                        fillColor: theme.inputDecorationTheme.fillColor,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      items: paymentModes.map((mode) {
+                        return DropdownMenuItem<String>(
+                          value: mode,
+                          child: Text(mode),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setModalState(() {
+                            selectedMode = val;
+                          });
+                        }
+                      },
+                    ),
+                    if (selectedMode != 'CASH') ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: refController,
+                        style: TextStyle(
+                          color: theme.textTheme.bodyLarge?.color,
+                        ),
+                        decoration: InputDecoration(
+                          labelText: 'reference_no'.tr,
+                          labelStyle: const TextStyle(color: Colors.grey),
+                          filled: true,
+                          fillColor: theme.inputDecorationTheme.fillColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: providerController,
+                        style: TextStyle(
+                          color: theme.textTheme.bodyLarge?.color,
+                        ),
+                        decoration: InputDecoration(
+                          labelText: 'payment_provider'.tr,
+                          labelStyle: const TextStyle(color: Colors.grey),
+                          filled: true,
+                          fillColor: theme.inputDecorationTheme.fillColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    Obx(
+                      () => ElevatedButton(
+                        onPressed: controller.isSubmittingReceipt.value
+                            ? null
+                            : () {
+                                if (amountController.text.isNotEmpty) {
+                                  controller
+                                      .registerSalesReceipt(
+                                        invoice.irn!,
+                                        amountController.text,
+                                        invoice.documentNumber ?? '',
+                                        invoice.totals.totalValue ??
+                                            amountController.text,
+                                        modeOfPayment: selectedMode,
+                                        referenceNumber: refController.text,
+                                        paymentServiceProvider:
+                                            providerController.text,
+                                      )
+                                      .then((_) => Navigator.pop(context));
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF00FFB3),
+                          foregroundColor: Colors.black,
+                          minimumSize: const Size(double.infinity, 50),
+                        ),
+                        child: controller.isSubmittingReceipt.value
+                            ? const CircularProgressIndicator(
+                                color: Colors.black,
+                              )
+                            : Text(
+                                'receipt'.tr,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
-            ],
-          ),
+            );
+          },
         );
       },
     );

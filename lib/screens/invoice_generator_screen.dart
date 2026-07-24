@@ -31,6 +31,8 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
   final _incomeWithholdController = TextEditingController(text: '0.00');
   final _txnWithholdController = TextEditingController(text: '0.00');
   final _referenceIrnController = TextEditingController();
+  final _reasonController = TextEditingController();
+  final _exchangeRateController = TextEditingController(text: '1.00');
 
   final List<String> _natureOfSuppliesOptions = ['goods', 'service', 'other'];
   final List<String> _unitOptions = ['PCS', 'KG', 'LTR', 'MTR', 'DAY', 'HR'];
@@ -68,6 +70,12 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
     _referenceIrnController.addListener(
       () => _controller.referenceIrn.value = _referenceIrnController.text,
     );
+    _reasonController.addListener(
+      () => _controller.adjustmentReason.value = _reasonController.text,
+    );
+    _exchangeRateController.addListener(
+      () => _controller.exchangeRate.value = _exchangeRateController.text,
+    );
 
     // Clear UI controllers when the controller's state is cleared
     ever(_controller.generatedQrCode, (String qr) {
@@ -87,6 +95,9 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
         _itemQtyController.clear();
         _itemDiscountController.clear();
         _itemCodeController.clear();
+        _referenceIrnController.clear();
+        _reasonController.clear();
+        _exchangeRateController.text = '1.00';
         setState(() {
           _isWalkIn = false;
           _tabController.animateTo(0);
@@ -244,7 +255,21 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
           ),
           const SizedBox(height: 32),
           ElevatedButton(
-            onPressed: () => _tabController.animateTo(1),
+            onPressed: () {
+              final txnType = _controller.transactionType.value;
+              if ((txnType == 'B2B' || txnType == 'B2G') && !_isWalkIn) {
+                if (_tinController.text.trim().length != 10) {
+                  Get.snackbar(
+                    'Validation Error',
+                    'B2B/B2G transactions require a valid 10-digit Buyer TIN.',
+                    backgroundColor: Colors.red.withOpacity(0.2),
+                    colorText: Colors.red,
+                  );
+                  return;
+                }
+              }
+              _tabController.animateTo(1);
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.cardColor,
               foregroundColor: theme.primaryColor,
@@ -744,14 +769,48 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                         _controller.documentType.value == 'DEBIT_NOTE') {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12.0),
-                        child: _buildTextField(
-                          'Reference Invoice IRN',
-                          _referenceIrnController,
+                        child: Column(
+                          children: [
+                            _buildTextField(
+                              'Reference Invoice IRN',
+                              _referenceIrnController,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildTextField(
+                              'adjustment_reason'.tr,
+                              _reasonController,
+                            ),
+                          ],
                         ),
                       );
                     }
                     return const SizedBox.shrink();
                   }),
+                  Obx(
+                    () => Row(
+                      children: [
+                        Expanded(
+                          child: _buildDropdownField<String>(
+                            'currency'.tr,
+                            _controller.invoiceCurrency.value,
+                            ['ETB', 'USD', 'EUR', 'GBP'],
+                            (val) => _controller.invoiceCurrency.value = val!,
+                          ),
+                        ),
+                        if (_controller.invoiceCurrency.value != 'ETB') ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildTextField(
+                              'exchange_rate'.tr,
+                              _exchangeRateController,
+                              isNumber: true,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   _buildTextField(
                     'income_withholding'.tr,
                     _incomeWithholdController,

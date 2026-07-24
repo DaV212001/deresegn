@@ -95,6 +95,9 @@ class InvoiceController extends GetxController {
   var transactionType = 'B2C'.obs;
   var documentType = 'CASH_SALE'.obs;
   var referenceIrn = ''.obs;
+  var adjustmentReason = ''.obs;
+  var invoiceCurrency = 'ETB'.obs;
+  var exchangeRate = '1.00'.obs;
   var incomeWithholdValue = '0.00'.obs;
   var txnWithholdValue = '0.00'.obs;
   var selectedTaxCategory = taxCategories.first.obs;
@@ -238,6 +241,9 @@ class InvoiceController extends GetxController {
     transactionType.value = 'B2C';
     documentType.value = 'CASH_SALE';
     referenceIrn.value = '';
+    adjustmentReason.value = '';
+    invoiceCurrency.value = 'ETB';
+    exchangeRate.value = '1.00';
     incomeWithholdValue.value = '0.00';
     txnWithholdValue.value = '0.00';
     selectedTaxCategory.value = taxCategories.first;
@@ -321,18 +327,38 @@ class InvoiceController extends GetxController {
     if (documentType.value == 'CREDIT_SALE') {
       payTerm = "CREDIT";
     } else if (documentType.value == 'CREDIT_NOTE') {
-      docType = "CN";
+      docType = "CRE";
       payTerm = "CREDIT";
     } else if (documentType.value == 'DEBIT_NOTE') {
-      docType = "DN";
+      docType = "DEB";
       payTerm = "CREDIT";
+    }
+
+    final String docReason =
+        (docType == "CRE" || docType == "DEB")
+            ? (adjustmentReason.value.trim().isNotEmpty
+                ? adjustmentReason.value.trim()
+                : "Adjustment Note")
+            : "Sales Invoice";
+
+    final Map<String, dynamic> valDetails = {
+      "TotalValue": grandTotal.toStringAsFixed(2),
+      "TaxValue": totalVat.toStringAsFixed(2),
+      "Discount": totalDiscount.toStringAsFixed(2),
+      "ExciseValue": totalExcise.toStringAsFixed(2),
+      "InvoiceCurrency": invoiceCurrency.value,
+      "IncomeWithholdValue": incomeWithholdValue.value,
+      "TransactionWithholdValue": txnWithholdValue.value,
+    };
+    if (invoiceCurrency.value != "ETB") {
+      valDetails["ExchangeRate"] = exchangeRate.value;
     }
 
     final request = InvoiceRegisterRequest(
       documentDetails: {
         "DocumentNumber": nextDocNumber.toString(),
         "Type": docType,
-        "Reason": "Reason:-",
+        "Reason": docReason,
         "Date": _formatInvoiceDate(DateTime.now()),
       },
       transactionType: transactionType.value,
@@ -368,18 +394,10 @@ class InvoiceController extends GetxController {
         "Country": "",
         "Kebele": "",
         "Wereda": "",
-        "VatNumber": "",
+        "VatNumber": buyerTin.value.isEmpty ? null : "",
       },
       itemList: itemListMap,
-      valueDetails: {
-        "TotalValue": grandTotal.toStringAsFixed(2),
-        "TaxValue": totalVat.toStringAsFixed(2),
-        "Discount": totalDiscount.toStringAsFixed(2),
-        "ExciseValue": totalExcise.toStringAsFixed(2),
-        "InvoiceCurrency": "ETB",
-        "IncomeWithholdValue": incomeWithholdValue.value,
-        "TransactionWithholdValue": txnWithholdValue.value,
-      },
+      valueDetails: valDetails,
       paymentDetails: {"PaymentTerm": payTerm, "Mode": paymentMode.value},
       referenceDetails: {
         "RelatedDocument":
