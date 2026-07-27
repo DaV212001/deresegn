@@ -45,7 +45,6 @@ class ApiService {
     await DioService.dioPost(
       path: '/api/login',
       data: request.toJson(),
-      options: Options(headers: {'Branch-Id': '4'}),
       onSuccess: onSuccess,
       onFailure: onFailure,
     );
