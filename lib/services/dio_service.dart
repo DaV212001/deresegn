@@ -57,7 +57,7 @@ class DioService {
   static Future<void> dioPost({
     required String path,
     Options? options,
-    Map<String, dynamic>? data,
+    Object? data,
     Function(Response)? onSuccess,
     Function(Object, Response)? onFailure,
   }) async {
@@ -68,7 +68,9 @@ class DioService {
         options: options,
         data: data,
       );
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300) {
         if (onSuccess != null) onSuccess(response);
       } else {
         if (onFailure != null) onFailure(response.statusCode!, response);

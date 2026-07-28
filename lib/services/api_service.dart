@@ -2,12 +2,82 @@ import 'package:deresegn/config/config_preference.dart';
 import 'package:dio/dio.dart';
 
 import '../models/auth_models.dart';
+import '../models/company_models.dart';
 import '../models/invoice_history_model.dart';
 import '../models/invoice_models.dart';
 import '../models/receipt_models.dart';
 import 'dio_service.dart';
 
 class ApiService {
+  static Future<void> registerCompany(
+    CompanyRegisterRequest request, {
+    Function(Response)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    await DioService.dioPost(
+      path: '/api/company/register',
+      data: request.toJson(),
+      onSuccess: onSuccess,
+      onFailure: onFailure,
+    );
+  }
+
+  static Future<void> loginCompany(
+    CompanyLoginRequest request, {
+    Function(Response)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    await DioService.dioPost(
+      path: '/api/company/login',
+      data: request.toJson(),
+      onSuccess: onSuccess,
+      onFailure: onFailure,
+    );
+  }
+
+  static Future<void> fetchCompanies({
+    Function(List<CompanySummary>)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    await DioService.dioGet(
+      path: '/api/companies',
+      onSuccess: (response) {
+        final raw = response.data is Map
+            ? (response.data['data'] ?? response.data['companies'] ?? [])
+            : response.data;
+        if (raw is List)
+          onSuccess?.call(
+            raw
+                .whereType<Map>()
+                .map(
+                  (e) => CompanySummary.fromJson(Map<String, dynamic>.from(e)),
+                )
+                .toList(),
+          );
+      },
+      onFailure: onFailure,
+    );
+  }
+
+  static Future<void> createBranch(
+    FormData data, {
+    Function(Response)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    await DioService.dioPost(
+      path: '/api/branches',
+      data: data,
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer ${ConfigPreference.getCompanyAccessToken()}',
+          'Content-Type': 'multipart/form-data',
+        },
+      ),
+      onSuccess: onSuccess,
+      onFailure: onFailure,
+    );
+  }
+
   static Future<void> fetchInvoices({
     int page = 1,
     String? startDate,

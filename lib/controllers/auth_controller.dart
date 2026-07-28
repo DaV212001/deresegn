@@ -5,27 +5,104 @@ import 'package:logger/logger.dart';
 
 import '../config/config_preference.dart';
 import '../models/auth_models.dart';
+import '../models/company_models.dart';
 import '../services/api_service.dart';
 
 class AuthController extends GetxController {
   var isLinked = false.obs;
   var isLoggingIn = false.obs;
+  var isCompanyLoading = false.obs;
 
   @override
   void onInit() {
     super.onInit();
-    checkDeviceLink();
+    isLinked.value = ConfigPreference.getCompanyAccessToken() != null;
   }
 
   Future<void> checkDeviceLink() async {
-    isLinked.value = await ConfigPreference.isLoggedIn();
-    if (!isLinked.value) {
-      //   if (Get.currentRoute != '/setup_unlinked') {
-      //     Get.offAllNamed('/setup_unlinked');
-      //   }
-      // } else {
-      performMachineLogin();
+    isLinked.value = ConfigPreference.getCompanyAccessToken() != null;
+  }
+
+  Future<void> registerCompany(
+    String companyName,
+    String tin,
+    String owner,
+    String phone,
+    String password,
+    String email,
+    String website,
+  ) async {
+    isCompanyLoading.value = true;
+    await ApiService.registerCompany(
+      CompanyRegisterRequest(
+        companyName: companyName,
+        tinNumber: tin,
+        ownerName: owner,
+        phone: phone,
+        password: password,
+        email: email,
+        website: website,
+      ),
+      onSuccess: (response) async {
+        final token = _tokenFromResponse(response.data);
+        if (token != null) {
+          await ConfigPreference.updateCompanyToken(token);
+          await ConfigPreference.clearMorTokens();
+          await ConfigPreference.clearBranch();
+          await ConfigPreference.saveCompanyContext(
+            companyId: _idFromResponse(response.data) ?? '',
+          );
+          Get.offAllNamed('/branch-setup');
+        } else {
+          Get.snackbar('Registered', 'Company created. You can now log in.');
+        }
+      },
+      onFailure: (e, r) => _handleError(e, r),
+    );
+    isCompanyLoading.value = false;
+  }
+
+  Future<void> loginCompany(
+    String phone,
+    String password,
+    String companyId,
+  ) async {
+    if (phone.trim().isEmpty || password.isEmpty || companyId.trim().isEmpty) {
+      Get.snackbar(
+        'Missing details',
+        'Phone, password, and company ID are required.',
+      );
+      return;
     }
+    isCompanyLoading.value = true;
+    await ApiService.loginCompany(
+      CompanyLoginRequest(
+        phone: phone.trim(),
+        password: password,
+        companyId: companyId.trim(),
+      ),
+      onSuccess: (response) async {
+        final body = response.data is Map ? response.data : <String, dynamic>{};
+        final data = body['data'] is Map ? body['data'] : body;
+        final token =
+            data['accessToken'] ?? data['access_token'] ?? data['token'];
+        if (token == null) {
+          Get.snackbar(
+            'Login failed',
+            'The server did not return an access token.',
+          );
+          return;
+        }
+        await ConfigPreference.updateCompanyToken('$token');
+        await ConfigPreference.clearBranch();
+        await ConfigPreference.saveCompanyContext(
+          companyId: '${data['company_id'] ?? data['companyId'] ?? companyId}',
+        );
+        Get.offAllNamed('/branch-setup');
+      },
+      onFailure: (e, r) => _handleError(e, r),
+    );
+    isCompanyLoading.value = false;
   }
 
   Future<void> performMachineLogin() async {
@@ -79,6 +156,22 @@ class AuthController extends GetxController {
       },
     );
     isLoggingIn.value = false;
+  }
+
+  String? _tokenFromResponse(dynamic response) {
+    if (response is! Map) return null;
+    final data = response['data'] is Map ? response['data'] : response;
+    return '${data['accessToken'] ?? data['access_token'] ?? data['token']}' ==
+            'null'
+        ? null
+        : '${data['accessToken'] ?? data['access_token'] ?? data['token']}';
+  }
+
+  String? _idFromResponse(dynamic response) {
+    if (response is! Map) return null;
+    final data = response['data'] is Map ? response['data'] : response;
+    final id = data['company_id'] ?? data['companyId'] ?? data['id'];
+    return id == null ? null : '$id';
   }
 
   void _handleError(dynamic error, dynamic response) {

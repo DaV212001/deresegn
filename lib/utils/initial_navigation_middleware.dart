@@ -7,19 +7,15 @@ import '../config/config_preference.dart';
 class InitialNavigationMiddleware extends GetMiddleware {
   @override
   RouteSettings? redirect(String? route) {
-    // Check if the user is logged in
-    bool isAuthenticated = ConfigPreference.isLoggedIn();
-    if (!isAuthenticated) {
-      Logger().i('Unauthenticated access attempted');
-      return const RouteSettings(name: '/splash'); // Redirect to login page
+    if (ConfigPreference.getCompanyAccessToken() == null) {
+      Logger().i('Company authentication required');
+      return const RouteSettings(name: '/company-auth');
     }
-
-    // Check if onboarding is completed
-    // if (!ConfigPreference.isOnboardingCompleted()) {
-    //   Logger().i('Incomplete onboarding detected, redirecting to onboarding screen');
-    //   return const RouteSettings(name: '/courier-onboarding'); // Redirect to onboarding
-    // }
-
-    return null; // Allow the navigation
+    if (ConfigPreference.getBranchId() == null ||
+        !ConfigPreference.isLoggedIn()) {
+      Logger().i('Branch setup or background MOR login required');
+      return const RouteSettings(name: '/branch-setup');
+    }
+    return null;
   }
 }

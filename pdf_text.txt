@@ -1,0 +1,4485 @@
+=== PAGE 1 ===
+ 
+ 
+ 
+ 
+ 
+Electronic Invoice Management System (EIMS) 
+ 
+Ministry of Revenues 
+ (MoR) 
+ 
+COMPLIANCE DOCUMENT 
+ 
+Version: 1.0 
+ 
+ 
+ 
+ 
+ 
+ 
+
+=== PAGE 2 ===
+ 
+ 
+ 
+ 
+CONTENTS 
+1. SECTION ONE ........................................................................................................................................ 7 
+1.1 INTRODUCTION ............................................................................................................................. 7 
+1.2 STRUCTURE OF THE DOCUMENT .................................................................................................. 7 
+1.3 PURPOSE OF THE GUIDELINE ........................................................................................................ 8 
+1.4 LEGAL FRAMEWORK ..................................................................................................................... 9 
+1.5 INTENDED AUDIENCE .................................................................................................................... 9 
+1.6 TECHNICAL INTRODUCTION TO EIMS ........................................................................................... 9 
+1.7 EIMS PROCESS FLOWS ................................................................................................................ 10 
+2 SECTION TWO ..................................................................................................................................... 18 
+2.1 INVOICE REGISTRATION .............................................................................................................. 18 
+3 SECTION THREE ................................................................................................................................... 44 
+3.1 INVOICE REGISTRATION SCHEMA DETAIL ................................................................................... 44 
+2. SECTION FOUR .................................................................................................................................... 60 
+2.1. BULK INVOICE REGISTRATION ......................................................................................................... 60 
+2.1.1. PURPOSE ..................................................................................................................................... 60 
+2.1.2. OVERVIEW Bulk invoice registration ........................................................................................... 60 
+2.1.3. HIGH-LEVEL ARCHITECTURE ........................................................................................................ 61 
+2.1.3.1. System Components ............................................................................................................... 61 
+2.1.3.2. Data Flow ................................................................................................................................ 62 
+2.1.4. BULK INVOICE REGISTRATION REQUEST ..................................................................................... 63 
+2.1.4.1. End-Point Details ..................................................................................................................... 63 
+2.1.4.2. Headers ................................................................................................................................... 63 
+2.1.4.3. Request Format ....................................................................................................................... 63 
+2.1.4.4. Responses ............................................................................................................................... 68 
+2.1.4.4.1. Successful Synchronous Response .......................................................................................... 69 
+2.1.4.4.2. Failed Asynchronous Response ............................................................................................... 70 
+2.1.4.4.3. Asynchronous Call Back Response .......................................................................................... 71 
+3. SECTION FIVE ...................................................................................................................................... 75 
+3.2 INVOICE CANCELLATION ............................................................................................................. 75 
+4 SECTION SIX ......................................................................................................................................... 85 
+=== PAGE 3 ===
+ 
+ 
+ 
+4.1 RECIEIPT ...................................................................................................................................... 85 
+4.2 HIGH-LEVEL ARCHITECTURE ........................................................................................................ 86 
+4.3 SCHEMA OVERVIEW .................................................................................................................... 86 
+5 SECTION SEVEN ................................................................................................................................... 95 
+5.1 SECURITY ..................................................................................................................................... 95 
+6 ANNEX 1 ............................................................................................................................................ 105 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+=== PAGE 4 ===
+ 
+ 
+ 
+TABLES 
+Table 1 : Abbreviations/Acronyms ................................................................................................................................ 6 
+Table 2 Authentication Services .................................................................................................................................. 12 
+Table 3 Token Refresh Services .................................................................................................................................. 12 
+Table 4 Invoice Registration Services ......................................................................................................................... 14 
+Table 5: Cancellation Process ...................................................................................................................................... 14 
+Table 6 : Bulk Registration/Cancellation Service ........................................................................................................ 15 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+=== PAGE 5 ===
+ 
+ 
+ 
+ 
+FIGURES  
+ 
+Figure 1authentication Process .................................................................................................................................... 12 
+Figure 2 Invoice Registration ...................................................................................................................................... 13 
+Figure 3: Bulk Registration And Cancelation .............................................................................................................. 16 
+Figure 4: Bulk Registration And Cancelation With File .............................................................................................. 17 
+Figure 5: Bulk Upload Header ..................................................................................................................................... 63 
+Figure 6: Invoice Cancelation ...................................................................................................................................... 77 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+=== PAGE 6 ===
+ 
+ 
+ 
+A. ABBREVIATIONS/ACRONYMS 
+Table 1 : Abbreviations/Acronyms 
+Abbreviation Explanation 
+MoR Ministry of Revenue 
+EIMS Electronic Invoice Management System 
+TP Taxpayer 
+TA Tax Authority 
+PKI Public Key infrastructure 
+ 
+ 
+ 
+  
+=== PAGE 7 ===
+ 
+ 
+ 
+1. SECTION ONE 
+1.1 INTRODUCTION 
+The Minister of Revenue is actively working on implementing an advanced electronic invoice 
+management system designed to modernize the invoicing process, enhance transparency, and 
+uphold integrity in financial transactions. This initiative aims to significantly improve operational 
+efficiency in tax collection while ensuring a more seamless and reliable approach to managing 
+invoices. The introduction of this system is expected to bring substantial benefits to both taxpayers 
+and the Ministry. 
+For taxpayers, the system simplifies adherence to tax regulations, minimizes paperwork, and 
+reduces administrative burdens associated with financial transactions. By automating and 
+streamlining processes, it eliminates many of the complexities traditionally i nvolved in invoicing 
+and tax compliance. As a result, businesses and individuals can manage their tax -related 
+responsibilities with greater ease, accuracy, and efficiency. 
+From the Ministry’s perspective, the system plays a crucial role in strengthening ta x compliance 
+by ensuring that financial transactions are more transparent and traceable. Additionally, it 
+facilitates more effective and timely tax collection, reducing the risk of tax evasion and improving 
+overall revenue generation. By leveraging technol ogy, the Ministry is taking a proactive step 
+toward a more efficient, transparent, and accountable tax administration system that benefits all 
+stakeholders involved. 
+1.2 STRUCTURE OF THE DOCUMENT  
+The document is systematically structured into six well -defined sections, each addressing a key 
+aspect of the Electronic Invoice Management System (EIMS) to ensure clarity and comprehensive 
+understanding. 
+The first section functions as the introduction, offering a comprehensive overview of the 
+document’s purpose, the legal framework guiding the implementation of the Electronic Invoice 
+Management System (EIMS), a technical introduction, and an in -depth explanation of its core 
+processes. This section lays the groundwork for understanding the system, emphasizing its 
+importance in optimizing invoice management and ensuring tax compliance. 
+=== PAGE 8 ===
+ 
+ 
+ 
+The second section presents an in -depth discussion on invoice registration guidelines. It outlines 
+the essential steps, requirements, and procedural details necessary for taxpayers to corr ectly 
+register invoices within the system. This section ensures that users adhere to compliance standards 
+while minimizing errors in invoice submission. 
+The third section focuses on the required invoice schema, detailing the specific structure, format,  
+and key data elements that must be included in an invoice. This section ensures that all invoices 
+follow a standardized format, making them compatible with the EIMS and regulatory 
+requirements. 
+In the fourth section, the document provides a thorough explanati on of bulk invoice processing 
+guidelines. It covers the step -by-step procedures for handling multiple invoices efficiently, 
+including technical considerations and best practices to ensure smooth processing for businesses 
+that generate high volumes of invoices. 
+The fifth section is dedicated to the guidelines for invoice cancellation. It explains the 
+circumstances under which an invoice can be canceled, the procedural requirements for doing so, 
+and the compliance measures that must be followed. 
+The sixth section provides a detailed explanation of the guidelines for registering the receipt of an 
+invoice that has already been previously registered. It outlines the key steps, necessary 
+documentation, and procedures required for the successful submission of the r eceipt to the 
+electronic invoice management system. 
+Finally, the seventh section outlines the security guidelines necessary for the effective operation 
+of both the taxpayers and the EIMS. It highlights the security measures, data protection protocols, 
+and best practices that ensure the system runs smoothly while safeguarding s ensitive financial 
+information. This section is crucial in maintaining the integrity, confidentiality, and reliability  of 
+the electronic invoicing system. 
+1.3 PURPOSE OF THE GUIDELINE 
+To ensure the Electronic Invoice Management System works seamlessly with taxpayers’ systems, 
+proper integration based on predefined standards and guidelines is essential. This document is 
+designed to help taxpayers meet the mandatory requirements set by the Ministry of Revenue of the 
+=== PAGE 9 ===
+ 
+ 
+ 
+Federal Government of Ethiopia. It provides det ailed guidance on the technical specifications 
+needed for successful integration, ensuring smooth and efficient operation of the system. 
+ 
+1.4 LEGAL FRAMEWORK 
+The introduction of electronics invoice management system can be outlined to the law which was 
+issued by ------------------------------------------ which enforces an obligation to taxpayers to prepare, 
+send and keep invoices in electronic form across the board. Among other conditions, the main 
+purposes pursued by adopting electronic invoicing are: improvem ent of compliance by the 
+taxpayers with correct tax reporting; minimal possibilities of fraud owing to improved 
+transparency; and simplification for businesses and government ’s tax officials. The switch to e -
+invoicing is part of a wider strategy aimed at a utomating the collection of taxes and enhancing 
+accountability measures in the administration of taxes to facilitate efficiency and security of 
+financial transactions. 
+1.5 INTENDED AUDIENCE 
+This document is intended for software developers, system architects, and QA engineers who 
+are tasked with implementing or testing the integration of systems with the electronics invoice 
+management system. It provides valuable guidance to help these professionals ensure that 
+their systems are correctly integrated and meet th e required e-invoicing standards. Whether 
+you're developing the integration or checking its functionality, this document offers the 
+information you need to support the process effectively. 
+1.6 TECHNICAL INTRODUCTION TO EIMS 
+This document outlines the technical requirements for the electronic invoice management system, 
+providing key guidelines and specifications for its successful implementation and integration. 
+These comprehensive requirements ensure the efficient operation of all system components. By 
+adhering to them, businesses and taxpayers can seamlessly integrate with the system, ensuring 
+accurate invoicing, regulatory compliance, and streamlined data processing. 
+Additionally, the document details the API requirements for registering invoice documents within 
+the system. It provides in-depth technical guidelines and protocols to facilitate smooth integration 
+with the Electronic Invoice Management System. The specifications define the structure, 
+=== PAGE 10 ===
+ 
+ 
+ 
+parameters, and data formats needed for the precise submission, validation, and storage of 
+invoices. Compliance with these standards enables businesses to optimize their invoicing 
+processes, meet regulatory requirements, and support real-time data exchange. 
+Moreover, the document includes API specifications for managin g both single and bulk invoice 
+cancellations, as well as verifying invoice legality. It outlines the technical requirements, data 
+formats, and communication protocols essential for accurate and efficient processing. These 
+guidelines help taxpayers integrat e cancellation functionalities into their systems, process 
+cancellations based on predefined rules, and ensure compliance with legal and regulatory 
+standards. Adhering to these specifications supports regulatory compliance, improves operational 
+efficiency, and safeguards the integrity of the invoicing process. 
+Furthermore, this document contains security specifications necessary for the secure and seamless 
+operation of the electronic invoice management system in coordination with the taxpayer's system. 
+Before initiating operations and exchanging information with the Electronic Invoice Management 
+System through its API, taxpayers must: 
+ Obtain credentials for their systems from EIMS taxpayer Portal 
+ Obtain digital certificate from a Certificate Authority as most communications with EIMS 
+require digital signature 
+ 
+1.7 EIMS PROCESS FLOWS 
+1.7.1 List of Invoice Processes 
+EIMS is the electronic invoice registration, cancellation and verification system of the Ministry of 
+Revenue of The Federal Democratic Republic of Ethiopia. The main processes of EIMS are: 
+1. Authenticate with EIMS for API communication 
+2. Enable taxpayer systems send requests to register invoices via API and receive clearance of 
+invoice with unique Invoice Registration Number (IRN) and QR Code 
+3. Enable taxpayer systems send request to cancel invoices via API and receive confirmation of 
+cancellation 
+=== PAGE 11 ===
+ 
+ 
+ 
+4. Enable taxpayer systems send bulk registration/cancellation requests via API or File uploads 
+and receive results of their requests via Call Back API or File Downloads 
+The following sub -sections provide high -level overview of the above process flows which are 
+explained in detail in other related documents that are listed in section 3.0. 
+1.7.2 Authentication 
+Taxpayer Systems need to authenticate with EIMS Authentication APIs us ing AOUTH2 for 
+communicating through REST end points. For authentication taxpayer systems need to be 
+configured with API Key, Client ID and Client Secret which will be provided via secure 
+communication during the on -boarding process. In addition, taxpayer System administrators can 
+change these credentials via the EIMS taxpayer portal. 
+Upon successful authentication, the Electronic Invoice Management System (EIMS) issues a JWT 
+token with a validity of three hours. Additionally, the Taxpayer System receives a  refresh token, 
+allowing it to renew the JWT token without requiring re -authentication. The specifics of this 
+process are outlined in the security specifications section of this document. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+=== PAGE 12 ===
+ 
+ 
+ 
+ 
+The diagram below provides an overview of the authentication process. 
+ 
+Figure 1Authentication Process 
+Table 2 Authentication Services 
+Service name Authentication 
+Access Method REST API - POST 
+Current Version 1 
+Prerequisite  
+Expected Results JWT Token and Refresh Token on successful authentication 
+or wrong credentials. 
+Data Exchange Request and Response JSON 
+Table 3 Token Refresh Services 
+Service name Refresh Authentication 
+Access Method REST API - POST 
+Current Version 1 
+Prerequisite Authentication of taxpayer system with EIMS 
+Expected Results New JWT Token that can be used or failure with not 
+authorized 
+
+=== PAGE 13 ===
+ 
+ 
+ 
+Data Exchange Request and Response JSON 
+1.7.3 Invoice Registration Process 
+Taxpayer systems need to authenticate with EIMS before they can request for invoice document 
+registration. When taxpayer system have obtained required JWT token and refresh token , then it 
+can send a request for invoice registration through the registration AP I with content that is 
+compliant with the registration API of EIMS. At this stage EIMS will reply with IRN, QR -code 
+and signed invoice if the registration is successful or will replay with error messages  
+The below diagram shows a high-level representation of invoice registration process. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Figure 2 Invoice Registration 
+=== PAGE 14 ===
+ 
+ 
+ 
+ 
+ 
+Table 4 Invoice Registration Services 
+Service name Invoice document registration request 
+Access Method REST API 
+Current Version 1 
+Prerequisite Authentication of taxpayer system with EIMS 
+Expected Results Success with IRN, QR and Signed Invoice and Failure with 
+one of the standard failure messages 
+Data Exchange Request and Response JSON 
+ 
+1.7.4 Invoice Cancellation 
+Process 
+Taxpayer systems can submit a request to cancel an invoice, which will be verified by EIMS based 
+on applicable rules and regulations for invoice cancellations. If the request meets the validation 
+criteria, a cancellation confirmation will be issued . Invoice cancellation is only permitted for 
+invoices registered in EIMS and must comply with specific rules, including the maximum 
+allowable time between issuance and cancellation, as well as daily and monthly limits on the 
+number of cancellations. 
+A cancellation request is automatically processed if it meets the predefined rules and falls within  
+the permitted daily and monthly cancellation limits. However, if the request exceeds these limits, 
+it will be subject to manual review before any further action is taken. This manual review ensures 
+compliance with regulations and prevents excessive or illegal cancellations. The validation process 
+helps maintain the integrity of the system by enforcing restrictions on the number of cancellations 
+allowed within a given period. 
+Table 5: Cancellation Process 
+Service name Invoice cancellation 
+Access Method REST API 
+Current Version 1 
+Prerequisite Authentication of taxpayer system with EIMS 
+Expected Results Successful cancellation will be notified to the taxpayer 
+system with “Success” response while failure will contain 
+failure reasons 
+Data Exchange Request and Response JSON 
+=== PAGE 15 ===
+ 
+ 
+ 
+ 
+1.7.5 Batch Registration and Cancellation 
+EIMS has provision for batch registration and cancellation using two different approaches, though 
+bulk registration/cancellation APIs and through bulk registration/cancellation request files. 
+1.7.5.1 Bulk Registration and Cancellation API 
+With bulk registration and cancellation APIs, a number of requests are sent to EIMS and EIMS 
+processes and responds to these requests asynchronously. Due to the nature of asynchronous 
+responses, taxpayer systems will have to make ready a web call back interface that will receive 
+results of the bulk registration/cancellation requests. Different rules of regi stration as well as 
+cancellation are applied during bulk registration/cancellation than those for single invoice 
+registration/cancellation. 
+Table 6 : Bulk registration/cancellation service 
+Service name Bulk Registration API 
+Access Method REST API 
+Current Version 1 
+Prerequisite Authentication of taxpayer system with EIMS 
+Expected Results Call back URL of the customer will be invoked with the 
+output of the bulk request 
+Data Exchange Request and Response JSON 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+=== PAGE 16 ===
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Figure 3: Bulk registration and Cancelation 
+=== PAGE 17 ===
+ 
+ 
+ 
+1.7.5.2 Bulk Registration and Cancellation with File Exchange 
+For both bulk registration and cancellation, EIMS provides file based request processing. 
+Taxpayers can upload files for registration and cancellation on the EIMS portal which will them 
+be processed  
+For registration/cancellation and the results can also be download from the portal. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Figure 4: bulk registration and cancelation with file 
+=== PAGE 18 ===
+ 
+ 
+ 
+2 SECTION TWO 
+2.1 INVOICE REGISTRATION 
+2.1.1 PURPOSE 
+A primary function of the Electronic Invoice Management System (EIMS) is invoice registration, 
+which plays a vital role in managing invoices and ensuring tax compliance. This section provides 
+a general overview of how invoice registration requests are submitted to EIMS, emphasizing the 
+overall process rather than the specific attributes of the invo ice registration object. For a 
+comprehensive understanding of these attributes, including the necessary fields and their formats, 
+this section offers a detailed guide. This helps taxpayers accurately register invoices in the system 
+while adhering to compliance requirements. 
+2.1.2 OVERVIEW 
+This section provides an overview of the integration requirements for submitting a single e-
+invoice to the Ministry of Revenue (MoR) e -invoice endpoint. It outlines the essential steps 
+and compliance standards needed to ensure a  seamless and successful process. This section 
+covers the following key areas: 
+ Request JSON Schema: The structure and validation rules of the e -invoice request 
+payload. 
+ Digital Signing Requirements: How to digitally sign the request and attach the certificate. 
+ Response Types: 
+o Success Response (200): Returned when an invoice registration is successful. 
+o Schema Validation Error Response (400): Returned when the request JSON does not 
+meet the schema definition. 
+o Rule Validation Error Response (406): Returned when the JSON schema is correct 
+but the invoice fails business/rule validation checks. 
+ 
+2.1.3 REQUEST SCHEMA 
+The request must be structured as a JSON object and include three primary properties: request, 
+signature, and certificate. The request object must follow the specified JSON schema to ensure 
+=== PAGE 19 ===
+ 
+ 
+ 
+proper formatting and data integrity. Additionally, the signature and certificate are essential 
+components that must be included to verify the authenticity of the digital signature. These 
+elements work together to ensure the security and integrity of the request, confirming that it 
+has not been altered and originates from an authorized source. 
+2.1.3.1 Top Level Structure 
+ 
+ 
+{ 
+  "$schema": "http://json-schema.org/draft-07/schema#", 
+  "type": "object", 
+  "properties": { 
+    "request": { 
+      "$id": "http://www.mor.gov.et/einvoice", 
+      "type": "object", 
+      ... 
+      "description": "Invoice number generation schema" 
+    }, 
+    "signature": { 
+      "type": "string" 
+    }, 
+    "certificate": { 
+      "type": "string" 
+    } 
+  }, 
+  "required": ["request", "signature", "certificate"] 
+} 
+Key Points: 
+ Request: Contains the invoice details including DocumentDetails, BuyerDetails, 
+SellerDetails, ItemList, V alueDetails, PaymentDetails, SourceSystem, ReferenceDetails, and 
+TransactionType. Details of this is provided in subsequent documents. 
+ Signature: A digital signature string generated by the client's private key over the 
+canonicalized request object. 
+ Certificate: A Base64-encoded certificate (e.g., X.509) used to verify the digital signature. 
+ 
+ 
+ 
+=== PAGE 20 ===
+ 
+ 
+ 
+2.1.3.2 Digital Signing Requirements 
+Canonicalization of Request Object:  
+ Before signing, the request object must be canonicalized (e.g., using a deterministic JSON 
+serialization without extra whitespaces or formatting differences). 
+Signature Generation:  
+ Use the private key associated with the provided certificate. Compute the digital signature (e.g., 
+using RSA or ECDSA) over the canonicalized request JSON (not including the Signature and 
+Certificate properties).  
+ Base64-encode the resulting signature. 
+Attach Signature and Certificate: 
+ Signature: The Base64-encoded digital signature string. 
+ Certificate: The Base64-encoded client certificate that corresponds to the private key used for 
+signing. 
+Validation on the Server Side: 
+ The server will verify that the signature is valid for the given request using the provided 
+certificate. 
+ Any mismatch or invalid signature will cause the request to be rejected. 
+2.1.4 RESPONSES 
+2.1.4.1 Success Response (200) 
+When the invoice request is valid, correctly signed, and meets all the necessary business rules, 
+a success response with a status code of 200 will be sent. This response will include the details 
+of the newly registered invoice, including its unique Invoice Reference Number (IRN). The 
+format of this response is shown in the schema below, providing all the necessary information 
+to confirm that the invoice has been successfully registered. 
+ 
+ 
+{ 
+=== PAGE 21 ===
+ 
+ 
+ 
+  "$schema": "http://json-schema.org/draft-07/schema#", 
+  "type": "object", 
+  "properties": { 
+    "statusCode": { 
+      "type": "integer" 
+    }, 
+    "message": { 
+      "type": "string" 
+    }, 
+    "body": { 
+      "type": "object", 
+      "properties": { 
+        "irn": { 
+          "type": "string" 
+        }, 
+        "ackDate": { 
+          "type": "string", 
+          "format": "date-time" 
+        }, 
+        "signedQR": { 
+          "type": "string" 
+        }, 
+        "status": { 
+          "type": "string" 
+        }, 
+        "documentNumber": { 
+          "type": "string" 
+        }, 
+        "signedInvoice": { 
+          "type": "string" 
+        }, 
+        "invoiceSignature": { 
+          "type": "string" 
+        } 
+      }, 
+=== PAGE 22 ===
+ 
+ 
+ 
+      "required": ["irn", "ackDate", "signedQR", "status", "documentNumber", "signedInvoice", "invoiceSignature "] 
+    } 
+  }, 
+  "required": ["statusCode", "message", "body"] 
+} 
+ Example Successful Response is show below, 
+{ 
+  "statusCode": 200, 
+  "message": "SUCCESS", 
+  "body": { 
+    "irn": "51fa3144ae45d2a06873a1e81c59ab7412bbd1ba2a52e70f71be347d586a1d9a",  
+    "ackDate": "2024-12-20T10:18:35.346863361+03:00[Africa/Addis_Ababa]", 
+    "signedQR": 
+"iVBORw0KGgoAAAANSUhEUgAAAMgAAADIAQAAAACFI5MzAAAFe0lEQVR4X...",  
+    "status": "A", 
+    "documentNumber": "253", 
+    "signedInvoice": 
+"Cax4wttFy8+BWb5z5P+S1mQ0UvJ3SaTDqNSINcASLBNLaoWYtpP3mPVmiePmMYvx...", 
+ 
+  } 
+} 
+  
+=== PAGE 23 ===
+ 
+ 
+ 
+The following table is a description of the content of the response, 
+Tag Description specification 
+statusCode 
+Indicates the status of the request, where 200 
+indicated successful processing in the example 
+above 
+Numeric value, 
+200 – successfully processed  
+400 – schema validation error 
+406 – rule validation error 
+message Associated message 
+Success, Schema validation error or 
+Rule validation error 
+body Object that contains details of the response Json Object 
+irn 
+A hash value of the contents of the invoice 
+document that is registered 
+String of length 64 characters 
+signedQR  
+Base64 representation of QR code which is 
+600X600, high error correction level (30%) and 
+containing fields as stated in the schema details 
+table. 
+ 
+signedInvoice  
+Contents of the registered invoice digest signed by 
+the private key of MoR. This digitally signed 
+string can be verified by tax payers by taking the 
+invoice data in the response ( without change) and 
+generating the hash using the public key of MoR. 
+ 
+ 
+  
+=== PAGE 24 ===
+ 
+ 
+ 
+2.1.4.2 Schema Validation Error Response (400) 
+If the request payload does not comply with the JSON Schema (e.g., required fields missing, incorrect data 
+types), a 400 error is returned. This error provides details about which fields  failed validation. Below is the JSON 
+schema response when the request for registration encounters schema validation error,  
+{ 
+  "$schema": "http://json-schema.org/draft-07/schema#", 
+  "type": "object", 
+  "properties": { 
+    "statusCode": { 
+      "type": "integer" 
+    }, 
+    "message": { 
+      "type": "string" 
+    }, 
+    "body": { 
+      "type": "array", 
+      "items": { 
+        "type": "object", 
+        "properties": { 
+          "type": { 
+            "type": "string" 
+          }, 
+          "code": { 
+            "type": "string" 
+          }, 
+          "message": { 
+            "type": "string" 
+          }, 
+          "instanceLocation": { 
+            "type": "string" 
+          }, 
+          "property": { 
+            "type": "string" 
+          }, 
+          "evaluationPath": { 
+            "type": "string" 
+=== PAGE 25 ===
+ 
+ 
+ 
+          }, 
+          "schemaLocation": { 
+            "type": "string", 
+            "format": "uri" 
+          }, 
+          "messageKey": { 
+            "type": "string" 
+          }, 
+          "arguments": { 
+            "type": "array", 
+            "items": { 
+              "type": "string" 
+            } 
+          } 
+        }, 
+        "required": [ 
+          "type", 
+          "code", 
+          "message", 
+          "instanceLocation", 
+          "property", 
+          "evaluationPath", 
+          "schemaLocation", 
+          "messageKey", 
+          "arguments" 
+        ] 
+      } 
+    } 
+  }, 
+  "required": [ 
+    "statusCode", 
+    "message", 
+    "body" 
+  ] 
+} 
+=== PAGE 26 ===
+ 
+ 
+ 
+Example of Schema Error is shown below 
+{ 
+    "statusCode": 400, 
+    "message": "SCHEMA ERROR", 
+    "body": [ 
+        { 
+            "type": "required", 
+            "code": "1028", 
+            "message": "$.DocumentDetails: required property 'DocumentNumber' not found",  
+            "instanceLocation": "$.DocumentDetails", 
+            "property": "DocumentNumber", 
+            "evaluationPath": "$.properties.DocumentDetails.required", 
+            "schemaLocation": "http://www.mor.gov.et/einvoice#/properties/DocumentDetails/required", 
+            "messageKey": "required", 
+            "arguments": [ 
+                "DocumentNumber" 
+            ] 
+        } 
+    ] 
+} 
+Key Points: 
+ statusCode: 400 indicates schema validation errors. 
+ message: "SCHEMA ERROR". 
+ body: An array of error objects detailing the specific violations: 
+o type: The type of validation error. 
+o message: Detailed description of the error. 
+o property: The property causing the error. 
+o schemaLocation: Points to the schema definition that was violated. 
+o arguments: Lists the missing or invalid properties. 
+ 
+=== PAGE 27 ===
+ 
+ 
+ 
+2.1.4.3 Rule Validation Error Response (406) 
+If the request passes the schema validation but fails to meet the business rules or logic (such as an 
+invoice date being out of range or invalid reference data), a 406 error response will be returned. 
+This means that while the format of the request is correct, the content doesn’t follow the required 
+rules or guidelines. The schema for the invoice rule validation error is shown below, which helps 
+clarify what went wrong and why the request was rejected. 
+{ 
+  "$schema": "http://json-schema.org/draft-07/schema#", 
+  "type": "object", 
+  "properties": { 
+    "statusCode": { 
+      "type": "integer" 
+    }, 
+    "message": { 
+      "type": "string" 
+    }, 
+    "body": { 
+      "type": "array", 
+      "items": { 
+        "type": "object", 
+        "properties": { 
+          "code": { 
+            "type": "string" 
+          }, 
+          "property": { 
+            "type": "string" 
+          }, 
+          "message": { 
+            "type": "string" 
+          } 
+        }, 
+=== PAGE 28 ===
+ 
+ 
+ 
+        "required": ["code", "property", "message"] 
+      } 
+    } 
+  }, 
+  "required": ["statusCode", "message", "body"] 
+}  
+=== PAGE 29 ===
+ 
+ 
+ 
+Example of Rule Validation Error 
+{ 
+    "statusCode": 406, 
+    "message": "RULE V ALIDA TION ERROR", 
+    "body": [ 
+        { 
+            "code": "###", 
+            "property": "DocumentDetails.Date", 
+            "message": "Document creation time should be within ## days" 
+        }, 
+        { 
+            "code": "###", 
+            "property": "DocumentDetails.Date", 
+            "message": "Document creation time should be within an open tax period." 
+        }, 
+        { 
+            "code": "###", 
+            "property": "ReferenceDetails.PreviousIrn", 
+            "message": "Previous IRN in ReferenceDetail is not correct." 
+        }, 
+        { 
+            "code": "###", 
+            "property": "valueDetails.ExchangeRate", 
+            "message": "Exchange rate is required if currency is not ETB." 
+        } 
+    ] 
+} 
+ 
+ 
+ 
+ 
+=== PAGE 30 ===
+ 
+ 
+ 
+Key Points: 
+ statusCode: 406 indicates business/rule validation failure. 
+ message: "RULE V ALIDATION ERROR". 
+ body: An array of rule validation errors, where each error: 
+ 
+2.1.5 INVOICE PRINT/TRANSMISSION FORMATS 
+ Compact layout for Fiscal print with embedded printers.  
+ A4 print for systems with regular printers and electronic transmission. 
+Please refer to the Annex for detail printed invoice format. 
+2.1.6  LOOKUP VALUE LIST 
+TransactionType 
+S.N Value Description Start Date End Date 
+1     
+2     
+n     
+xxxx 
+S.N Value Description Start Date End Date 
+1     
+2     
+n     
+ 
+  
+=== PAGE 31 ===
+ 
+ 
+ 
+ 
+Error List 
+S.N Error Code Status Code Description Resolution procedure 
+1.  
+4400 
+401 
+User not found during authentication 
+Use correct credentials and try 
+again. 
+2.  
+4401 
+401 Group not found during 
+authentication 
+Use correct credentials and try 
+again. 
+3.  
+4402 
+401 General authentication attribute not 
+found 
+Use correct credentials and try 
+again. 
+4.  
+4403 
+401 API key attribute not found during 
+authentication 
+Use correct credentials and try 
+again. 
+5.  
+4404 
+401 TIN attribute not found during 
+authentication 
+Use correct credentials and try 
+again. 
+6.  
+4405 
+401 Encryption key attribute not found 
+during authentication 
+Use correct credentials and try 
+again. 
+7.  
+4406 
+401 Authentication endpoint is not 
+reachable 
+Please raise ticket with MoR to 
+investigate the issue. 
+8.  
+4407 
+401 
+Error response from the 
+authentication endpoint 
+Use correct credentials and try 
+again, in addition raise support 
+ticket with MoR 
+9.  
+4408 
+401 
+Invalid API key used during login 
+Use correct credentials and try 
+again. 
+10.  
+4409 
+401 
+Invalid TIN used during login 
+Use correct credentials and try 
+again. 
+11.  
+4410 
+401 
+Invalid password used during login 
+Use correct credentials and try 
+again. 
+12.  
+4411 
+401 Refresh token endpoint is not 
+reachable 
+Please raise support ticket with 
+MoR. 
+13.  
+4412 
+401 Error response from the refresh 
+token endpoint 
+Please raise support ticket with 
+MoR. 
+14.  
+4501 
+401 Error occurred at the authentication 
+entry point 
+Please raise support ticket with 
+MoR. 
+15.  
+4502 
+401 
+Access denied error occurred 
+Re-authenticate and try again. If the 
+issue persists, raise support ticket 
+with MoR. 
+16.  
+4503 
+401 
+General token-related issue occurred 
+Re-authenticate and try again. 
+Please raise support ticket with 
+MoR. 
+17.  
+4601 
+400 
+Encryption issue 
+Re-authenticate and obtain new 
+encryption key and try again. 
+=== PAGE 32 ===
+ 
+ 
+ 
+18.  
+4602 
+400 
+Decryption issue 
+Re-authenticate and obtain new 
+encryption key and try again. 
+19.  
+4603 
+400 
+Issue during TIN extraction 
+Please raise support ticket with 
+MoR. 
+20.  
+4604 
+400 
+Issue during username extraction 
+Please raise support ticket with 
+MoR. 
+21.  
+4605 
+400 
+Issue during session state extraction 
+Please raise support ticket with 
+MoR. 
+22.  
+4606 
+400 Unknown error in the 
+encryption/decryption process 
+Please raise support ticket with 
+MoR. 
+23.  
+4607 
+400 Issue during encryption key 
+extraction 
+Please raise support ticket with 
+MoR. 
+24.  
+67001 
+400 
+Unknown certificate validation error 
+Please raise support ticket with 
+MoR. 
+25.  
+67002 
+400 
+Error loading the trust store 
+Please raise support ticket with 
+MoR. 
+26.  
+67003 
+400 
+Certificate is expired 
+Please contact the Certificate 
+Authority and obtain fresh 
+certificate before trying again. 
+27.  
+67004 
+400 
+Certificate's signature is invalid 
+Please contact the certificate 
+authority to verify certificate 
+validity as well as correctness. 
+28.  
+67005 
+400 OCSP validation service is 
+unreachable 
+Please raise support ticket with 
+MoR. 
+29.  
+67006 
+400 
+OCSP URL is not found inside the 
+provided certificate 
+Please check with the Certificate 
+authority and communicate the 
+error description and raise a 
+support request with the response. 
+30.  
+67007 
+400 
+Invalid OCSP response 
+Please raise support ticket with 
+MoR. 
+31.  
+67008 
+400 
+Certificate has been revoked 
+Please obtain a fresh certificate 
+from the Certificate Authority and 
+try again. 
+32.  
+67009 
+400 Certificate is not in Base64 encoding 
+format 
+Provide a correct base64 encoded 
+request 
+33.  
+67010 
+400 Public key used in the certificate is 
+invalid 
+Provide a correct public certificate 
+based on the private key 
+34.  
+67011 
+400 Error during certificate chain 
+validation 
+Provide a correct Certificate chain 
+on the request 
+35.  
+67012 
+400 
+Invalid certificate is provided 
+Provide a correct Certificate on the 
+request 
+=== PAGE 33 ===
+ 
+ 
+ 
+36.  
+67013 
+400 
+Error during certificate signature 
+validation 
+Provide a valid signature for the 
+invoice request, recheck if request 
+match with the signature 
+37.  
+67014 
+400 
+Invalid request object is provided 
+Provide a correct request body 
+38.  
+67015 
+400 Ownership of the certificate is not 
+valid 
+Provide a correct Certificate 
+39.  
+7030 
+406 Deviation validator for exchange 
+rate 
+Provide an acceptable Exhange rate 
+40.  
+7029 
+406 
+Seller Details Existence Checker 
+Provide a correct Seller detail 
+41.  
+7028 
+406 
+Document Type Validator 
+Provide a correct document type 
+42.  
+7027 
+406 
+Transaction Type Checker 
+Provide a correct transaction type 
+43.  
+7026 
+406 
+Document Date By Type 
+Provide correctly formatted date 
+44.  
+7025 
+406 
+Validate Nature of Supply 
+Provide Correct nature of supply 
+type 
+45.  
+7024 
+406 
+Tax code validator 
+Provide Correct tax code 
+46.  
+7023 
+406 
+Unit of measure 
+Provide a correct unit of measure 
+47.  
+7022 
+406 
+Payment mode 
+Provide payment mode 
+48.  
+7021 
+406 
+Related Document Validator 
+Provide a correct related document 
+number from previously registred 
+invoice 
+49.  
+7020 
+406 
+Credit Debit Validator 
+Provide a correct Credit, Debit 
+values 
+50.  
+7019 
+406 
+Previous IRN checker 
+Provide a correct previous IRN 
+51.  
+7018 
+406 
+Get Tax Center 
+Provide a valid tax center 
+52.  
+7017 
+406 
+Seller Details Checker 
+Provide a correct seller detail 
+53.  
+7016 
+406 
+Region Code for Seller 
+Provide a correct region code 
+54.  
+7015 
+406 
+Invoice Counter Validator 
+Provide a valid Invoice counter 
+value based on prevously registered 
+invoice 
+55.  
+7014 
+406 
+Item code validator 
+Provide Item code if invoice is not 
+manual type 
+56.  
+7013 
+406 
+Validate Source System 
+Provide a correct and registered 
+source system 
+=== PAGE 34 ===
+ 
+ 
+ 
+57.  
+7012 
+406 Tax Account With Withholding 
+Validator 
+Provide a correct witholding 
+amount 
+58.  
+7011 
+406 
+Currency Validator 
+Provide a correct and registered 
+currency 
+59.  
+7010 
+406 
+Cancellation Reason Code 
+Provide a correct and registered 
+reason code 
+60.  
+7009 
+406 
+Bulk Cancellation Limit 
+Please raise support ticket with 
+MoR to raise Bulk cancellation 
+limit. 
+61.  
+7008 
+406 
+Buyer TIN Validator 
+Provide a correct Buyer tin 
+62.  
+7006 
+406 
+Buyer Legal Name Validator 
+Provide a correct legal name 
+63.  
+7005 
+406 
+Region Code for Buyer 
+Provide a correct and registered 
+region code 
+64.  
+7004 
+406 
+Buyer Id Type Validator 
+Provide a correct and registered 
+buyer id 
+65.  
+7003 
+406 
+Bulk Cancellation Reason Code 
+Provide a correct and registred 
+reason code 
+66.  
+7002 
+406 
+Single Cancellation Limit 
+Please raise support ticket with 
+MoR to raise the single 
+cancellation limit. 
+67.  
+7001 
+406 Document Number Uniqueness 
+Checker 
+Provide a correct and unique 
+document number 
+68.  
+70031 
+406 Validate taxpayer tax accounts 
+(checks if the supplier is registered 
+for the given tax accounts) 
+Please make sure you are using the 
+correct tax code based on your 
+registered tax account types 
+ 
+ 
+ 
+ 
+  
+=== PAGE 35 ===
+ 
+ 
+ 
+2.1.7 SUMMARY 
+For the taxpayer system and the Electronic Invoice Management System (EIMS) to integrate and 
+function effectively, several key factors must be carefully addressed and prioritized. These 
+considerations are crucial for ensuring smooth interaction between th e two systems, enhancing 
+overall efficiency, and minimizing potential challenges during the integration process. By focusing 
+on these areas, a stable and reliable connection between the taxpayer's system and EIMS can be 
+maintained, ensuring that all operations are executed correctly and securely. 
+ 
+The taxpayer system must store invoice details, including the received IRN and QR Code from 
+EIMS, for each invoice or receipt. Tax auditors and/or inspectors will require the taxpayer to 
+provide a list of invoices and receipts, along with the corresponding IRNs received. 
+ 
+ Request Structure: Must match the defined JSON schema, be signed, and include a valid 
+certificate. 
+ Signature & Certificate: Digital signature required to ensure authenticity and integrity. 
+ Validation Flow: 
+1. Schema Validation (if fails → 400). 
+2. Business/Rule Validation (if fails → 406). 
+3. On success → 200 (with IRN, QR Code and signed  invoice details). 
+By following the guidelines in this integration compliance document, implementers can make sure 
+their requests to the Electronic Invoicing System are well -organized, correctly signed, and 
+processed properly. This helps ensure a smooth, error -free invoice registration process, making 
+interactions with the system more reliable and secure. Adhering to these standards not only 
+improves efficiency but also ensures compliance with the required regulations, resulting in a 
+seamless integration experience. 
+ 
+ 
+ 
+ 
+  
+=== PAGE 36 ===
+ 
+ 
+ 
+2.1.8 ATTACHMENTS: 
+i. Invoice registration request details 
+SN Json Path Descript
+ion 
+Data 
+Type 
+Size/M
+ax 
+Remarks Requirement Print 
+1.  “TransactionType” Transaction 
+Type 
+Select from 
+List 
+3 The nature of transaction: 
+ B2B – Business to Business 
+ B2C – Business to Consumer/non -
+registered 
+ B2G – Business to Government 
+ G2B – Government to Business 
+ G2C – Government to Consumer/non-
+registered 
+Mandatory Y 
+2. 2
+. 
+“DocumentDetails”.” 
+Type” 
+Document 
+Type 
+Select from 
+List 
+3 The type of invoice issued by the seller: 
+ 
+Mandatory Y 
+3. 3
+. 
+"DocumentDetails.Manu
+alInvoiceNumber" 
+Manual 
+Receipt 
+Number 
+String 15  Conditional Y 
+4. 4
+. 
+“DocumentDetails”.” 
+DocumentNumber” 
+Document 
+Number 
+String 
+/accept only 
+Numeric  
+100 The sequential number of invoices, debit notes 
+and credit notes as given by the seller. 
+Mandatory Y 
+5. 5
+. 
+“SourceSystem”.” 
+SystemType” 
+Source 
+System 
+Type 
+Select from 
+List 
+   Mandatory  
+6. 6
+. 
+“SourceSystem”.” 
+SystemNumber” 
+Source 
+system 
+Number 
+String 10   Y 
+7. 7
+. 
+“SourceSystem”.” 
+InvoiceCounter” 
+Invoice 
+counter 
+Numeric 20 The total number of invoices generated 
+bythesystem or machine. 
+Mandatory N 
+8. 8
+. 
+"ReferenceDetail.Relate
+dDocument" 
+Related 
+Document 
+Number 
+String 100 States the related document number for which this 
+invoice is applied or associated. Example: 
+Conditional Y 
+=== PAGE 37 ===
+ 
+ 
+ 
+ Original invoice document number for which 
+a Credit Note or Debit Note is issued. 
+ The main/first invoice number for which 
+interim or final invoices are issued. 
+9. 9
+. 
+"ReferenceDetail.Previu
+osIrn" 
+Previous 
+invoice 
+IRN 
+String 64 The IRN associated with the last invoice 
+generated and registered just before this one. 
+Mandatory N 
+10. 1
+0
+. 
+“DocumentDetails”.” 
+Date” 
+Invoice 
+Date 
+Date Time - The date and time when the e-invoice was created 
+by the supplier.  ISO 8601 standard date and time 
+format shall be used. The default time zone is 
+GMT+3. Format is yyyy-mm-dd hh:mm:ss.fff+/-
+hh:mm 
+Mandatory Y 
+11. 1
+1
+. 
+"ValueDetails"."Invoice
+Currency" 
+Invoice 
+Currency 
+Select from 
+List 
+3 The currency in which the invoice is issued. 
+The currency value shall compliant with the ISO 
+4217 three-character codes. This does not 
+necessarily mean the invoice will be received in 
+foreign currency without conversion to local 
+currency. The value should be the currency which 
+is legally agreed by the buyer and the seller at the 
+time of billing. 
+Mandatory Y 
+12. 1
+2
+. 
+"ValueDetails"."Exchan
+ge Rate" 
+Exchange 
+Rate 
+Decimal 20 The rate used to convert the invoice amount from 
+the invoice currency in to Ethiopian Birr(ETB). 
+Required if the invoice currency is not ETB. 
+Conditional Y 
+13. 1
+3
+. 
+"ValueDetails"."Item".E
+xciseTaxValue" 
+Excise Tax 
+Amount 
+Decimal 20,2 The total excise tax amount allocated for the sold 
+goods/services. 
+Required if the seller is obliged based on its 
+profile. 
+Conditional Y 
+14. 1
+4 
+ Transaction 
+Tax 
+Amount 
+Decimal 20,2 The total tax ( VAT, TOT ) amount collected for 
+the sale of goods/services. 
+Mandatory Y 
+15. 1
+5 
+"ValueDetails"."Transact
+ionWithholdValue" 
+Transaction 
+WHT 
+Amount 
+Decimal 20,2 The Actual/Expected total transaction 
+withholding tax amount. 
+Required if the buyer is mandated to withhold 
+payments. 
+Conditional Y 
+=== PAGE 38 ===
+ 
+ 
+ 
+It is actual if the payment term is immediate. 
+16. 1
+6 
+"ValueDetails"."Income
+WithholdValue" 
+Income Tax 
+WHT 
+Amount 
+Decimal  The total actual/expected direct tax amount 
+withheld by the buyer as collection of 
+profit/income tax in advance from the sale of 
+goods/services. Required if the buyer is mandated 
+to withhold payments. 
+Conditional Y 
+17. 1
+7 
+"ItemList"."Item"."Disco
+unt" 
+Total 
+Rebate 
+Amount 
+Decimal 20,2 Trade discount or rebate amount, if a trade 
+discount on the list price is provided. 
+Optional N 
+18. 1
+8 
+"ValueDetails"."TotalVa
+lue" 
+Invoice 
+Total 
+Amount 
+Decimal 20,2 The total/gross amount inclusive of transaction 
+taxes for the sale of goods/services. Total of the 
+net amount and tax amounts. 
+Mandatory Y 
+19. 1
+9 
+"PaymentDetails"."Paym
+ent Term" 
+Payment 
+Term 
+String  The agreed payment terms.  The vendor shall 
+provide mechanism to configure and use 
+different terms such as “days from invoice date”, 
+“day of month”, “end of month”, “Payment in 
+Advance”, “Cash on delivery” and other terms 
+as per the business practice in Ethiopia. 
+ 
+ IMMEDIATE – default and immediate payment is 
+going to happen. 
+ Example of “days from invoice date” is %/days, 
+%/days, …, N/days which means 10/15, 5/20, N/30 
+means the buyer can get 10% discount for 
+payments in 15 days (for “10/15”), 5% discount for 
+payments between 16thand 20thdays (for “5/20”). If 
+the buyer does not take discounts offered, full 
+invoice amount payment is expected by the 30thday 
+(for “N/30”). 
+Mandatory Y 
+20. 2
+0 
+"PaymentDetails"."Mode
+" 
+Mode String  Mode of Payment: Cash, Credit, Direct Transfer Optional Y 
+21. 2
+1 
+"DocumentDetails"."Rea
+son" 
+Reason String 200 The reason for issuance of credit note, debit note, 
+or any related transaction. 
+Conditional Y 
+=== PAGE 39 ===
+ 
+ 
+ 
+Required if there is “Related Invoice Number” or 
+this invoice reduces/increase an amount expected 
+from related invoice. 
+22. 2
+2 
+"ReferenceDetails"."Pur
+chaseOrder" 
+Purchase 
+order 
+String 100 Purchase order number Optional Y 
+23. 2
+3 
+"ReferenceDetails"."Con
+tract" 
+Contract 
+number 
+String 100 Contract number Optional N 
+24. 2
+4 
+“SourceSystem”.” 
+CashierName” 
+Cashier 
+Name 
+String 100 The name of the cashier operating the EBS/who 
+created the invoice. 
+Optional Y 
+25. 2
+5 
+“SourceSystem”.” 
+SalesPersonName” 
+Sales 
+Person 
+Name 
+String 100 The name of the sales person/employee supplying 
+the goods/services. 
+Optional N 
+26. 2
+6 
+"ReferenceDetails"."Firs
+tTicket" 
+First Ticket 
+Number 
+String 20 First document number of tickets or similar 
+source numbers. 
+Optional N 
+27. 2
+7 
+"ReferenceDetails"."Last
+Ticket" 
+Last Ticket 
+Number 
+String 20 Last document number of tickets or similar source 
+numbers. 
+Optional N 
+ SELLER DETAILS 
+28. 2
+8 
+SellerDetails  Object   Mandatory Y 
+29. 2
+9 
+"SellerDetails"."LegalNa
+me" 
+Legal name 
+of seller 
+String 100 The registered name of the legal person supplying 
+the goods/services. 
+Mandatory Y 
+30. 3
+0 
+"SellerDetails"."TIN" Seller TIN String 10 The Taxpayer Identification of the legal person 
+supplying the goods/services. 
+Mandatory Y 
+31. 3
+1 
+"SellerDetails"."Email" Seller 
+Email 
+String 100 Email Address of Taxpayer  Y 
+32. 3
+2 
+"SellerDetails"."Phone" Seller 
+Phone/mobi
+le number 
+String 20 Mobile/Phone number of Taxpayer  Y 
+33. 3
+3 
+"SellerDetails"."TradeNa
+me" 
+Seller 
+Trade 
+Name 
+String  Trade name is required if Subtin is provided Conditional Y 
+=== PAGE 40 ===
+ 
+ 
+ 
+34. 3
+4 
+"SellerDetails"."SubTin" Seller Sub-
+TIN 
+String 15 The Sub-TIN of the legal person supplying the 
+goods/services. This number is used to file returns 
+to nearest tax center by taxpayers doing business 
+in different distant locations. 
+Required based on the location of the transaction 
+and taxpayer profile. 
+Conditional Y 
+35. 3
+5 
+"SellerDetails".”VatNum
+ber” 
+VAT 
+Registratio
+n Number 
+String 13 The VAT number of the person supplying the 
+goods/services. Required if the taxpayer is 
+registered for VAT. 
+Conditional Y 
+36. 3
+6 
+"SellerDetails"."Country
+" 
+Seller 
+Country 
+String   Optional Y 
+37. 3
+7 
+"SellerDetails"."Ciry" Seller City String 50  Required Y 
+38. 3
+8 
+"SellerDetails"."Zone" Seller Zone String   Optional Y 
+39. 3
+9 
+"SellerDetails"."SubCity
+" 
+Seller 
+Subcity 
+String 100  Optional Y 
+40. 4
+0 
+"SellerDetails"."Region" Seller 
+Region 
+String 3  Required Y 
+41. 4
+1 
+"SellerDetails"."HouseN
+umber" 
+Seller 
+House 
+Number 
+String 50  Optional Y 
+42. 4
+2 
+"SellerDetails"."Kebele" Seller 
+Kebele 
+String   Optional Y 
+43. 4
+3 
+"SellerDetails"."Wereda" Seller 
+Wereda 
+String 50  Required Y 
+44. 4
+4 
+"SellerDetails"."Locality
+" 
+Seller 
+Locality 
+String   Optional Y 
+ BUYER DETAILS 
+45. 4
+6 
+ BuyerDetails  Object   Mandatory Y 
+=== PAGE 41 ===
+ 
+ 
+ 
+46. 4
+7 
+"BuyerDetails"."LegalN
+ame" 
+Legal name 
+of buyer 
+String 100 The legal name of the person to whom the goods / 
+services are supplied. Required if there is “Buyer 
+TIN”. 
+Conditional Y 
+47. 4
+8 
+"BuyerDetails"."Tin" Buyer TIN String 10 The Taxpayer Identification Number of the legal 
+person buying the goods/services. 
+Required if the transaction is not B2C or G2C. 
+Conditional Y 
+48. 4
+9 
+"BuyerDetails"."SubTin" Buyer Sub-
+TIN 
+String 15 The Sub-TIN of the legal person buying the 
+goods/services. This number is used to file returns 
+to nearest tax center by taxpayers doing business 
+in different distant locations. 
+Conditional Y 
+49. 5
+0 
+"BuyerDetails"."VatNu
+mber" 
+VAT 
+Number - 
+buyer 
+String 13 TheVATnumberofthepersontowhomthe 
+goods/services aresupplied.  Required if there is 
+Buyer TIN and the buyer profile has VAT 
+registration. 
+Conditional Y 
+50. 5
+1 
+"BuyerDetails"."Email" Seller 
+Email 
+String 100 Email Address of Taxpayer  Y 
+51. 5
+2 
+"BuyerDetails"."Phone" Seller 
+Phone/mobi
+le number 
+String 20 Mobile/Phone number of Taxpayer  Y 
+52. 5
+3 
+"BuyerDetails"."TradeN
+ame" 
+Seller 
+Trade 
+Name 
+String 100 Trade name is required if Subtin is provided Conditional Y 
+53. 5
+4 
+"BuyerDetails"."SubTin" Seller Sub-
+TIN 
+String 15 The Sub-TIN of the legal person supplying the 
+goods/services. This number is used to file returns 
+to nearest tax center by taxpayers doing business 
+in different distant locations. 
+Required based on the location of the transaction 
+and taxpayer profile. 
+Conditional Y 
+54. 5
+5 
+"BuyerDetails".”VatNu
+mber” 
+VAT 
+Registratio
+n Number 
+String 13 The VAT number of the person supplying the 
+goods/services. Required if the taxpayer is 
+registered for VAT. 
+Conditional Y 
+55. 5
+6 
+"BuyerDetails"."Country
+" 
+Buyer 
+Country 
+String   Optional Y 
+=== PAGE 42 ===
+ 
+ 
+ 
+56. 5
+7 
+"BuyerDetails"."City" Buyer City String 100  Required Y 
+57. 5
+8 
+"BuyerDetails"."Zone" Buyer Zone String   Optional Y 
+58. 5
+9 
+"BuyerDetails"."SubCity
+" 
+Buyer 
+Subcity 
+String   Optional Y 
+59. 6
+0 
+"BuyerDetails"."Region" Buyer 
+Region 
+String 3  Required Y 
+60. 6
+1 
+"BuyerDetails"."HouseN
+umber" 
+Buyer 
+House 
+Number 
+String 50  Optional Y 
+61. 6
+2 
+"BuyerDetails"."Kebele" Buyer 
+Kebele 
+String 100  Optional Y 
+62. 6
+3 
+"BuyerDetails"."Wereda
+" 
+Buyer 
+Wereda 
+String   Required Y 
+63. 6
+4 
+"BuyerDetails"."Locality
+" 
+Buyer 
+Locality 
+String   Optional Y 
+ Item 
+64. 6
+5 
+“ItemList”  Array 999    
+65. 6
+6 
+“ItemList”[index].”Line
+Number” 
+Line 
+Number 
+Numeric 4 The line-item number as given by the seller. Mandatory Y 
+66. 6
+7 
+“ItemList”[index]."Natur
+eOfSupply" 
+Nature of 
+Supplies 
+Select from 
+List 
+8 Thenatureofsuppliesmadeto thebuyer: 
+ 
+Mandatory Y 
+67. 6
+8 
+“ItemList”[index]."Harm
+onizationCode" 
+Item Code 
+by MoR 
+Select from 
+List 
+15 Harmonized item number or HSN Code of the 
+product/service as per the MoR specification. 
+It can be required for specific tax payers’ category 
+or for all in future. 
+Conditional Y 
+68. 6
+9 
+“ItemList”[index]."Item
+Code" 
+Item Code 
+by 
+Taxpayer 
+String 15 Item number of the product/service as per 
+supplier’s own records. 
+Mandatory if the Source Type is not manual. 
+Conditional Y 
+=== PAGE 43 ===
+ 
+ 
+ 
+69. 7
+0 
+“ItemList”[index]."Prod
+uctDescription" 
+Description 
+of 
+Goods/Serv
+ices 
+String 100 The description of goods/services supplied. Mandatory Y 
+70. 7
+1 
+“ItemList”[index]."UnitP
+rice" 
+Unit Price Decimal 20,2 The unit price of goods or service supplied. Mandatory Y 
+71. 7
+2 
+“ItemList”[index]."Quan
+tity" 
+Quantity Numeric 20,4 The quantity of goods supplied. Mandatory Y 
+72. 7
+3 
+“ItemList”[index]."Unit" Unit of 
+Measure 
+Select from 
+list 
+20 Short name for the unit of measure used for the 
+quantity. 
+Mandatory Y 
+73. 7
+4 
+“ItemList”[index]."Rebat
+eAmount" 
+Rebate 
+amount 
+Decimal 20,2 Trade Discount or rebate amount, if discount is 
+provided at line-item level. 
+Optional N 
+74. 7
+5 
+“ItemList”[index]."TaxC
+ode" 
+Transaction 
+Tax Code 
+Select from 
+List 
+5 Configurable attribute to hold transaction tax 
+code applicable to the supplies made by the seller: 
+ 
+Mandatory Y 
+75. 7
+6 
+“ItemList”[index]."PreT
+axValue" 
+Line 
+Amount 
+before Tax 
+Decimal 20,2 Theamountwithoutany tax (transaction/excise)  
+forthesaleof goods/servicesexpressedinthe invoice 
+currency. 
+Mandatory Y 
+76. 7
+7 
+“ItemList”[index]."Excis
+eTaxAValue" 
+Excise Tax 
+Amount 
+Decimal 20,2 Required if the product or service is subject to 
+excise tax. 
+Conditional Y 
+77. 7
+8 
+“ItemList”[index]."TaxA
+mount" 
+Transaction 
+Tax 
+Amount 
+Decimal 20,2 The line transaction Tax (VAT,TOT…) amount 
+collected on the taxable line item. 
+Mandatory Y 
+78. 7
+9 
+“ItemList”[index]."Total
+LineAmount" 
+Total Line 
+Amount 
+Decimal 20,2 The total amount which is sum of taxes and the 
+line amount before tax. 
+Mandatory Y 
+ 
+ 
+ 
+ 
+ 
+  
+=== PAGE 44 ===
+ 
+ 
+ 
+3 SECTION THREE 
+3.1 INVOICE REGISTRATION SCHEMA DETAIL 
+3.1.1 PURPOSE  
+For the Electronic Invoice Management System (EIMS) and the taxpayer system to work 
+seamlessly and exchange information effectively, it's crucial to follow a predefined JSON schema. 
+This integration document is designed to guide technical teams in connecting their systems to the 
+e-invoicing platform using the provided schema. It explains how to correctly structure invoice 
+requests, understand the necessary conditions, and validate data before submitting it. By following 
+these instructions, can ensure smooth communication between taxpayer systems and EIMS, 
+helping maintain accuracy and reliability in the invoicing process. 
+3.1.2 OVERVIEW OF THE E-INVOICING SCHEMA 
+The provided schema helps ensure that data remains consistent, accurate, and compliant for 
+electronic invoices, credit notes, debit notes, and other related documents. By following this 
+schema, taxpayer can stay in line with local e -invoicing regulations, reducing the chances of 
+errors and ensuring that all documents meet the required standards. This leads to a more 
+efficient invoicing process and reduces compliance risks, making the entir e system more 
+reliable and easier to work with. 
+3.1.3 HIGH-LEVEL ARCHITECTURE 
+3.1.3.1 SYSTEM COMPONENTS 
+ Your ERP/CRM/POS: Generates invoice data. 
+ E-Invoicing Validation Service: Applies the JSON schema rules. 
+ E-Invoicing: Receives and processes validated invoices. 
+ 
+ 
+ 
+ 
+=== PAGE 45 ===
+ 
+ 
+ 
+3.1.3.2 DATA FLOW 
+1. Your system creates the invoice JSON object. 
+2. Validate the object against the schema. 
+3. Submit the validated invoice to the EIMS API. 
+4. Receive an Invoice Reference Number (IRN) and QR Code or error   messages. 
+5. Store the IRN and invoice data. 
+3.1.4 SCHEMA OVERVIEW 
+3.1.4.1 JSON Schema Version 
+The schema is based on JSON Schema draft-07, so it's crucial to ensure that your validator supports 
+this version. This will help guarantee that the data is properly validated and meets the required 
+standards. Using the correct version of the schema will prevent potential issues and ensure 
+everything functions smoothly. 
+3.1.4.2 Top-Level Elements 
+Key properties include: 
+ TransactionType 
+ DocumentDetails 
+ SourceSystem 
+ SellerDetails 
+ BuyerDetails 
+ ItemList 
+ PaymentDetails 
+ ValueDetails 
+ ReferenceDetails 
+All these have specific constraints and sometimes conditional requirements. 
+ 
+ 
+ 
+=== PAGE 46 ===
+ 
+ 
+ 
+3.1.4.3 Key Entities and Their Properties 
+TransactionType 
+ Description : Indicates the type of transaction (e.g., B2B, B2C, G2C). 
+ Purpose : To classify the nature of the transaction between the seller and buyer. 
+ Format : String with a maximum length of 3 characters. 
+ Example Values : "B2B", "B2C", “B2G","G2B","G2C"," 
+ Conditional Validations : 
+ If TransactionType is not "B2C" or "G2C", then BuyerDetails.Tin is required and must be 
+a non-null string. 
+ If TransactionType is "B2C" or "G2C", then BuyerDetails.Tin can be null, and 
+BuyerDetails.VatNumber must also be null. 
+DocumentDetails 
+ Description : Contains metadata about the document, such as its type, number, date, and reason (if 
+applicable). 
+        Sub-Fields 
+ Type 
+ Purpose : Specifies the type of document (Invoice (INV), Credit Note (CRE), Debit 
+(DEB) Note, Interim (INT), Retainer (RTN), Final (FIN), Mixed Invoice (MIX), 
+Intercomany (INC), Proforma (PRF), Overdue (OVD)). 
+ Format : A string with a maximum length of 3 characters. Example: "INV", "CRE", 
+"DEB". 
+ Conditional Validation : If Type is "CRE", "DEB", "INT", or "FIN", then Reason is 
+required. 
+ DocumentNumber 
+ Purpose : Sequential number assigned by the seller to the document. 
+ Format : A string with a length between 1 and 100 characters. Example: "1234". 
+ Date 
+ Purpose : Date and time when the document was generated. 
+ Format : ISO 8601 datetime string. Example: "15-09-2023T14:30:00". 
+ Reason 
+ Purpose : Reason for issuing the document (applicable for credit/debit notes). 
+ Format : A string with a length between 3 and 100 characters. Example: "Test reason". 
+ Conditional Validation : Required if Type is "CRE", "DEB", "INT", or "FIN". 
+SourceSystem 
+ Description : Identifies the system that generated the invoice. 
+=== PAGE 47 ===
+ 
+ 
+ 
+      Sub-Fields 
+ SystemType 
+ Purpose : Type of source system (ERP, Manual, Cash Register Machine, etc.). 
+ Format : A string with a length of exactly 3 characters. Example: "SYS", "MAN", 
+"CRM". 
+ CashierName 
+ Purpose : Name of the cashier operating the system. 
+ Format : A string with a length between 3 and 100 characters. Example: "John Doe". 
+ Optional . 
+ SystemNumber 
+ Purpose : Identifier for the system (e.g., cash register machine number). 
+ Format : A string with a maximum length of 10 characters. Example: "MRC12345". 
+ Optional . 
+ InvoiceCounter 
+ Purpose : Total number of invoices generated by the system. 
+ Format : An integer greater than or equal to 1. Example: 12345. 
+ Optional . 
+ SalesPersonName 
+ Purpose : Name of the salesperson responsible for the transaction. 
+ Format : A string with a length between 3 and 100 characters. Example: "Jane Smith". 
+ Optional . 
+SellerDetails 
+ Description : Provides detailed information about the seller. 
+        Sub-Fields 
+ Tin 
+ Purpose : Tax Identification Number of the seller. 
+ Format : A string with a length between 10 and 20 digits. Example: "1234567890". 
+ Mandatory . 
+ LegalName 
+ Purpose : Legal name of the seller. 
+ Format : A string with a length between 3 and 100 characters. Example: "ABC 
+Corporation". 
+ Mandatory . 
+ City 
+ Purpose : City where the seller operates. 
+ Format : A string with a length between 1 and 100 characters. Example: "Addis Ababa". 
+ Mandatory . 
+ Wereda 
+ Purpose : Administrative subdivision (Woreda) of the seller's location. 
+=== PAGE 48 ===
+ 
+ 
+ 
+ Format : A string with a length between 1 and 50 characters. Example: "Arada". 
+ Mandatory . 
+ Region 
+ Purpose : Region code where the seller operates. 
+ Format : A string with a length between 1 and 3 digits. Example: "11". 
+ Mandatory . 
+ Zone 
+ Purpose : Zone code of the seller's location. 
+ Format : A string with an optional value. Example: "Zone 1". 
+ Optional . 
+ Email 
+ Purpose : Email address of the seller. 
+ Format : Valid email format. Example: "info@abccorp.com". 
+ Optional . 
+ Phone 
+ Purpose : Phone number of the seller. 
+ Format : A string with a length between 6 and 20 characters. Example: "0112345678". 
+ Optional . 
+ Kebele 
+ Purpose : Kebele code of the seller's location. 
+ Format : A string with an optional value. Example: "Kebele 01". 
+ Optional . 
+ SubTin 
+ Purpose : Sub-TIN for taxpayers operating in multiple locations. 
+ Format : A string with a length between 10 and 25 characters. Example: "1234567890-
+01". 
+ Optional . 
+ Country 
+ Purpose : Country code of the seller's location. 
+ Format : A string with an optional value. Example: "ET". 
+ Optional . 
+ SubCity 
+ Purpose : Sub-city of the seller's location. 
+ Format : A string with an optional value. Example: "Bole". 
+ Optional . 
+ Locality 
+ Purpose : Locality of the seller's location. 
+ Format : A string with a length between 3 and 50 characters. Example: "Kirkos". 
+ Optional . 
+ TradeName 
+ Purpose : Trade name of the seller (if different from legal name). 
+ Format : A string with a length between 3 and 100 characters. Example: "ABC Store". 
+=== PAGE 49 ===
+ 
+ 
+ 
+ Optional . 
+ VatNumber 
+ Purpose : VAT registration number of the seller. 
+ Format : A string with a length between 3 and 25 digits. Example: "123456789". 
+ Conditional Validation : Required if any TaxCode in ItemList starts with "VAT". 
+ HouseNumber 
+ Purpose : House number of the seller's address. 
+ Format : A string with a length between 3 and 50 characters. Example: "House 123". 
+ Optional . 
+BuyerDetails 
+ Description : Provides detailed information about the buyer. 
+         Sub-Fields 
+ LegalName 
+ Purpose : Legal name of the buyer. 
+ Format : A string with a length between 3 and 100 characters. Example: "XYZ Ltd". 
+ Mandatory . 
+ Tin 
+ Purpose : Tax Identification Number of the buyer. 
+ Format : A string with a length between 10 and 20 digits. Example: "9876543210". 
+ Conditional Validation : Required if TransactionType is not "B2C" or "G2C". Must be 
+null if TransactionType is "B2C" or "G2C". 
+ City 
+ Purpose : City where the buyer operates. 
+ Format : A string with a length between 1 and 100 characters. Example: "Addis Ababa". 
+ Optional . 
+ 
+ Zone 
+ Purpose : Zone code of the buyer's location. 
+ Format : A string with an optional value. Example: "Zone 1". 
+ Optional . 
+ Email 
+ Purpose : Email address of the buyer. 
+ Format : Valid email format. Example: "contact@xyz.com". 
+ Optional . 
+ Phone 
+ Purpose : Phone number of the buyer. 
+ Format : A string with a length between 6 and 20 characters. Example: "0119876543". 
+ Optional . 
+ IdType 
+ Purpose : Type of identification provided by the buyer. 
+=== PAGE 50 ===
+ 
+ 
+ 
+ Format : A string with a length of exactly 3 characters. Example: "NID". 
+ Optional . 
+ Kebele 
+ Purpose : Kebele code of the buyer's location. 
+ Format : A string with an optional value. Example: "Kebele 01". 
+ Optional . 
+ Region 
+ Purpose : Region code where the buyer operates. 
+ Format : A string with a length between 1 and 3 digits. Example: "11". 
+ Optional . 
+ SubTin 
+ Purpose : Sub-TIN for taxpayers operating in multiple locations. 
+ Format : A string with a length between 10 and 25 characters. Example: "9876543210-
+01". 
+ Optional . 
+ Wereda 
+ Purpose : Administrative subdivision (Woreda) of the buyer's location. 
+ Format : A string with an optional value. Example: "Arada". 
+ Optional . 
+ Country 
+ Purpose : Country code of the buyer's location. 
+ Format : A string with an optional value. Example: "ET". 
+ Optional . 
+ SubCity 
+ Purpose : Sub-city of the buyer's location. 
+ Format : A string with an optional value. Example: "Bole". 
+ Optional . 
+ IdNumber 
+ Purpose : Unique identification number of the buyer (e.g., National ID). 
+ Format : A string with a length between 1 and 20 characters. Example: "123456789". 
+ Optional . 
+ Locality 
+ Purpose : Locality of the buyer's location. 
+ Format : A string with a length between 1 and 50 characters. Example: "Kirkos". 
+ Optional . 
+ TradeName 
+ Purpose : Trade name of the buyer (if different from legal name). 
+ Format : A string with a length between 3 and 100 characters. Example: "XYZ Shop". 
+ Optional . 
+ VatNumber 
+ Purpose : VAT registration number of the buyer. 
+ Format : A string with a length between 3 and 25 digits. Example: "987654321". 
+=== PAGE 51 ===
+ 
+ 
+ 
+ Conditional Validation : Must be null if Tin is null. 
+ HouseNumber 
+ Purpose : House number of the buyer's address. 
+ Format : A string with a length between 3 and 50 characters. Example: "House 456". 
+ Optional . 
+ItemList 
+ Description : Lists all items included in the transaction. 
+      Sub-Fields 
+ LineNumber 
+ Purpose : Line-item number assigned by the seller. 
+ Format : An integer between 0 and 99. Example: 1. 
+ Mandatory . 
+ NatureOfSupplies 
+ Purpose : Description of the goods/services supplied. 
+ Format : A string with a length between 1 and 300 characters. Example: "Laptop - Model 
+X1". 
+ Mandatory . 
+ UnitPrice 
+ Purpose : Price per unit of the item. 
+ Format : A number greater than or equal to 0. Example: 1000.00. 
+ Mandatory . 
+ TotalLineAmount 
+ Purpose : Total amount for the line item (including taxes). 
+ Format : A number greater than or equal to 0, with a maximum value of 
+999999999999.99. Example: 1100.00. 
+ Mandatory . 
+ PreTaxValue 
+ Purpose : Value of the item before tax. 
+ Format : A number greater than or equal to 0. Example: 1000.00. 
+ Mandatory . 
+ Unit 
+ Purpose : Unit of measure for the quantity. 
+ Format : A string with a length between 3 and 8 characters. Example: "PCS". 
+ Mandatory . 
+ TaxCode 
+ Purpose : Code representing the type of tax applied. 
+ Format : A string with a length between 3 and 5 characters. Example: "VAT". 
+ Mandatory . 
+ TaxAmount 
+ Purpose : Tax amount for the line item. 
+=== PAGE 52 ===
+ 
+ 
+ 
+ Format : A number greater than or equal to 0. Example: 100.00. 
+ Mandatory . 
+ Quantity 
+ Purpose : Quantity of the item sold. 
+ Format : A number greater than or equal to 0. Example: 1. 
+ Mandatory . 
+ Discount 
+ Purpose : Discount amount applied to the line item. 
+ Format : A number greater than or equal to 0. Example: 50.00. 
+ Optional . 
+ HarmonizationCode 
+ Purpose : Harmonized System (HS) code for the item. 
+ Format : A string with a length of 4, 6, or 8 digits. Example: "8517". 
+ Optional . 
+ ProductDescription 
+ Purpose : Detailed description of the product/service. 
+ Format : A string with a length between 3 and 300 characters. Example: "High-
+performance laptop". 
+ Optional . 
+ ItemCode 
+ Purpose : Internal code for the item in the seller's records. 
+ Format : A string with a length between 1 and 15 characters. Example: "PROD123". 
+ Conditional Validation : Required if SourceSystem.SystemType is not "MAN". 
+ValueDetails 
+ Description : Captures financial details of the transaction. 
+       Sub-Fields 
+ TotalValue 
+ Purpose : Total value of the transaction (inclusive of taxes). 
+ Format : A number greater than or equal to 0. Example: 1100.00. 
+ Mandatory . 
+ TaxValue 
+ Purpose : Total tax amount collected for the transaction. 
+ Format : A number greater than or equal to 0. Example: 100.00. 
+ Mandatory . 
+ Discount 
+ Purpose : Overall discount applied to the transaction. 
+ Format : A number greater than or equal to 0. Example: 50.00. 
+ Optional . 
+ ExciseValue 
+ Purpose : Excise tax amount (if applicable). 
+=== PAGE 53 ===
+ 
+ 
+ 
+ Format : A number greater than or equal to 0. Example: 20.00. 
+ Conditional Validation : Required if the seller is obliged based on its profile. 
+ ExchangeRate 
+ Purpose : Exchange rate used to convert the invoice currency to Ethiopian Birr (ETB). 
+ Format : A number greater than or equal to 1. Example: 30.00. 
+ Conditional Validation : Required if InvoiceCurrency is not "ETB". 
+ InvoiceCurrency 
+ Purpose : Currency in which the invoice is issued. 
+ Format : A string with a length of exactly 3 characters. Example: "USD". 
+ Conditional Validation : If not "ETB", then ExchangeRate is required. 
+ IncomeWithholdValue 
+ Purpose : Income tax withheld by the buyer. 
+ Format : A number greater than or equal to 0. Example: 50.00. 
+ Conditional Validation : Required if the buyer is mandated to withhold payments. 
+ TransactionWithholdValue 
+ Purpose : Transaction tax withheld by the buyer. 
+ Format : A number greater than or equal to 0. Example: 30.00. 
+ Conditional Validation : Required if the buyer is mandated to withhold payments. 
+PaymentDetails 
+ Description : Specifies payment-related information. 
+        Sub-Fields 
+ PaymentTerm 
+ Purpose : Agreed terms for payment (e.g., Cash, Advance, After n days). 
+ Format : A string with a length between 3 and 100 characters. Example: "CASH", 
+"IMMIDIATE". 
+ Mandatory . 
+ Mode 
+ Purpose : Mode of payment (e.g., Cash, Credit, Direct Transfer). 
+ Format : A string with a length between 1 and 18 characters. Example: "Cash", "Credit". 
+ Optional . 
+ Conditional Validation : If PaymentTerm is not "IMMIDIATE", then 
+TransactionWithholdValue or IncomeWithholdValue in ValueDetails are required. 
+ReferenceDetails 
+ Description : Links the current document to related documents. 
+       Sub-Fields 
+ RelatedDocument 
+ Purpose : Identifier for the related document (e.g., original invoice for credit/debit notes). 
+ Format : A string. Example: "INV12345". 
+=== PAGE 54 ===
+ 
+ 
+ 
+ Conditional Validation : Required if DocumentDetails.Type is "CRE", "DEB", “INT” or 
+“FIN”. 
+3.1.4.4 Conditional and Contextual Validation Rules 
+ Credit/Debit Notes 
+If DocumentDetails.Type is CRE or DEB: 
+ Reason must be provided in DocumentDetails. 
+ RelatedDocument must be provided in ReferenceDetails. 
+ Foreign Currency Invoices 
+If ValueDetails.InvoiceCurrency ≠ "ETB": 
+ ExchangeRate is required. 
+ VAT Items 
+If any item in ItemList has TaxCode = "VAT"(prefix VAT eg: VAT15,VAT0,VATEX. This 
+can be configured on the Backoffice): 
+ SellerDetails.VatNumber is required. 
+ Buyer TIN Length 
+If BuyerDetails.Tin  is filled: 
+ BuyerDetails.LegalName is required. 
+ TransactionType and Buyer TIN 
+If TransactionType is not B2C or G2C: 
+ BuyerDetails.Tin is required and must be a string. Otherwise, Tin can be string or 
+null. 
+ Null Buyer TIN 
+If BuyerDetails.Tin is null: 
+ BuyerDetails.VatNumber must be null. 
+ Sub-TIN… 
+ 
+=== PAGE 55 ===
+ 
+ 
+ 
+3.1.4.5 Required Fields and Validation Constraints 
+ Global Required Fields 
+At the top level, the following fields must always appear: 
+ TransactionType 
+ DocumentDetails 
+ SourceSystem 
+ SellerDetails 
+ BuyerDetails 
+ ItemList 
+ PaymentDetails 
+ ReferenceDetails 
+ Field Length, Patterns, And Data Types 
+ Many string fields have min/max lengths and regex patterns . 
+ Numerical fields have defined min/max values. 
+ Date fields must follow yyyy-mm-dd hh:mm:ss.fff+/-hh:mm. 
+ Numeric Limits 
+Use appropriate data types to handle large numeric fields without overflow. 
+3.1.4.6 Integration Steps 
+ Preparing The Invoice Data 
+Assemble a JSON object meeting all schema requirements. 
+Gather required master data (e.g., valid Region codes, Seller TIN). 
+ Validating Against The Schema 
+Use a JSON Schema validator to ensure compliance before sending. 
+ Submitting The Invoice 
+Send the validated JSON to the e-invoicing portal’s endpoint. 
+ 
+=== PAGE 56 ===
+ 
+ 
+ 
+3.1.4.7 Handling Validation Errors 
+If validation fails, log errors, correct data, and re-validate. 
+3.1.4.8 Storing and Retrieving Invoices 
+Store both raw JSON, QR Code and IRN for future reference and audits. 
+3.1.4.9 Error Handling and Troubleshooting 
+ Common Validation Errors 
+ Missing required fields (e.g., Reason for a credit note). 
+ Invalid patterns (e.g., TIN not matching required format). 
+ Missing ExchangeRate for foreign currency invoices. 
+ Debugging Schema Violations 
+Use verbose logging from the validator to pinpoint issues. 
+ Recommended Logging Practices 
+Log invoice data and errors with timestamps for easy traceability. 
+3.1.4.10 Security And Compliance 
+ Data Integrity And Non-Repudiation 
+Maintain the integrity of invoices and IRNs to prevent tampering. 
+ Sensitive Data Considerations 
+Handle TINs and V AT numbers securely and in compliance with regulations. 
+3.1.4.11 Examples 
+ Minimal Valid Invoice (B2c) 
+      { 
+  "BuyerDetails": { 
+    "City": "0", 
+    "Email": "test@test.com", 
+    "HouseNumber": "NEW", 
+    "IdNumber": "111222", 
+    "IdType": "KID", 
+    "Tin": "0123456789", 
+    "LegalName": "TEST PLC", 
+    "Phone": "0912345678", 
+    "Region": "13", 
+=== PAGE 57 ===
+ 
+ 
+ 
+    "Country": "70", 
+    "Zone": "SHA", 
+    "Kebele": "WOREDA 03", 
+    "VatNumber": "0123456789", 
+    "Wereda": "574" 
+  }, 
+  "DocumentDetails": { 
+    "DocumentNumber": "1", 
+    "Date": "10-02-2025T00:59:00", 
+    "Type": "INV" 
+  }, 
+  "ItemList": [ 
+    { 
+      "Discount": 0, 
+      "ExciseTaxValue": 0, 
+      "HarmonizationCode": "1111", 
+      "NatureOfSupplies": "Goods", 
+      "ItemCode": "1111", 
+      "ProductDescription": "string", 
+      "PreTaxValue": 1000, 
+      "Quantity": 1, 
+      "LineNumber": 1, 
+      "TaxAmount": 150, 
+      "TaxCode": "V AT15", 
+      "TotalLineAmount": 1150, 
+      "Unit": "PCS", 
+      "UnitPrice": 1000 
+    }, 
+    { 
+      "Discount": 0, 
+      "ExciseTaxValue": 0, 
+      "HarmonizationCode": "1111", 
+      "NatureOfSupplies": "Goods", 
+      "ItemCode": "1111", 
+      "ProductDescription": "Phone", 
+      "PreTaxValue": 10000, 
+      "Quantity": 1, 
+      "LineNumber": 2, 
+      "TaxAmount": 1500, 
+      "TaxCode": "V AT15", 
+      "TotalLineAmount": 11500, 
+      "Unit": "PCS", 
+      "UnitPrice": 10000 
+    } 
+  ], 
+  "PaymentDetails": { 
+=== PAGE 58 ===
+ 
+ 
+ 
+    "Mode": "CASH", 
+    "PaymentTerm": "IMMIDIATE" 
+  }, 
+  "ReferenceDetails": { 
+    "PreviousIrn": 
+"635d66bdce10cf8ff34b9ea5729f22354f824a9b39f16bcdf6ceea870505f94a" 
+  }, 
+  "SellerDetails": { 
+    "City": "0", 
+    "Email": "test2@test2.com", 
+    "HouseNumber": "new", 
+    "LegalName": "TEST2 PLC", 
+    "Locality": "AAA", 
+    "Phone": "0116789", 
+    "Region": "3", 
+    "SubCity": "AAA", 
+    "Tin": "0023456789", 
+    "VatNumber": "0113456789", 
+    "Wereda": "883", 
+    "Country": "70" 
+  }, 
+  "SourceSystem": { 
+    "InvoiceCounter": 1, 
+    "SystemNumber": "650363DBE3", 
+    "SystemType": "POS" 
+  }, 
+  "TransactionType": "B2C", 
+  "ValueDetails": { 
+    "Discount": null, 
+    "ExciseValue": 0, 
+    "IncomeWithholdValue": 220, 
+    "TaxValue": 1650, 
+    "TotalValue": 12650, 
+    "TransactionWithholdValue": 0, 
+    "InvoiceCurrency": "ETB" 
+  } 
+} 
+ Foreign Currency Example 
+ Include "InvoiceCurrency": "USD" and specify "ExchangeRate": 50.00" in 
+ValueDetails. 
+ 
+ 
+=== PAGE 59 ===
+ 
+ 
+ 
+ Credit Note Example 
+ Set DocumentDetails.Type = "CRE" 
+ Add "Reason": "Return of goods" in DocumentDetails 
+ Provide RelatedDocument in ReferenceDetails. 
+3.1.4.12 Appendices 
+ Change Management And Versioning 
+Track schema versions as indicated in Version field and portal documentation. 
+ Useful References 
+ JSON Schema Draft-07 
+ Local E-Invoicing Portal Documentation 
+ ISO 4217 Currency Codes 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+=== PAGE 60 ===
+ 
+ 
+ 
+2. SECTION FOUR 
+2.1.  BULK INVOICE REGISTRATION  
+2.1.1. PURPOSE  
+In the Electronics Invoice Management System (EIMS), there are two main ways to register 
+invoices: single invoice registration and bulk (or batch) invoice registration, which allows you to 
+register multiple invoices at once. This section is here to guide through the process of bulk invoice 
+registration, making it easier to handle large numbers of invoices efficiently. 
+This section of the document provides clear, step-by-step instructions on how to register invoices 
+in bulk. It also offers helpful tips, best practices, and advice for tackling common challenges, 
+ensuring that you can smoothly and accurately manage the bulk registration process without 
+unnecessary issues. 
+2.1.2. OVERVIEW BULK INVOICE REGISTRATION 
+Bulk e-invoice registration is a helpful feature that allows taxpayer systems to register multiple 
+invoices all at once. This is especially useful in situations where the system needs to gather invoice 
+documents locally and then register them in bulk at a later time. It’s designed to make the process 
+more efficient, particularly when dealing with large numbers of invoices. 
+This feature is perfect for businesses that need to register invoices in batches, whether they’ve 
+accumulated a group of invoices over time or need to process a large volume all at once. Below, 
+we’ll cover some important things to keep in mind when using bulk invoice registration to ensure 
+everything goes smoothly. 
+1. The number of invoice documents that can be sent for bulk registration at once is 
+governed by a rule set  
+2. Taxpayer systems when sending bulk invoice registration request will receive 
+conversation id if all the invoice documents in the request comply with the schema 
+standard of EIMS electronic invoice registration 
+=== PAGE 61 ===
+ 
+ 
+ 
+3. EIMS will process bulk invoice registration asynchronously and use a call back url and 
+provided conversation id to notify TP systems of the invoice registration result. In case of 
+failed call back handling or if the sales register machine cannot receive call back from 
+EIMS, it can consume the API endpoint availed by EIMS to fetch status and response 
+contents by conversation ID. 
+4. Invoice registration failures related to rule evaluation will be handled separately for each 
+invoice and appropriate responses related to each invoice will be part of the bulk invoice 
+registration response 
+2.1.3. HIGH-LEVEL ARCHITECTURE 
+2.1.3.1. System Components 
+ Your ERP,CRM, POS or billing system: Generates bulk invoice registration data. 
+ E-Invoicing Validation Service: Applies the JSON schema rules and if the rules are 
+satisfied a conversation id will be returned. 
+ EIMS backend: Receives and processes validated invoices, store the results and call 
+the provided call back url to provide the result 
+ Taxpayer System: will receive the results and process. 
+ 
+The taxpayer must retain the received IRN and QR Code for each invoice or receipt. Tax auditors 
+and/or supervisors will request the taxpayer to provide the list of invoices and receipts against the 
+list of received IRNs. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+=== PAGE 62 ===
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+2.1.3.2. Data Flow 
+1. Taxpayer system creates the bulk invoice JSON object. 
+2. EIMS validate the object against the schema. 
+3. EIMS will send conversation id for asynchronous communication reference, if the schema 
+validation passes. 
+4. Taxpayer system will receive results of bulk registration through call back URL. 
+
+=== PAGE 63 ===
+ 
+ 
+ 
+2.1.4. BULK INVOICE REGISTRATION REQUEST 
+2.1.4.1. End-Point Details 
+ HTTP Method: POST 
+ Endpoint URL: https://eims.mor.gov.et/api/v1/bulkInvoice 
+2.1.4.2. Headers 
+The following headers must be included in every request: 
+Header Key Description Example Value 
+TIN Taxpayer Identification Number of the seller  
+callback The URL through which a call back will be made 
+when results are ready 
+https://tpsystem/bulkcallback 
+system_number EIMS assigned system number  
+Figure 5: bulk upload header 
+2.1.4.3. Request Format 
+The request body must be a JSON array, where each element is an invoice-document in JSON 
+format. 
+Each invoice-document is a JSON object that is based on the invoice registration schema and will 
+be validated for each invoice in the array. 
+The following is an example of a bulk invoice registration request using the curl utility, 
+curl --location 'http://eims.mor.gov.et/api/v1/bulkRegister' \ 
+--header 'Content-Type: application/json' \ 
+--header ‘bearer: xxxxxxxxxx’\  
+--data-raw '[ 
+    { 
+  "BuyerDetails": { 
+    "City": "AAB", 
+    "Email": "AA@xyz.com.et", 
+    "HouseNumber": "111", 
+    "IdNumber": "11122222222222222", 
+    "IdType": "KID", 
+=== PAGE 64 ===
+ 
+ 
+ 
+    "Tin": "1234567899", 
+     
+    "LegalName": "Kebeda Balcha Safo", 
+    "Phone": "251929909090", 
+    "Region": "AAA", 
+    "Country":null, 
+    "Zone":"SHA", 
+    "Kebele":"002" 
+  }, 
+   "DocumentDetails": { 
+    "DocumentNumber": "8007", 
+    "Date": "19-12-2024T00:55:52", 
+     
+    "Type": "INV", 
+    "ManualInvoiceNumber":2 
+  }, 
+  "ItemList": [ 
+    { 
+      "Discount": 0, 
+      "ExciseTaxValue": 10, 
+      "HarmonizationCode": "1111xxxx", 
+      "NatureOfSupplies": "Service", 
+      "ItemCode": "1111", 
+      "ProductDescription": "string", 
+      "PreTaxValue": 200, 
+      "Quantity": 2, 
+      "LineNumber": 1, 
+      "TrxnTaxAmount": 40, 
+      "TaxCode": "V A T15", 
+    
+      "TotalLineAmount": 240, 
+      "Unit": "PCS", 
+      "UnitPrice": 100 
+    } 
+  ], 
+=== PAGE 65 ===
+ 
+ 
+ 
+  "PaymentDetails": { 
+    "Mode": "CASH", 
+    "PaymentTerm": "IMMIDIA TE" 
+  }, 
+  "ReferenceDetails": { 
+    "PreviousIrn": "4e8e6a26be7b15fa3e423f987070ca2a804e2843f2dc3c43f05097642a9971a5",  
+    "RelatedDocument":"1234" 
+  }, 
+  "SellerDetails": { 
+  
+    "City": "AAA", 
+    "Email": "AA@xyz.com", 
+    "HouseNumber": "AAA", 
+    "LegalName": "AAA", 
+    "Locality": "AAA", 
+    "Phone": "251911111111", 
+    "Region": "AAA", 
+    "SubCity": "AAA", 
+    "Tin": "2345678901", 
+    "SubTin": "2345678901-1", 
+    "VatNumber": "1234567890", 
+    "Wereda": "AAA", 
+  }, 
+  "SourceSystem": { 
+    "CashierName": "AAA", 
+    "InvoiceCounter": 1, 
+    "SalesPersonName": "AAA", 
+    "SystemNumber": "GHEFR8ZYZO", 
+    "SystemType": "MAN" 
+  }, 
+  "TransactionType": "B2C", 
+  "ValueDetails": { 
+    "Discount": null, 
+    "ExciseValue": 10, 
+    "IncomeWithholdValue": 0, 
+=== PAGE 66 ===
+ 
+ 
+ 
+    "TaxValue": 40, 
+    "TotalValue": 240, 
+    "TransactionWithholdValue": 0, 
+    "ExchangeRate": 122, 
+    "InvoiceCurrency": "ETB" 
+  }, 
+ 
+}, 
+{ 
+  "BuyerDetails": { 
+    "City": "AAB", 
+    "Email": "AA@xyz.com.et", 
+    "HouseNumber": "111", 
+    "IdNumber": "11122222222222222", 
+    "IdType": "KID", 
+    "Tin": "1234567899", 
+     
+    "LegalName": "Kebeda Balcha Safo", 
+    "Phone": "251929909090", 
+    "Region": "AAA", 
+    "Country":null, 
+    "Zone":"SHA", 
+    "Kebele":"002" 
+  }, 
+   "DocumentDetails": { 
+    "DocumentNumber": "8008", 
+    "Date": "19-12-2024T00:55:52", 
+     
+    "Type": "INV" 
+  }, 
+  "ItemList": [ 
+    { 
+      "Discount": 0, 
+      "ExciseTaxValue": 10, 
+      "HarmonizationCode": "1111", 
+=== PAGE 67 ===
+ 
+ 
+ 
+      "NatureOfSupplies": "Service", 
+      "ItemCode": "1111", 
+      "ProductDescription": "string", 
+      "PreTaxValue": 200, 
+      "Quantity": 2, 
+      "LineNumber": 1, 
+      "TaxAmount": 40, 
+      "TaxCode": "V A T15", 
+      "TotalLineAmount": 240, 
+      "Unit": "PCS", 
+      "UnitPrice": 100 
+    } 
+  ], 
+  "PaymentDetails": { 
+    "Mode": "CASH", 
+    "PaymentTerm": "IMMIDIA TE" 
+  }, 
+  "ReferenceDetails": { 
+    "PreviousIrn": null, 
+    "RelatedDocument":"1234" 
+  }, 
+  "SellerDetails": { 
+    "City": "AAA", 
+    "Email": "AA@xyz.com", 
+    "HouseNumber": "AAA", 
+    "LegalName": "AAA", 
+    "Locality": "AAA", 
+    "Phone": "251911111111", 
+    "Region": "AAA", 
+    "SubCity": "AAA", 
+    "Tin": "2345678901", 
+    "SubTin": "2345678901-1", 
+    "VatNumber": "1234567890", 
+    "Wereda": "AAA", 
+     
+=== PAGE 68 ===
+ 
+ 
+ 
+  }, 
+  "SourceSystem": { 
+    "CashierName": "AAA", 
+    "InvoiceCounter": 1, 
+    "SalesPersonName": "AAA", 
+    "SystemNumber": "GHEFR8ZYZO", 
+    "SystemType": "MAN" 
+  }, 
+  "TransactionType": "B2C", 
+  "ValueDetails": { 
+    "Discount": null, 
+    "ExciseValue": 10, 
+    "IncomeWithholdValue": 0, 
+    "TaxValue": 40, 
+    "TotalValue": 240, 
+    "TransactionWithholdValue": 0, 
+    "ExchangeRate": 122, 
+    "InvoiceCurrency": "ETB" 
+  }, 
+} 
+] 
+2.1.4.4. Responses 
+As explained earlier, the bulk registration process involves two types of responses. The first 
+response is sent immediately after you submit the initial request. This response confirms that the 
+request has been received and is being processed. The second response, which is the final result of 
+the bulk registration, is sent to the callback URL you’ve provided. This final response gives 
+detailed information about each invoice in the batch, letting you know whether the registration was 
+successful or if any issues came up. 
+ 
+=== PAGE 69 ===
+ 
+ 
+ 
+The sections below will go into more detail about each type of response, explaining what they 
+mean, how they’re formatted, and how to handle them. This will help you understand the process 
+clearly and make it easier to work with bulk registration responses. 
+2.1.4.4.1. Successful Synchronous Response 
+The Electronics Invoice Management System (EIMS) will first check all the invoices in the bulk 
+registration request to make sure they follow the correct format and structure, as defined by the 
+system’s schema. This validation step ensures that every invoice in the batch meets the required 
+standards. If all the invoices pass this check, EIMS will send back a response confirming that the 
+validation was successful. This response will include details about the results, giving you the 
+confidence that the request is properly formatted and ready to move on to the next step in the 
+process. 
+{ 
+  "$schema": "http://json-schema.org/draft-07/schema#", 
+  "title": "Response Schema", 
+  "type": "object", 
+  "properties": { 
+    "statusCode": { 
+      "type": "integer", 
+      "description": "An integer representing the HTTP status code (e.g., 202 for Accepted)." 
+    }, 
+    "conversationId": { 
+      "type": "string", 
+      "description": "Unique conversation or correlation ID." 
+    } 
+  }, 
+  "required": [ 
+    "statusCode", 
+    "conversationId" 
+  ] 
+} 
+ 
+Below is an example of the above response, 
+ 
+{ 
+  "status": 202, 
+  "conversationId": "2345678901-1734863540359-1119cfdd-8f25-4bee-8fee-9d921a5abb5f" 
+} 
+ 
+=== PAGE 70 ===
+ 
+ 
+ 
+2.1.4.4.2. Failed Asynchronous Response 
+If the request fails because one or more invoices in the request don’t meet the required schema 
+format, EIMS will send back a response explaining what went wrong. This response will include 
+details about the specific invoices that didn’t pass validation and the reasons for the failure. By 
+providing this information, the system helps you quickly identify and fix the issues so you can 
+correct the errors and resubmit the request. The structure o f the response is outlined below and is 
+designed to clearly show the validation errors for easy troubleshooting. 
+{ 
+  "$schema": "http://json-schema.org/draft-07/schema#", 
+  "title": "Response Schema", 
+  "type": "object", 
+  "properties": { 
+    "status": { 
+      "type": "integer", 
+      "description": "An integer representing the HTTP status code (usually 400)." 
+    }, 
+    "message": { 
+      "type": "string", 
+      "description": "Description of the error encountered (usually SCHEMA ERROR)" 
+    }, 
+    "body": { 
+      "type": "array", 
+      "description": "Array of objects containing error details in schema validation"  
+    } 
+  }, 
+  "required": [ 
+    "status", 
+    "message", 
+    "body" 
+  ] 
+} 
+ 
+The following is an example of schema error in bulk registration, 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+=== PAGE 71 ===
+ 
+ 
+ 
+{ 
+    "statusCode": 400, 
+    "message": "SCHEMA ERROR", 
+    "body": [ 
+        { 
+            "type": "required", 
+            "code": "1028", 
+            "message": "$.DocumentDetails: required property 'Type' not found", 
+            "instanceLocation": "$.DocumentDetails", 
+            "property": "Type", 
+            "evaluationPath": "$.properties.DocumentDetails.required", 
+            "schemaLocation": "http://www.mor.gov.et/einvoice#/properties/DocumentDetails/required", 
+            "messageKey": "required", 
+            "arguments": [ 
+                "Type" 
+            ] 
+        }, 
+        { 
+            "type": "required", 
+            "code": "1028", 
+            "message": "$.DocumentDetails: required property 'Reason' not found", 
+            "instanceLocation": "$.DocumentDetails", 
+            "property": "Reason", 
+            "evaluationPath": "$.allOf[0].then.properties.DocumentDetails.required", 
+            "schemaLocation": "http://www.mor.gov.et/einvoice#/allOf/0/then/properties/DocumentDetails/required", 
+            "messageKey": "required", 
+            "arguments": [ 
+                "Reason" 
+            ] 
+        } 
+    ] 
+} 
+ 
+2.1.4.4.3. Asynchronous Call Back Response 
+When the bulk registration request is processed the result will be sent to the call back URL 
+registered during the bulk request. The schema of the result is similar to the one sent back during  
+single invoice registration with successful responses containing IRN, Signed QR, Signed Invoice 
+and invoice details and failed responses containing failure details including rule validation errors. 
+ 
+The schema of the response is as follows, 
+ { 
+  "$schema": "http://json-schema.org/draft-07/schema#", 
+  "title": "Callback Schema", 
+  "type": "object", 
+  "properties": { 
+    "conversationId": { 
+      "type": "string", 
+=== PAGE 72 ===
+ 
+ 
+ 
+      "description": "The conversation id assigned during the initial request"  
+    }, 
+  “body”:{ 
+ “type”:”array”, 
+ “description”:”Invoice registration request responses” 
+ } 
+  }, 
+  "required": [ 
+    "conversationId", 
+    "body” 
+  ] 
+} 
+ 
+The following is an example of a call back with results, 
+[ 
+   { 
+        "irn": "d8f358d9e279ad8dcfba3c778cdafb6d597da53d32a79260368979e0f5ecb65d",  
+        "ackDate": "2024-12-20T11:51:05.639910+03:00[Africa/Addis_Ababa]", 
+        "signedQR": 
+"iVBORw0KGgoAAAANSUhEUgAAAMgAAADIAQAAAACFI5MzAAAFf0lEQVR4Xu3SezSUaRwHcJqKdQ
+m7GRXl0pSSRi5tLvHWsZLQ0E1RaWtXFNGplbR6ZZxYOcaOEOmimhq3CEkjvUSbDKuLLiiXLmNiOi7ZvDPv
+XPY4w5zzm7N7zv6xf873z+/n+T3v+zznUZP9W9SUC0VUopKJqEQlE1HJfxBcx943uL3nwVXa/j0IEGK weWi/IP
+XjbD5hgwERWcdbh2VkGskyk9hKYpWCJWq4/+zQujxUSaxLWkiVm5vsGI5KQnwaquFoFx9JZAdFQsG1CqdyG
+QEik53xcDIxPViaPYBNFlMzFrHfnjKpG6bIvLaiQAgiakAjxti9NNBhHAEis7A0Dhrgr9P/q9Npspma+dqkufLDym
+6GJW8jFNzz+CN/U77g+5JYpduRlB0Nt9l9/sFoT+1rBAj+Z0SAwS3KzuxYWQAKhKiW0gJ4hpTQddxUDIg4gko
+2u08ML+qKWA VF8kvykmNMdLD00ecxBIgwpG5L8qvYgPk6dzJQINJq/pOFT4JZV4LrpFCIlF8zlxQffzP22NtI3k
+yJqGZW2rFncSnlDWG5GBBcT11XmxX95sd3pg4oFPv8+/o4A0M8Ft7EgIjThrnXWRtGbMWuT+WN4jwXkluC9
+V3OjGo4dGFAxNSYbxKPXWEtipl1DgVCbFHT1HE0Yg3evuODAMFJLm1q8738yClu6lCkjrIwl+3B2uV6oY5Q
+hFaFTCt26LQMZ/0iFEqNYC4nn5FRcOejIwZESkI96bPXhJoVLKMjQEQ9mW/XMg113brHEqBINHVCIhY1H0
+kX9JihQEQd4X80jMzUKs7qnYcBIZLOPju7mLsn/u2GEnmjOGnUnOI2TrbvXkafHQbF4knZjBk/cOpafegoENH2
+Ys+CD7letaa40nlEkd2kINcvjaPdxhQo0m5NAYPZoUullxyWN1Mi0xufRzFvHf+dX+GLQiHf/K7ggJHlZdf2MgSI
+qHgozcdosL9evEsPBSKJ9nJ+T34b4czsk2JApPHu+1Ir9n99U43sRoHgZB2XdO/1s9ge79LlzZSIebyXrlT/hhCZJg8
+FIrMb0Bs0iRPYdIblIUBwfpZapY1oU8HomdbJtZMiDGam8I6PxUXl5TMRINL+n9qqbux7eD13jkTeKE56aVp+p
+AnSIu0K5WFQfGLG22m8bafi2lJQIFLsRsXqhAWlQesc9OWN4q/VazXUV8dG6feEx0MRO219XFN5qaEqsPIuB
+kRaVOzCtqEcSM/vtEKhcAR85xXbSJyNRtVQhAnxmJrh2jUrmuPiMSCilwdSqe2ZOle0WG3yRnFvSdv8dRfzDH
+oFTRwooqh4r5HIi6Zt0wdDECC4exn9BNW7w7I5SOlV4UGX2e8dhNxId/NDUCQPGe6enxP8l+jSHqNAhNG9J6
+9zDR7VulY0QsHVzzFp1IbGmYwgREkCT4f35z4NxbpYQ1BE7/sWJL+gHfVIJHAosvPRXls7TPrL3fp 6ESBEfRfJ
+ZWbn0Om8uScm107tdvIc5zDT9hr1lbkGAoSICG45pPHMz9jXXun14rbLtmQ1qTHYtMZrCBDpYu6uQKrfh+Ec
+mq28UdzO6/rmE+Rb1v3PD+shQAiuwUjX59QXlA2plfJGMVN7TUrZZFp1lT68AIqojX/eIu9BeFnXDn8UCDFX
+UovutG2xTLrthgGRsdYc7FW3j6GVb6yebCZFaJDTanivJ+2T3ioyBkTcd4s0zc17/eyiWLq8UewmtPrNyS+bW6Fl7
+ggF14zcXEim7M0e2F6AAiGGqrLu7rhQVMi0VJoRWY2S6Kvqo+zuUZW+I1pqmGMr7li6zJTFVBIr64Qv6jaoGR
+u/B4Xg0yRFopXTZVjhRSi49o1NcTadguc5zstRIP8QlahkIipRyURU8n/L3zzlVd6RCcLvAAAAAElFTkSuQmCC", 
+        "status": "A", 
+        "documentNumber": "8007", 
+        "signedInvoice": 
+"ffrnTZAfrf2Jx1vNh9z3fbLyifKgzt6iybyZ9g2j6c19FN6BN5/vv4kKBYbrw2TlbYrhNNH3/f58gVRKNfR92x/3JWJ
+lY2n1TDNOlivC3JT318+ZWPKHE9d7OVxL2SirwDgY9bNWA81SZjGcV1hTBQbX8v39+dBVFJA V5XvRkvkSR
+sGgsz1YKanAgCuo5lD+X6BV++JQFavYYkgZKBxRyAkZJA+n2TPJIyeNCBx4SBi0Izvy9h/Tn 0mvRUNaPVkAB
+=== PAGE 73 ===
+ 
+ 
+ 
+xPqad/egMlHJdwtE0AX29oBFMngHMqBvyrh4eViSv6ZtP8phgv3OUJs5FMmXtIr/LfSdW5qTDcB+H8aVcfbIQ=
+=", 
+        "invoiceSignature":”xxxx”, 
+         
+    }, 
+ 
+    { 
+        "ruleError": [ 
+            { 
+                "portion": "DocumentDetails", 
+                "errorMessage": [ 
+                    "DocumentDetails.date: Document creation time should be within 3 days"  
+                ] 
+            }, 
+            { 
+                "portion": "ReferenceDetails", 
+                "errorMessage": [ 
+                    "ReferenceDetails.id: Previous IRN in ReferenceDetail is not correct." 
+                ] 
+            }, 
+            { 
+                "portion": "SellerDetails", 
+                "errorMessage": [ 
+                    "SellerDetails.id: Seller's tax center is not correct" 
+                ] 
+            }, 
+            { 
+                "portion": "value details", 
+                "errorMessage": [ 
+                    "Exchange rate is not correct. " 
+                ] 
+            } 
+        ], 
+        "status": "ERROR", 
+        "documentNumber": "101193" 
+    }, 
+    { 
+        "ruleError": [ 
+            { 
+                "portion": "DocumentDetails", 
+                "errorMessage": [ 
+                    "DocumentDetails.date: Document creation time should be within 3 days" 
+                ] 
+            }, 
+            { 
+                "portion": "ReferenceDetails", 
+                "errorMessage": [ 
+                    "ReferenceDetails.id: Previous IRN in ReferenceDetail is not correct." 
+                ] 
+=== PAGE 74 ===
+ 
+ 
+ 
+            }, 
+            { 
+                "portion": "SellerDetails", 
+                "errorMessage": [ 
+                    "SellerDetails.id: Seller's tax center is not correct" 
+                ] 
+            }, 
+            { 
+                "portion": "value details", 
+                "errorMessage": [ 
+                    "Exchange rate is not correct. " 
+                ] 
+            } 
+        ], 
+        "status": "ERROR", 
+        "documentNumber": "101194" 
+    }, 
+    "conversationid" : "1234567899-1734682972171-de029d35-a527-4446-9cc1-36823a888c4c" 
+] 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+=== PAGE 75 ===
+ 
+ 
+ 
+3. SECTION FIVE 
+3.2 INVOICE CANCELLATION 
+3.2.1 PURPOSE  
+The Electronics Invoice Management System (EIMS) and the Taxpayer System need to work 
+together smoothly and efficiently to ensure that information is exchanged without any delays. To 
+make this happen, it’s essential for both systems to follow a set of predefined integration standards 
+that ensure everything stays consistent and reliable. 
+This section is designed to give supplier and taxpayer  clear and practical guidance on how to 
+integrate with EIMS specifically for handling invoice cancellations. Invoice ca ncellations can 
+happen for many reasons throughout the business process—whether it’s due to changes in an order, 
+customer disputes, or simple mistakes in the invoicing. EIMS is built to handle these situations 
+seamlessly by providing a secure and easy-to-use API interface for cancellations. 
+By using this API, businesses can manage cancellations quickly and efficiently, ensuring 
+compliance with regulations while keeping their records accurate and up to date. This section of 
+the document  aims to help developers implement this integration easily so businesses can 
+streamline their processes and focus on what they do best. 
+The cancellation request is automatically processed if it adheres to the predefined daily and 
+monthly cancellation limits and falls within the allowed time frame between invoice registration 
+and cancellation. If the limits are exceeded or the request is outside this timeframe, it will undergo 
+manual review. 
+3.2.2 OVERVIEW OF INOICE CANCELATION 
+The main purpose of the Electronics Invoice Management System (EIMS) is to handle essential 
+tasks like registering, verifying, and canceling invoices. Among these, invoice cancellation 
+happens quite often. This is because, in the day -to-day operations of a business, it’s normal to 
+encounter mistakes or the need for changes when generating invoices. 
+=== PAGE 76 ===
+ 
+ 
+ 
+Invoice cancellations are initiated by Taxpayer (TP) systems for invoices that have already been 
+registered in EIMS. To process a cancellation, the Taxpayer system needs to provide the Invoice 
+Reference Number (IRN) of the invoice they want to cancel, along with a clear reason for why the 
+cancellation is necessary. 
+The cancellation process follows a set of defined steps to ensure everything is handled accurately 
+and in line with the rules. These steps help businesses make corrections or adjustments efficiently, 
+without disrupting their workflows or falling out of compliance with regulations. 
+1 Request for invoice cancellation is initiated by Taxpayer system 
+2 EIMS validates the request JSON against cancellation schema 
+3 EIMS process the cancellation request processing it through various cancellation rules 
+including but not limited to 
+ Allowed number of cancellations in a day or a month 
+ Allowed time between invoice registration and  cancellation as specified by 
+MoR 
+ Allowed aggregate total value of invoices that can be canceled in a day or a 
+month 
+ If the rule validation of the request is successful, then the invoice cancellation       
+confirmation response is sent to the Taxpayer system. 
+ If the limits are exceeded or the request is outside this timeframe, it will 
+undergo manual review 
+Taxpayer systems should fulfills the following when sending cancellation requests, 
+ Taxpayer systems must have been authenticated and a valid access token 
+should be in the header 
+ Taxpayer systems must sign the request with their private key and include a 
+valid certificate 
+ Taxpayer systems must encrypt the payload as specified in Security 
+Compliance Document 
+ 
+=== PAGE 77 ===
+ 
+ 
+ 
+3.2.3 HIGH-LEVEL ARCHITECTURE 
+3.2.3.1 System Components 
+ Taxpayer System: Generates invoice cancellation data, receives cancellation result 
+ EIMS: Applies the JSON schema rules, processes cancellation request 
+3.2.3.2 Data Flow 
+1. Taxpayer System generates cancellation request and submits to EIMS 
+2. EIMS validate the object against the schema. 
+3. EIMS processes the request and responds with cancellation result 
+4. Taxpayer System receives and stores the result 
+ 
+ 
+Figure 6: invoice Cancelation 
+  
+
+=== PAGE 78 ===
+ 
+ 
+ 
+ 
+3.2.4 SCHEMA OVERVIEW 
+To process an invoice cancellation, the request needs to follow a specific format outlined in the 
+schema below. This schema ensures that the required information is provided in a clear and 
+consistent way, allowing the cancellation to be handled smoothly and without any issues. Sticking 
+to this format is important for maintaining accurate records and ensuring the systems communicate 
+effectively. 
+{ 
+ "$schema": "http://json-schema.org/draft-07/schema#", 
+ "title": "MOR E-INVOICE", 
+ "$id": "http://www.mor.gov.et/einvoice", 
+ "description": "Invoice Cancellation schema", 
+ "type": "object", 
+ "properties": { 
+  "Irn": { 
+   "type": "string", 
+   "minLength": 64, 
+   "maxLength": 64, 
+   "description": "Invoice Reference Number" 
+  }, 
+  "ReasonCode": { 
+   "type": "string", 
+   "minLength": 1, 
+   "maxLength": 1, 
+   "description": "Cancel Reason 1- Duplicate, 2 - Data entry mistake, 3- Order Cancelled, 4 
+- Others" 
+  }, 
+  "Remark": { 
+   "type": "string", 
+   "minLength": 0, 
+   "maxLength": 100, 
+=== PAGE 79 ===
+ 
+ 
+ 
+   "description": "Cancel Remarks" 
+  } 
+ }, 
+ "required": [ 
+  "Irn", 
+  "ReasonCode" 
+ ] 
+} 
+As shown above the schema contains, 
+ Irn – Invoice registration number of the invoice to be canceled 
+ ReasonCode – a code for cancellation which can be one of the following 
+ 
+No  Reason Code Description 
+   
+   
+ 
+ Remark – any description of the cancellation 
+Irn and ReasonCode are mandatory attributes. 
+Example of a cancellation request is show below, 
+{ 
+        "Irn":"d0b10c49b4330d7cbc96f79116a6980f6e85ccea406e0b47196547c6b79334e6", 
+        "ReasonCode":"1", 
+        "Remark":"Repeated Error" 
+} 
+ 
+ 
+ 
+ 
+=== PAGE 80 ===
+ 
+ 
+ 
+3.2.5 RESPONSES FOR CANCELLATION REQUEST 
+Just like any other system request, an invoice cancellation request can either go through 
+successfully or fail for a variety of reasons. A successful request means everything was in order, 
+and the system was able to process it without any issues. On the other hand, a request might fail 
+due to problems like missing or incorrect information, formatting errors, or technical issues with 
+the system. 
+The sections below break down what happens in both cases. They explain what a successful 
+response looks like and how to handle error messages if something goes wrong. This way, you’ll 
+have a clear idea of what to expect and how to resolve any problems you might encounter. 
+3.2.5.1 Successful Cancellation Response 
+If the cancellation request is processed successfully, the response will follow the structure outlined 
+in the schema below. This ensures that the information you receive is clear, organized, and easy to 
+understand. The response will confirm that the cancellation went through and include any relevant 
+details, so you’ll have all the information needed to proceed or take further action if necessary. 
+The structured response helps make sure everything is in order and that the process is transparent. 
+{ 
+ "$schema": "http://json-schema.org/draft-07/schema#", 
+ "title": "MOR E-INVOICE", 
+ "$id": "http://www.more.gov.et/einvoice", 
+ "description": "Invoice Cancellation Response schema", 
+ "type": "object", 
+ "properties": { 
+  "status": { 
+   "type": "string", 
+ "description": "Status of the cancellation request, mostly 'success' for successful   requests." 
+  }, 
+  "cancelationDate": { 
+   "type": "string", 
+   "format": "date-time", 
+   "description": "Cancellation date and time." 
+=== PAGE 81 ===
+ 
+ 
+ 
+  } 
+ }, 
+ "required": [ 
+  "status", 
+  "cancelationDate" 
+ ] 
+} 
+ 
+Successful response example is given below, 
+{ 
+    "status": "Success", 
+    "cancelationDate": "2024-12-22T15:45:17.769+00:00" 
+} 
+3.2.5.2 Failed Cancellation Responses 
+Cancellation responses may fail for various reasons, typically due to either a schema validation 
+error or a cancellation rule validation error, as outlined in section 1.2. When the failure is caused 
+by a schema validation error, the system will generate a response based on the following JSON 
+schema. This schema specifies the exact structure and content of the error message, providing clear 
+details on what went wrong, so that users or systems can address the issue and make the necessary 
+corrections. By using this schema, the system ensures that the error is communicated effectively, 
+allowing for a smooth resolution process. 
+{ 
+  "$schema": "http://json-schema.org/draft-07/schema#", 
+  "title": "SchemaValidationErrorResponse", 
+  "type": "object", 
+  "properties": { 
+    "type": { 
+      "type": "string", 
+      "description": "The type of validation error (e.g., 'required')." 
+    }, 
+    "code": { 
+      "type": "string", 
+      "description": "An error code representing the specific validation issue." 
+    }, 
+=== PAGE 82 ===
+ 
+ 
+ 
+    "message": { 
+      "type": "string", 
+      "description": "A descriptive error message regarding the validation failure." 
+    }, 
+    "instanceLocation": { 
+      "type": "string", 
+      "description": "A JSON Pointer or path indicating where the error was found in the instance." 
+    }, 
+    "property": { 
+      "type": "string", 
+      "description": "The specific property that caused the validation error." 
+    }, 
+    "evaluationPath": { 
+      "type": "string", 
+      "description": "Path or pointer showing the evaluation context in the schema."  
+    }, 
+    "schemaLocation": { 
+      "type": "string", 
+      "format": "uri", 
+      "description": "A URI reference to the schema rule that was violated." 
+    }, 
+    "messageKey": { 
+      "type": "string", 
+      "description": "A key or code indicating the general type of validation error." 
+    }, 
+    "arguments": { 
+      "type": "array", 
+      "description": "Additional argument details relevant to the validation error.", 
+      "items": { 
+        "type": "string" 
+      } 
+    } 
+  }, 
+  "required": [ 
+    "type", 
+=== PAGE 83 ===
+ 
+ 
+ 
+    "code", 
+    "message", 
+    "instanceLocation", 
+    "property", 
+    "evaluationPath", 
+    "schemaLocation", 
+    "messageKey", 
+    "arguments" 
+  ] 
+} 
+An example of schema validation error for invoice cancellation is show below, 
+ { 
+        "type": "required", 
+        "code": "1028", 
+        "message": "$: required property 'Irn' not found", 
+        "instanceLocation": "$", 
+        "property": "Irn", 
+        "evaluationPath": "$.required", 
+        "schemaLocation": "http://www.mor.gov.et/einvoice#/required", 
+        "messageKey": "required", 
+        "arguments": [ 
+            "Irn" 
+        ] 
+    }. 
+In cases of rule validation error related to cancellation, the following schema will be used,  
+{ 
+ "$schema": "http://json-schema.org/draft-07/schema#", 
+ "title": "MOR E-INVOICE ", 
+ "$id": "http://www.more.gov.et/einvoice", 
+ "description": "Invoice Cancellation Response schema", 
+ "type": "object", 
+  
+ "properties": { 
+  "statusCode": { 
+   "type": "string", 
+=== PAGE 84 ===
+ 
+ 
+ 
+   "description": "status of the cancellation request, mostly success in successful requests " 
+  }, 
+  " message": { 
+   "type": "string", 
+   "description": "Rule violation error description” 
+  } , 
+   "body": { 
+      "type": "array", 
+      "items": { 
+        "type": "object", 
+        "properties": { 
+"code": { 
+            "type": "string" 
+          }, 
+          "property": { 
+            "type": "string" 
+          }, 
+          "message": { 
+            "type": "string", 
+          } 
+        }, 
+        "required": [“code”, "property", "message"] 
+      } 
+  "required": [ 
+   "status", 
+   "message" 
+  ] 
+ } 
+} 
+ 
+ 
+ 
+ 
+An example of rule violation error response is shown below, 
+ 
+{ 
+    "message": "IRN not registered under the requesting tax payer's TIN ", 
+    "statusCode": "Error" 
+} 
+=== PAGE 85 ===
+ 
+ 
+ 
+ 
+4 SECTION SIX 
+4.1 RECIEIPT 
+4.1.1 PURPOSE 
+The receipt module is a crucial component of the electronic invoice management system, playing 
+a vital role in financial transactions. While an invoice serves as a request for payment, it does not 
+guarantee that the payment has been completed. A receipt, on the other hand, acts as concrete proof 
+that the payment has been successfully made, ensuring transparency, accuracy, and accountability 
+in the transaction process. 
+This section offers detailed guidelines for software suppliers, taxpayers, and software developers 
+on the proper procedures for submitt ing a receipt for an invoice that has already been registered 
+within the electronic invoice management system. It outlines the necessary steps, compliance 
+requirements, and technical specifications to ensure accurate submission and seamless integration 
+within the system. By following these guidelines, all stakeholders can maintain proper financial 
+records, enhance transaction transparency, and ensure adherence to regulatory standards. 
+4.1.2 OVERVIEW OF RECEIPT  
+Receipt management is a fundamental element of the e lectronic invoice management system,  A 
+receipt serves as concrete evidence that a payment has been successfully processed, offering 
+guarantee to businesses, taxpayers, and regulatory bodies. This section will provide an in -depth 
+exploration of key aspects of receipt management, including its importance, the step -by-step 
+process for recording and submitting receipts  for already registered invoice , compliance 
+obligations, and best practices for seamless system integration. The following key points will be 
+thoroughly examined to ensure a clear understanding and effective implementation. 
+ 
+ 
+=== PAGE 86 ===
+ 
+ 
+ 
+4.2 HIGH-LEVEL ARCHITECTURE 
+4.2.1 SYSTEM COMPONENTS 
+ Taxpayer System: Generates receipt registration data, receives receipt registration result 
+ EIMS: Applies the JSON schema rules, processes receipt registration request 
+4.2.2 DATA FLOW 
+1. Taxpayer System generates receipt registration request and submits to EIMS. 
+2. EIMS validate the object against the schema. 
+3. EIMS processes the request and responds with receipt registration result. 
+4. Taxpayer System receives and stores the result. 
+ 
+4.3 SCHEMA OVERVIEW 
+To successfully register a receipt for an already registered invoice, it is essential to adhere to a 
+predefined schema. This ensures a smooth and error -free registration process. Following the 
+specified format outlined below is mandatory to guarantee the successful submission and 
+validation of the receipt. 
+{ 
+  "$schema": "http://json-schema.org/draft-07/schema#", 
+  "title": "MOR E-INVOICE", 
+  "$id": "http://www.mor.gov.et/einvoice", 
+  "description": "Invoice Cancellation schema", 
+  "type": "object", 
+  "properties": { 
+    "ReceiptNumber": { 
+      "type": "string", 
+      "description": "Unique identifier for the receipt" 
+    }, 
+    "ReceiptType": { 
+      "type": "string", 
+      "description": "Type of receipt, e.g., Sales Receipt" 
+    }, 
+=== PAGE 87 ===
+ 
+ 
+ 
+    "Reason": { 
+      "type": "string", 
+      "description": "Reason for issuing the receipt" 
+    }, 
+    "ReceiptDate": { 
+      "type": "string", 
+      "format": "date-time", 
+      "description": "Date and time of the receipt issuance" 
+    }, 
+    "ReceiptCounter": { 
+      "type": "string", 
+      "description": "Counter number for tracking receipts" 
+    }, 
+    "ManualReceiptNumber": { 
+      "type": "string", 
+      "description": "Manually assigned receipt number, if applicable" 
+    }, 
+    "SourceSystemType": { 
+      "type": "string", 
+      "description": "System type from which the receipt originates" 
+    }, 
+    "SourceSystemNumber": { 
+      "type": "string", 
+      "description": "Unique identifier for the source system" 
+    }, 
+    "ReceiptCurrency": { 
+      "type": "string", 
+       "description": "Currency code of the receipt (e.g., USD, EUR)" 
+    }, 
+    "ExchangeRate": { 
+      "type": ["number", "null"], 
+      "description": "Exchange rate applicable at the time of transaction" 
+=== PAGE 88 ===
+ 
+ 
+ 
+    }, 
+    "CollectedAmount": { 
+      "type": "number", 
+      "description": "Total amount collected in the transaction" 
+    }, 
+    "SellerTIN": { 
+      "type": "string", 
+      "description": "Taxpayer Identification Number of the seller" 
+    }, 
+    "Invoices": { 
+      "type": "array", 
+      "description": "List of invoices associated with this receipt", 
+      "items": { 
+        "type": "object", 
+        "properties": { 
+          "InvoiceIRN": { 
+            "type": "string", 
+            "minLength": 64, 
+            "maxLength": 64, 
+            "description": "Invoice Reference Number (IRN)" 
+          }, 
+          "PaymentCoverage": { 
+            "type": "string", 
+            "description": "Specifies if the invoice payment is full or partial" 
+          }, 
+          "InvoicePaidAmount": { 
+            "type": "number", 
+             "description": "Amount paid for the invoice" 
+          }, 
+          "DiscountAmount": { 
+            "type": ["number", "null"], 
+             "description": "Discount amount applied, if any" 
+=== PAGE 89 ===
+ 
+ 
+ 
+          }, 
+          "RemainingAmount": { 
+            "type": ["number", "null"], 
+              "description": "Remaining amount to be paid, if applicable" 
+          }, 
+          "TotalAmount": { 
+            "type": "number", 
+            "minimum": 0, 
+            "description": "Total amount of the invoice" 
+          } 
+        }, 
+        "required": ["InvoiceIRN", "PaymentCoverage", "InvoicePaidAmount", "TotalAmount"] 
+      } 
+    }, 
+    "TransactionDetails": { 
+      "type": "object", 
+      "description": "Details of the transaction", 
+      "properties": { 
+        "ModeOfPayment": { 
+          "type": "string", 
+          "description": "Payment method used (e.g., CASH, CARD)" 
+        }, 
+        "ChequeNumber": { 
+          "type": ["string", "null"], 
+          "description": "Cheque number if payment was made via cheque" 
+        }, 
+        "CPONumber": { 
+          "type": ["string", "null"], 
+          "description": "Customer Purchase Order number, if applicable" 
+        }, 
+        "DocumentNumber": { 
+          "type": ["string", "null"], 
+=== PAGE 90 ===
+ 
+ 
+ 
+          "description": "Reference document number, if applicable" 
+        }, 
+        "CollectorName": { 
+          "type": "string", 
+          "description": "Name of the person collecting the payment" 
+        }, 
+        "PaymentServiceProvider": { 
+          "type": "string", 
+          "description": "Payment service provider facilitating the transaction" 
+        }, 
+        "OtherPaymentServiceProviderName": { 
+          "type": ["string", "null"], 
+          "description": "Additional payment service provider name, if applicable" 
+        }, 
+        "AccountNumber": { 
+          "type": "string", 
+            "description": "Account number used for the transaction" 
+        }, 
+        "TransactionNumber": { 
+          "type": "string", 
+          "description": "Unique identifier for the transaction" 
+        } 
+      }, 
+      "required": ["ModeOfPayment", "CollectorName", "PaymentServiceProvider", "AccountNumber", 
+"TransactionNumber"] 
+    } 
+  }, 
+  "required": [ 
+    "ReceiptNumber", "ReceiptType", "Reason", "ReceiptDate", "ReceiptCounter",  
+    "SourceSystemType", "SourceSystemNumber", "ReceiptCurrency", "CollectedAmount",  
+    "SellerTIN", "Invoices", "TransactionDetails" 
+  ] 
+=== PAGE 91 ===
+ 
+ 
+ 
+} 
+Example of a receipt registration request is show below, 
+{ 
+  "ReceiptNumber": "REC1234567890123466", 
+  "ReceiptType": "Sales Receipts", 
+  "Reason": "Payment for goods purchased", 
+  "ReceiptDate": "2025-01-10T14:30:00.000+03:00", 
+  "ReceiptCounter": "12345", 
+  "ManualReceiptNumber": "98765", 
+  "SourceSystemType": "MAX", 
+  "SourceSystemNumber": "112345678", 
+  "ReceiptCurrency": "USD", 
+  "ExchangeRate": null, 
+  "CollectedAmount": 240.0, 
+  "SellerTIN": "1234567899", 
+  "Invoices": [ 
+    { 
+      "InvoiceIRN": 
+"4c484b18fb0770c9dc3290a4dd15999f8a682a7d79e5610d1d89bd79007c0d7r",  
+      "PaymentCoverage": "FULL", 
+      "InvoicePaidAmount": 1000.00, 
+      "DiscountAmount": null, 
+      "RemainingAmount": null, 
+      "TotalAmount": 240.0 
+    } 
+  ], 
+  "TransactionDetails": { 
+    "ModeOfPayment": "CASH", 
+    "ChequeNumber": null, 
+    "CPONumber": null, 
+    "DocumentNumber": null, 
+    "CollectorName": "Jane Doe", 
+    "PaymentServiceProvider": "Bank", 
+    "OtherPaymentServiceProviderName": null, 
+    "AccountNumber": "123456789", 
+    "TransactionNumber": "TRX987654321" 
+  } 
+} 
+ 
+ 
+ 
+4.3.1 RESPONSES FOR RECEIPT REGISTRATION 
+The receipt request can generate two types of r esponses: a successful response or a failure 
+response. A successful response is issued when all mandatory fields are provided, and the request 
+adheres to the predefined schema and validation rules. This ensures that the receipt is properly 
+registered without any issues. On the other hand, a failure response occurs if there is an error in 
+the request, such as missing required fields, incorrect data formatting, or a violation of the 
+=== PAGE 92 ===
+ 
+ 
+ 
+established validation rules. In such cases, the request is rejected, and app ropriate error messages 
+are returned to indicate the specific issues that need to be corrected before resubmission. 
+The following sections provide a detailed breakdown of both scenarios. They outline the structure 
+of a successful response and offer guidanc e on handling error messages in case of issues. This 
+ensures you have a clear understanding of what to expect and how to troubleshoot any potential 
+problems effectively. 
+4.3.1.1 Successful Receipt Registration Response 
+If all required attributes are provided and the predefined validation rules are successfully met, the 
+system will generate the following expected response. This response serves as confirmation that 
+the receipt request has been processed correctly and complies with all necessary requirements. It 
+ensures that the transaction is valid and recorded without errors, allowing for smooth and efficient 
+processing. 
+{ 
+  "statusCode": 200, 
+  "message": "Success", 
+  "body": { 
+    "status": "A", 
+    "rrn": "8533e509754800709b8de248297985da1cbc8eaeb734add884d87875e5577589", 
+    "qr": 
+"iVBORw0KGgoAAAANSUhEUgAAAlgAAAJYAQAAAACWHaVxAAAIYElEQVR4Xu2aQW7cSAxF2eiFlz6CjqKjS
+UfTUXQEL71odA3fJ6vjODNAhMlihiAXkVUiX2XxQf4q28afC/u+8C+iWdeiWdeiWdeiWdeiWdeiWdeiWdei
+WdeiWdeiWdfiv836MOJtnOt43j/f/eFvH8uxPc3ex9h9kYTxeFP6w0jxN09R5dKseixe/JM55C7yk5R13NjHH4
+9AOvk0SrJgjGObb82qxjrspk/mLGTGw6tjA9dXLJqkBPlcd6Ucm5TYrKosX9tBnhQp3/WlN1imDnR+0ZeLrlnF
+WZTpfczWQ6L09ek/brwv3mVCX7fxyVuzqrJGziEyXENRNpFbzqGYSiIv+JZ/mEPNKsGiFJ0cm1rPhYcqm/Xbj/
+8N6xWHuQ1BLs/oJLkBi8gMKQGJngPra3GzKrHQl2d4bNFQDJakg/+waVEIN6rGxIoN1IHem1WPlcLikZMnzS
+gO1QcQ+V6dXUajShNLuzarKotENEQi5HlcmUaV6mg9pkY0dPQ9+TZbT7NqseKTSymrY+RwC+qJWlw4vLxF
+Lmrzb4a+BplBSFKzKrDkPyw+KYMDilqPxxmTx/exmcJpR4VDZ5iMZimxCItmI1OiFyBhRnUzDuSu7fRV24Vf5
+dtQk1I0qxJLTYNqDaDUFzfjKpOX1RzScGLyUCRTcmzap1n1WNFCMB5iSTX+g9rL8tJXth4U5RtoHFH3TV/NKs
+GKX5ZJX0P+I04tvqgHLFLQl1gKDK7rCxO7NKsgK22IHswhoywMi8FCbdPE8vDFEJbUFpBmVWLRbNCXZ4Rc9
+iRn6wkbEqLzVwaQvzGqfNeXp2lWJRahTnLoysMfDCBX1BNhuZTiYKMdncwA0kMu5nvPaVYdlgaQJs9QJ3HI
+CA1JUS6lnEMxqhhckqDsS7OqsXjJhoKwUE0kSmaaQ1JUQAi9aVThWyKaVYnlXSYTd9nWGDlzUeTQ0CcdKEf
+VExNrpvNNswqycCOvaoQViyo7SEJ0dJnBqNIFiEUH0q7NqsgafCMf+3nYU6eWaUM0ctZMEdmMZoPPDV02
+qxpLazxW3XuyFI7D17nrmF42ZIY3OaOAlG/6alYNVs4hpguJrKvZpIboMrbI0rJrjCogEuScUc0qxfqqrztdhuMK
+1cp3L8vbMRWVEyssCufhZhVk0UIiUBTtBYgCte2aQ5lBWwpFPXJFuzYrFsqwEJZ0Mg+0phuveaIZHFdiA1laH
+=== PAGE 93 ===
+ 
+ 
+ 
+WXoQBgWqa1Z5VhZzZqrBUiQtegdSPpaMSxksh2Z0XOy9TSrGIs5hE5eiXs6FfTl2tPDh1OUpcxiH1fbjGZVYiE
+eVR95nYVFiZET+VNYpp4TllZqW923xFRqVjGWKwrVkH9HbXGEdaT0pTl0vkysyCssBhfXIYFoViUW1cwaD91
+4rfQV/EdssKWiaC+5nSNfwtIxp1nVWIvMqMvHdAkuRTGc6ECmGUUHyu3kYg6+zdNOs4qyFHyi9VCGsIYUlX
+2FRiTy0OCKB+MoolmVWOTHrMn3IWGtMZzWcCr4VRnVH3PoddhtVjnWB0bVwx8updftN78mwa+iPZBk2
+qp9/JvaEt3pl57TrAosS8dxcE4hdMpl8hgWRf5DZCJG1T5//c44alY5ln6SooAgs4Rkvvyqf4sLEKWjr2g2D92bN
+asYi7OI5gkQnWRvSCk15A/POZlDglBx4k00nNK3NKsay6uNAwo9R0bV4kSjr4f0dZr05YvzQKsOBDmOt80qx
+YrAY0wpkUZ7eWBYaC8xh9iOfb40IpmZZhVkHRRTjbCopvUQns8iObtSUoKrNs9oVkWWhEXvwHGc3IIq46c
+NTCl0IIaTRhUpaVGaVYuFlG4xZHhTl9GDssGvULL66xyaKfF/aFYxVswTLMqerMyQhuRQ/W1KEId6hlOJN2T
+WrGIs1oxY481nzT2GDB1olZc99T7nEPHQAqJrVj1WuNCRt98fOpnIohgWhXtP2hKGhUwUFUr0Aj0imlWJlYn
+0nGk1sqFIQ1vOoVSbTjRD5xtjKtnPPadZZViaQ/npYMh4l9mkNm0AkkzK8KtGP2KRR7PqsdRzjL+wiL6CDYlEh
+OWzRm6E7XAx/Ms+ufj4WV/NqsLS2ZV7cr28yDdkhr5U/cx78tBeuNd9AppVi0UnMUJWQwMo9BVuhPON
+ktVl8Kscc7gVYfMHgmxWOZaXZaIhLC4y0n/IvcZw2rJGzWbd0R5K/JuZ1qwarDyfmvzq7DJpQ1JfIaU9L760nd
+oSdc2qxgpIfDKuPMgwtRcddrUdSM+UsHKDONHo0NOsYiyvNoIHQ4ZlDi/KR3s0IuyL54Rv0ZmXUy5taWlWR
+RZlekhYTB78aoyjiNxAjYjgisw353wTCc0qx4ohw+RxCDfjGWd8O+NPwZc0LAE5pbbcrlmlWP4inbiG6CTzGm
+xLNyLDcrAYKWJlHe5VkGbVYrm+dITFjNJJYgDpwVRSI5K+UFRkag6xAe61WeVYQKj+IaVUG4kOiUYkYbnoSD
+m1aIt3oDFHVbMqsdRz4pNJLrsgfk5RB9o45Wo4mbTHVHKLgi6Jb361WSVYGZhRtZdI9AyL4wqz5nSyFneG0
+7nOw0vokmhWJdZLJ/iPHDmD9kI11jSqX+MoJKiCLXTZrHIsXlI1A1MSt2FDD5MbmWR/YFtP1DZTfvG+zarAO
+uRJFywK1YbaTPmeuM9x5LHIooTalBd1zSrLCv+x5O/TDkM8J11GcygakWFUGVU0Gy9QB2pWWRYQveVUk
+v9ggzfSsCGQ2U67xj7NqskaYT+nzBCWy2zP/GhE2zP/    
+ PkeNaHCgtWaVZRnxJn0Zp5Y95pDKTmOD4Q8yF1lauZhcpPU0qxzrz0SzrkWzrkWzrkWzrkWzrkWzr
+kWzrkWzrkWzrkWzrkWzrsVfbY328sxI5vYAAAAASUVORK5CYII=" 
+  } 
+} 
+ 
+4.3.1.2 Failed receipt registration request 
+If the request to register the receipt fails due to not meeting the predefined required attributes and 
+the established rules, the following responses are expected. These responses will provide details 
+about the specific reasons for failure and highlight which required criteria or rules were not 
+fulfilled during the process. 
+ 
+ 
+ 
+ 
+=== PAGE 94 ===
+ 
+ 
+ 
+{ 
+  "statusCode": 406, 
+  "message": "NOT_ACCEPTABLE", 
+  "body": { 
+    "status": "F", 
+    "unknownIrn": [ 
+      "4c484b18fb0770c9dc3290a4dd15999f8a682a7d79e5610d1d89bd79007c0d7r" 
+    ], 
+    "dataMissing": [], 
+    "ruleErrorDto": [ 
+      { 
+        "portion": "Receipt", 
+        "errorMessage": [ 
+          "Currency should be ETB, USD, CAD", 
+          "Source System Type should be either POS, MAN, CRM, EFD, SYS", 
+          "Invoice currency is not found: Invoice currency is not found" 
+        ] 
+      }, 
+      { 
+        "portion": "TransactionDetails", 
+        "errorMessage": [ 
+          "Payment mode should be one of CASH, ADVANCE, or CREDIT" 
+        ] 
+      } 
+    ] 
+  } 
+} 
+ 
+=== PAGE 95 ===
+ 
+ 
+ 
+5 SECTION SEVEN 
+5.1 SECURITY  
+5.1.1 PURPOSE 
+One of the biggest concerns when integrating the Electronic Invoice Management System (EIMS) 
+with taxpayer systems is security. Protecting sensitive financial data and ensuring the integrity of 
+the systems is critical for smooth and reliable operations. That’s why security is a top priori ty in 
+making sure the EIMS and taxpayer systems work together seamlessly. 
+This section is designed to provide clear guidance on the key security aspects, including 
+authentication, authorization, and the use of digital certificates. These processes are esse ntial to 
+ensure secure communication and protect the systems involved. By following the guidelines 
+outlined here, businesses can confidently integrate with EIMS while maintaining a safe and 
+compliant environment for managing electronic invoices. 
+5.1.2 OVERVIEW 
+This section outlines the following essential requirements for integrating with the Electronic 
+Invoice Management System (EIMS): 
+ Authentication Requirements: Detailed guidelines on the authentication processes and 
+protocols necessary for secure integration with EIMS. 
+ Payload Encryption Requirements : Specifications on how data payloads should be 
+encrypted to ensure the confidentiality and integrity of information exchanged with EIMS. 
+ Digital Certificate Requirements: Standards and guidelines for using digital  certificates 
+to establish trusted and secure communication with the system. 
+Additionally, the document provides step -by-step instructions on how to obtain the necessary 
+credentials, encryption keys, and digital certificates. Each section includes comprehensive details 
+to help users meet these requirements and successfully integrate their systems with EIMS while 
+maintaining robust security. 
+=== PAGE 96 ===
+ 
+ 
+ 
+5.1.3 AUTHENTICATION IMPLEMENTATION 
+The Electronic Invoice Management System (EIMS) is built to allow taxpayer systems to connect 
+directly using APIs for tasks like registering, canceling, and validating invoices. However, before 
+any of these actions can be performed, the taxpayer system needs to authenticate with EIMS. This 
+is done by providing specific credentials, including a client ID, client secret, API key, and the 
+Taxpayer Identification Number (TIN). 
+Taxpayers with a valid TIN can easily get these credentials through the taxpayer email or phone 
+number. It’s important to create unique credentials for every system that wil l connect directly to 
+EIMS. Once generated, these credentials need to be set up within the systems intended to handle 
+tasks like invoice registration, cancellation, or verification. Following this process helps ensure the 
+systems are secure, efficient, and ready to integrate smoothly with EIMS. 
+5.1.3.1 Authentication Request and Response 
+5.1.3.2 Request 
+Every request sent to the Electronic Invoice Management System (EIMS) must include a 
+digital signature. This helps ensure that the data being transmitted is secure, authentic, and 
+hasn’t been tampered with. (You can find detailed guidance on how to obtain and use a digital 
+signature in a separate section.) 
+The schema shown below gives an overview of how these requests should be structured. 
+Following this framework is crucial for ensuring smooth communication and successful 
+integration with EIMS. 
+{ 
+    "$schema": "http://json-schema.org/draft-07/schema#", 
+    "type": "object", 
+    "properties": { 
+        "request": { 
+            "type": "object", 
+            "properties": { 
+                "clientid": { 
+                    "type": "string" 
+                }, 
+                "clientsecret": { 
+=== PAGE 97 ===
+ 
+ 
+ 
+                    "type": "string" 
+                }, 
+                "apikey": { 
+                    "type": "string" 
+                }, 
+                "tin": { 
+                    "type": "string" 
+                } 
+            }, 
+            "required": [ 
+                "clientid", 
+                "clientsecret", 
+                "apikey", 
+                "tin" 
+            ] 
+        }, 
+        "signature": { 
+            "type": "string" 
+        }, 
+        "certificate": { 
+            "type": "string" 
+        } 
+    }, 
+    "required": [ 
+        "request", 
+        "signature", 
+        "certificate" 
+    ] 
+} 
+The request property has the following entries, 
+ clientid – a unique client id that is provided to the Taxpayer system in Taxpayer 
+portal 
+ clientsecret – a client secret provided to the Taxpayer system on Taxpayer portal 
+ apikey – a unique API key that is provided to the Taxpayer that should be used in all 
+Taxpayer systems 
+ TIN – Taxpayer Identification Number 
+ 
+ 
+=== PAGE 98 ===
+ 
+ 
+ 
+Communication Type REST, Post 
+URL x.x.x/authenticate 
+JSON Schema authenticaitonSchema 
+Version 1 
+5.1.3.3 Response  
+When you make an authentication request, it can either be successful or return an error response, 
+depending on whether the provided credentials meet the system’s requirements. This section 
+starts by explaining what a successful authentication response looks like, followed by a 
+breakdown of possible error responses and what they mean. 
+The schema below shows the structure of a successful authentication response, highlighting the 
+key elements included. Understanding this schema will help you interpret the system’s feedback 
+and ensure a smooth authentication process. 
+{ 
+  "$schema": "http://json-schema.org/draft-07/schema#", 
+  "type": "object", 
+  "properties": { 
+    "data": { 
+      "type": "object", 
+      "properties": { 
+        "accessToken": { 
+          "type": "string" 
+        }, 
+        "refreshToken": { 
+          "type": "string" 
+        }, 
+        "encryptionKey": { 
+          "type": "string" 
+        }, 
+        "expiresIn": { 
+          "type": "integer" 
+        } 
+      }, 
+      "required": ["accessToken", "refreshToken", "encryptionKey", "expiresIn"] 
+=== PAGE 99 ===
+ 
+ 
+ 
+    }, 
+    "status": { 
+      "type": "string" 
+    } 
+  }, 
+  "required": ["data", "status"] 
+} 
+ 
+Contained in the response are 
+ accessToken – this is a bearer token that has to be part of the header subsequent API 
+calls which will be used for successful authentication 
+ refreshToken – a token that can be used to get a new accessToken before it expires so 
+that Taxpayer systems do not have to re-login when accessToken nears expiry time  
+ ecryptionKey – payload encryption key that will be used for communication between 
+the Taxpayer system and EIMS 
+ expiresIn – the number of seconds before the accessToken expires 
+ status – status of the request, success or failure, for successful authentication this 
+should always be 200 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+=== PAGE 100 ===
+ 
+ 
+ 
+For requests that are not successful, error reply of the following schema will be responded, 
+{ 
+"$schema": "http://json-schema.org/draft-07/schema#", 
+"type": "object", 
+"properties": { 
+"message": { 
+"type": "string" 
+}, 
+"code": { 
+"type": "integer" 
+}, 
+"details": { 
+"type": "array", 
+"items": { 
+"type": "object", 
+"properties": { 
+"field": { 
+"type": "string" 
+}, 
+"errorMessage": { 
+"type": "string" 
+} 
+}, 
+"required": ["field", "errorMessage"] 
+} 
+=== PAGE 101 ===
+ 
+ 
+ 
+}, 
+"status": { 
+"type": "string" 
+} 
+}, 
+"required": ["message", "statusCode", "details", "code"] 
+} 
+The contents of the error response are, 
+ message – a description of the error in a text format 
+ code – a numerical code of the error that is generated by EIMS which Taxpayer systems 
+can use for better error detection currently defined are 4001 when required values are 
+missing and 4110 when authentication credentials are invalid 
+ details – an array of error lists which give detailed error information 
+ status – error response status with http error code, for unsuccessful authentication this 
+is usually 40X, where X varies depending on the error  
+5.1.4 Token Refresh 
+To avoid disruptions, taxpayer systems can send token refresh requests before the current access 
+token expires. This helps maintain a smooth and uninterrupted connection with the system. 
+For a token refresh request to be processed succ essfully, it needs to follow the structure outlined 
+in the schema below. The schema specifies the required components and format, ensuring the 
+request aligns with the system’s standards and works as intended. 
+ 
+ 
+ 
+ 
+ 
+=== PAGE 102 ===
+ 
+ 
+ 
+{ 
+"$schema": "http://json-schema.org/draft-07/schema#", 
+"type": "object", 
+"properties": { 
+"refreshToken": { 
+"type": "string" 
+} 
+}, 
+"required": ["refreshToken"] 
+} 
+The token refresh request only requires one parameter: the refreshToken, which is provided when 
+the authentication request is successful. This token allows you to get a new access token without 
+having to log in again. 
+If the token refresh is successful, the system will send a JSON response that follows the same 
+format as the successful authentication res ponse. However, if the refreshToken is invalid or 
+something goes wrong, the system will return an error message in a format similar to the 
+authentication error responses, making it easy to understand what went wrong. 
+5.1.5 Payload Encryption 
+To ensure greater security, all communications between taxpayer (TP) systems and the Electronic 
+Invoice Management System (EIMS) will have their payloads encrypted, except for authentication 
+and token refresh requests. This extra layer of protection will help keep the data se cure during 
+most interactions between the two systems. 
+As a result, the way messages are exchanged between the systems will follow the structure outlined 
+below, making sure that the information stays private and safe while being transmitted. 
+ 
+ 
+=== PAGE 103 ===
+ 
+ 
+ 
+{  
+   ‘data’ : “cipher text” 
+} 
+The cipher is created using a symmetric encryption algorithm of -------------------, with the 
+encryption key provided during successful authentication. This key is valid only for the current 
+session and will be refreshed each time a new authentication takes place or when the access token 
+is renewed. This approach ensures that the encryption key is regularly updated, helping to maintain 
+strong security throughout each session. 
+5.1.6 DIGITAL CERTIFICATE REQUIREMENTS OF EIMS  
+The Electronic Invoic e Management System (EIMS) requires that all taxpayer (TP) systems 
+connected to it digitally sign every request they send. In addition, Taxpayer systems must verify 
+the authenticity of the responses from EIMS by checking its digital signature. To do this, Taxpayer 
+systems will need to obtain a digital certificate from the Ministry of Revenue (MoR), through a 
+process that will be defined at a later stage. This certificate is crucial for ensuring secure 
+communication and maintaining the trustworthiness of the data exchanged between the systems. 
+The digital certificate generation requires the following steps, 
+1. Taxpayer system generates a private and public key pair. The keys generated should meet 
+the requirements of FIPS 186 (latest version) and the public key will be validated against 
+ECC Full Public Key validation. 
+2. Taxpayer systems should generate a certificate signing request with the following contents, 
+3. Taxpayers provide the Certificate Signing Request (CRS) to …….. 
+4. Taxpayer download and use digital certificates as per the requirement 
+ 
+ 
+ 
+=== PAGE 104 ===
+ 
+ 
+ 
+ 
+CRS Input X509 Certificate Field Description Accepted Input 
+countryName x509.subject.country Ethiopia ET 
+stateOrProvinceName x509.subject.state Region name As per the master code declared 
+by MoR 
+organizationName x509.subject.organization Legal name of the 
+organization Free text input 
+SerialNumber x509.subject.serial   
+commonName x509.subject.name TIN number of tax payer The Taxpayer Identification 
+Number 
+ 
+Taxpayer systems will need to use the public key from the provided digital certificate to sign the 
+JSON message contents whenever they send requests to EIMS. This helps ensure that each 
+message is securely authenticated and verifies its integrity. By including the digital signature, it 
+guarantees that the mes sage hasn’t been tampered with during transmission and confirms that it 
+comes from the authorized taxpayer system. This process is vital for ensuring secure, trustworthy 
+communication between the Taxpayer systems and EIMS. 
+1. shall comply with the requirements of FIPS 186-4 (Digital Signature Standard) 
+2. approved algorithms shall include ECDSA over the NIST P -256 curve and RSA with a 
+2048-bit key 
+ 
+ 
+  
+=== PAGE 105 ===
+ 
+ 
+ 
+6 ANNEX 1 
+የገንዘብ መቀበያ ደረሰኝ ( Receipt Invoice) 
+{{Type}} 
+ 
+IRN: ___የደረሰኝ ምዝገባ ቁጥር__________________________________ 
+MRC: ______ሲስተም ቁጥር____________________________________  
+ከ 
+From  የግብር ከፋይ መታወቂያ ቁጥር ላይ የተጠቀሰው ስም___ 
+ 
+አድራሻ: 
+Address: 
+   ከተማ 
+City/Town 
+____________ 
+ዞን / ክ/ከተማ 
+Zone/Sub city ____________ 
+ ወረዳ 
+Woreda 
+_______________ 
+ቀበሌ 
+Kebele 
+___________ 
+የቤ/ቁ 
+H/No 
+_______ 
+የሻጭ ተ.እ.ታ ቁጥር 
+Seller’s V A T Reg.No____________________ 
+የሻጭ የግብር ከፋይ መለያ ቁጥር 
+Seller' TIN ___________________________ 
+ለተ.እ.ታ የተመዘገበበት ቀን 
+Date of V A T Registration________________________ 
+ለ 
+To___________________________________________________
+_______________________ 
+ 
+አድራሻ : 
+Address: 
+ከተማ 
+City/Town 
+____________ 
+ዞን / ክ/ከተማ 
+Zone/Sub city ____________ 
+ ወረዳ 
+Woreda 
+____________ 
+ቀበሌ 
+Kebele 
+__________ 
+የቤ/ቁ 
+H/No _______ 
+የገዥ ተ.እ.ታ ቁጥር 
+Customer’s V A T Reg.No _____________________ 
+የገዥ የግብር ከፋይ መለያ ቁጥር 
+Customer’s TIN ___________________________ 
+ለተ.እ.ታ የተመዘገበበት ቀን 
+Date of V A T Registration ____________________ 
+የክፍያ ምክንያት 
+Payment Description:_____________________________________________________________ 
+ 
+ተ/ቁ 
+S.N 
+የደረሰኝ ቁጥር 
+Invoice Doc. Number 
+የደረሰኝ 
+ጠቅላላመጠን 
+Total Invoice 
+Amount 
+የገንዘብ ዓይነት 
+Invoice Currency 
+ተይዞ የቀረ መጠን 
+Withheld Amount 
+የተሰጠ ቅናሽ 
+Discount Given 
+የተከፈለ መጠን 
+Collected Amount 
+B.        
+C.        
+D.        
+E.        
+F.        
+Total Invoice Amount {{ Currency}}/ጠቅላላ የደረሰኝ መጠን {{የገንዘብ}} #,###.## 
+Total Discount Given / ጠቅላላ የተሰጠ ቅናሽ #,###.## 
+Total Withheld Amount / ጠቅላላ የተያዘ መጠን #,###.## 
+Collected amount {{Currency}} / የተሰበሰበ መጠን {{የገንዘብ አይነት}} #,###.## 
+Exchange Rate to Birr  
+ 
+ጠቅላላ ዋጋ በፊደል ብር 
+In Words  Birr :    ________________________________________________________________________________________  
+የክፍያ ሁኔታ 
+Mode of 
+Payment: 
+Type/Method 
+አይነት 
+ 
+______________________ 
+Reference 
+ማጣቀሻ 
+ 
+____________________________ 
+አገልግሎት ሰጭ 
+Service Provider 
+ 
+____________________ 
+Ticket 
+ቲኬት 
+From               To 
+ከ      ______    እስከ _______ 
+ 
+
+=== PAGE 106 ===
+ 
+ 
+ 
+ያዘጋጀው ስምና ፊርማ 
+Prepared By           _______________________________ 
+የተቀባይ (ሻጭ) ስምና ፊርማ 
+Receiver Name & Signature 
+_____{{Cashier}}_______________________ 
+ 
+በ{{ታክስ ባለስልጣን}} በ {{ታክስ ሴ ንተር}} ቅ/ፅ/ቤት በ__{{ቀን}}_ ቀን __{{ወር}}_ ወር _{{ዓ/ም}}_ ዓ/ም የኮምፒውተር ፕሮግራሙ 
+ጥቅም ላይ እ ንዲውል የተፈ ቀደ። 
+ 
+ 

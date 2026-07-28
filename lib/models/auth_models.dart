@@ -12,10 +12,10 @@ class LoginRequest {
   });
 
   Map<String, dynamic> toJson() => {
-    "clientId": "127ae9ad-8de2-4856-ba88-4e6a49ad10d0",
-    "clientSecret": "d3ddb848-9daa-44ab-8d96-374fcc8c9e6b",
-    "apikey": "dc481579-a6e7-4594-abcf-5493e261685e",
-    "tin": "0000037187",
+    "clientId": clientId,
+    "clientSecret": clientSecret,
+    "apiKey": apikey,
+    "tin": tin,
   };
 }
 

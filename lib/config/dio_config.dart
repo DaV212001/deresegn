@@ -26,9 +26,12 @@ class AuthInterceptor extends Interceptor {
   }
 
   Future<void> _redirectToLogin() async {
-    await ConfigPreference.clearTokens();
-    // In Option B, route to a custom "Device Configuration Unlinked" screen
-    Get.offAllNamed('/splash');
+    await ConfigPreference.clearMorTokens();
+    Get.offAllNamed(
+      ConfigPreference.getCompanyAccessToken() == null
+          ? '/company-auth'
+          : '/branch-setup',
+    );
   }
 
   @override
@@ -36,8 +39,17 @@ class AuthInterceptor extends Interceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    options.headers['Branch-Id'] = '4';
-    if (options.path.contains('login')) {
+    final branchId = ConfigPreference.getBranchId();
+    if (branchId != null && branchId.isNotEmpty) {
+      options.headers['Branch-Id'] = branchId;
+    }
+    final isPublicEndpoint =
+        options.path.contains('/company/register') ||
+        options.path.contains('/company/login') ||
+        options.path == '/api/companies' ||
+        options.path == '/api/login';
+    final isCompanyEndpoint = options.path == '/api/branches';
+    if (isPublicEndpoint || isCompanyEndpoint) {
       return handler.next(options);
     }
     if (ConfigPreference.isAccessTokenExpired()) {
@@ -49,7 +61,9 @@ class AuthInterceptor extends Interceptor {
       }
     }
 
-    final token = ConfigPreference.getAccessToken();
+    final token = options.path == '/api/branches'
+        ? ConfigPreference.getCompanyAccessToken()
+        : ConfigPreference.getAccessToken();
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }

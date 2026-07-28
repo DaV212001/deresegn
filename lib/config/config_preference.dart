@@ -7,6 +7,7 @@ class ConfigPreference {
 
   static String? _accessToken;
   static String? _refreshToken;
+  static String? _companyAccessToken;
 
   // Device Credentials Keys
   static const String keyClientId = 'client_id';
@@ -17,6 +18,9 @@ class ConfigPreference {
   // Token Keys
   static const String keyAccessToken = 'access_token';
   static const String keyRefreshToken = 'refresh_token';
+  static const String keyCompanyAccessToken = 'company_access_token';
+  static const String keyCompanyId = 'company_id';
+  static const String keyBranchId = 'branch_id';
 
   // Theme Keys
   static const String keyIsDarkMode = 'is_dark_mode';
@@ -24,10 +28,45 @@ class ConfigPreference {
   static Future<void> init() async {
     _accessToken = await _storage.read(key: keyAccessToken);
     _refreshToken = await _storage.read(key: keyRefreshToken);
+    _companyAccessToken = await _storage.read(key: keyCompanyAccessToken);
+    _companyId = await _storage.read(key: keyCompanyId);
+    _branchId = await _storage.read(key: keyBranchId);
+  }
+
+  static String? _companyId;
+  static String? _branchId;
+  static String? getCompanyId() => _companyId;
+  static String? getBranchId() => _branchId;
+
+  static Future<void> saveCompanyContext({
+    required String companyId,
+    String? branchId,
+  }) async {
+    _companyId = companyId;
+    _branchId = branchId ?? _branchId;
+    await _storage.write(key: keyCompanyId, value: companyId);
+    if (branchId != null)
+      await _storage.write(key: keyBranchId, value: branchId);
+  }
+
+  static Future<void> saveBranchId(String branchId) async {
+    _branchId = branchId;
+    await _storage.write(key: keyBranchId, value: branchId);
+  }
+
+  static Future<void> clearBranch() async {
+    _branchId = null;
+    await _storage.delete(key: keyBranchId);
   }
 
   static String? getAccessToken() => _accessToken;
   static String? getRefreshToken() => _refreshToken;
+  static String? getCompanyAccessToken() => _companyAccessToken;
+
+  static Future<void> updateCompanyToken(String token) async {
+    _companyAccessToken = token;
+    await _storage.write(key: keyCompanyAccessToken, value: token);
+  }
 
   static bool isAccessTokenExpired() {
     if (_accessToken == null) return true;
@@ -51,6 +90,12 @@ class ConfigPreference {
   }
 
   static Future<void> clearTokens() async {
+    await clearMorTokens();
+    _companyAccessToken = null;
+    await _storage.delete(key: keyCompanyAccessToken);
+  }
+
+  static Future<void> clearMorTokens() async {
     _accessToken = null;
     _refreshToken = null;
     await _storage.delete(key: keyAccessToken);

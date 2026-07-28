@@ -8,6 +8,8 @@ import 'controllers/auth_controller.dart';
 import 'services/offline_queue_service.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/setup_terminal_screen.dart';
+import 'screens/company_auth_screen.dart';
+import 'screens/branch_setup_screen.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_service.dart';
 
@@ -15,9 +17,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ConfigPreference.init();
   final themeService = Get.put(ThemeService());
-  
+
   // Initialize Offline Queue Service
   await Get.putAsync(() => OfflineQueueService().init());
+  Get.put(AuthController(), permanent: true);
 
   runApp(DeresegnApp(themeService: themeService));
 }
@@ -39,8 +42,15 @@ class DeresegnApp extends StatelessWidget {
       locale: const Locale('en', 'US'),
       fallbackLocale: const Locale('en', 'US'),
       initialRoute: '/dashboard',
+      initialBinding: BindingsBuilder(() {
+        if (!Get.isRegistered<AuthController>()) {
+          Get.put(AuthController(), permanent: true);
+        }
+      }),
       getPages: [
         GetPage(name: '/splash', page: () => SplashScreen()),
+        GetPage(name: '/company-auth', page: () => const CompanyAuthScreen()),
+        GetPage(name: '/branch-setup', page: () => const BranchSetupScreen()),
         GetPage(name: '/setup_unlinked', page: () => SetupTerminalScreen()),
         GetPage(
           name: '/dashboard',
@@ -53,9 +63,7 @@ class DeresegnApp extends StatelessWidget {
 }
 
 class SplashScreen extends StatelessWidget {
-  SplashScreen({Key? key}) : super(key: key) {
-    Get.put(AuthController(), permanent: true);
-  }
+  SplashScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
