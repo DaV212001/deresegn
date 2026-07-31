@@ -271,13 +271,10 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
               _tabController.animateTo(1);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: theme.cardColor,
-              foregroundColor: theme.primaryColor,
               minimumSize: const Size(double.infinity, 56),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              side: BorderSide(color: theme.primaryColor.withOpacity(0.3)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -286,7 +283,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                   'continue_to_items'.tr,
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
-                    color: Theme.of(context).textTheme.bodyLarge?.color!,
+                    color: Colors.black,
                   ),
                 ),
                 SizedBox(width: 8),
@@ -490,8 +487,6 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                       style: TextStyle(fontWeight: FontWeight.w900),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00FFB3),
-                      foregroundColor: Colors.black,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -521,8 +516,6 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
           child: ElevatedButton(
             onPressed: () => _tabController.animateTo(2),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).cardColor,
-              foregroundColor: Theme.of(context).textTheme.bodyLarge?.color,
               minimumSize: const Size(double.infinity, 56),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),

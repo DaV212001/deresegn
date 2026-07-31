@@ -268,10 +268,6 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () => _controller.fetchInvoices(refresh: true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.cardColor,
-                        foregroundColor: theme.textTheme.bodyLarge?.color,
-                      ),
                       child: Text('retry'.tr),
                     ),
                   ],

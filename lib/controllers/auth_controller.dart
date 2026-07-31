@@ -105,57 +105,73 @@ class AuthController extends GetxController {
     isCompanyLoading.value = false;
   }
 
-  Future<void> performMachineLogin() async {
+  Future<void> performBranchLogin(String tin, String password) async {
     isLoggingIn.value = true;
-    final clientId = await ConfigPreference.getClientId();
-    final clientSecret = await ConfigPreference.getClientSecret();
-    final apiKey = await ConfigPreference.getApiKey();
-    final tin = await ConfigPreference.getTin();
-
-    // if (clientId == null ||
-    //     clientSecret == null ||
-    //     apiKey == null ||
-    //     tin == null) {
-    //   isLinked.value = false;
-    //   if (Get.currentRoute != '/setup_unlinked') {
-    //     Get.offAllNamed('/setup_unlinked');
-    //   }
-    //   return;
-    // }
-
-    final request = LoginRequest(
-      clientId: clientId,
-      clientSecret: clientSecret,
-      apikey: apiKey,
-      tin: tin,
+    
+    final request = BranchLoginRequest(tinNumber: tin, password: password);
+    
+    await ApiService.loginBranch(
+      request,
+      onSuccess: (response) async {
+        final data = response.data;
+        final token = data['token'];
+        final branchDetails = data['branch'];
+        
+        if (token != null && branchDetails != null) {
+          await ConfigPreference.updateBranchToken(token);
+          await ConfigPreference.saveBranchId('${branchDetails['id']}');
+          await ConfigPreference.saveDeviceCredentials(
+            clientId: branchDetails['client_id'] ?? '',
+            clientSecret: '',
+            apiKey: '',
+            tin: branchDetails['tin_number'] ?? tin,
+          );
+          await performMorLogin();
+        } else {
+          Logger().w('Branch login returned 200 but missing token payload.');
+          isLoggingIn.value = false;
+        }
+      },
+      onFailure: (error, response) {
+        Logger().e('Branch login failed: $error');
+        _handleError(error, response);
+        isLoggingIn.value = false;
+        Get.snackbar(
+          'Login Failed',
+          'Could not authenticate branch. Status: ${response.statusCode}',
+        );
+      },
     );
+  }
+
+  Future<void> performMorLogin() async {
+    isLoggingIn.value = true;
 
     await ApiService.login(
-      request,
       onSuccess: (response) async {
         final data = response.data['data'];
         if (data != null) {
           final token = data['accessToken'];
           final refresh = data['refreshToken'] ?? '';
           final expires = data['expiresIn'] ?? 3600;
-          await ConfigPreference.updateTokens(token, refresh, expires);
-          Logger().i('Machine login successful.');
+          await ConfigPreference.updateMorTokens(token, refresh, expires);
+          Logger().i('MoR login successful.');
           Get.offAllNamed('/dashboard');
         } else {
-          Logger().w('Login returned 200 but no token payload.');
+          Logger().w('MoR login returned 200 but no token payload.');
         }
+        isLoggingIn.value = false;
       },
       onFailure: (error, response) {
-        Logger().e('Machine login failed: $error');
+        Logger().e('MoR login failed: $error');
         _handleError(error, response);
         isLoggingIn.value = false;
         Get.snackbar(
-          'Login Failed',
-          'Could not authenticate device. Status: ${response.statusCode}',
+          'MoR Login Failed',
+          'Could not authenticate with MoR. Status: ${response.statusCode}',
         );
       },
     );
-    isLoggingIn.value = false;
   }
 
   String? _tokenFromResponse(dynamic response) {

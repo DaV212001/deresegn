@@ -107,14 +107,25 @@ class ApiService {
     );
   }
 
-  static Future<void> login(
-    LoginRequest request, {
+  static Future<void> loginBranch(
+    BranchLoginRequest request, {
+    Function(Response)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    await DioService.dioPost(
+      path: '/api/branch/login',
+      data: request.toJson(),
+      onSuccess: onSuccess,
+      onFailure: onFailure,
+    );
+  }
+
+  static Future<void> login({
     Function(Response)? onSuccess,
     Function(Object, Response)? onFailure,
   }) async {
     await DioService.dioPost(
       path: '/api/login',
-      data: request.toJson(),
       onSuccess: onSuccess,
       onFailure: onFailure,
     );
@@ -145,6 +156,24 @@ class ApiService {
   }) async {
     await DioService.dioPost(
       path: '/api/cancel/invoice',
+      options: Options(
+        headers: {
+          'Authorization': "Bearer ${ConfigPreference.getAccessToken()}",
+        },
+      ),
+      data: request.toJson(),
+      onSuccess: onSuccess,
+      onFailure: onFailure,
+    );
+  }
+
+  static Future<void> verifyInvoice(
+    InvoiceVerificationRequest request, {
+    Function(Response)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    await DioService.dioPost(
+      path: '/api/irn/verfiy',
       options: Options(
         headers: {
           'Authorization': "Bearer ${ConfigPreference.getAccessToken()}",

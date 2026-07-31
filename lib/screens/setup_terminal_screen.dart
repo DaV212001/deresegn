@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
 import '../config/config_preference.dart';
 import '../controllers/auth_controller.dart';
 
@@ -13,7 +14,7 @@ class _SetupTerminalScreenState extends State<SetupTerminalScreen> {
   final _clientIdController = TextEditingController();
   final _clientSecretController = TextEditingController();
   final _apiKeyController = TextEditingController();
-  
+
   final _authController = Get.put(AuthController());
 
   @override
@@ -32,7 +33,7 @@ class _SetupTerminalScreenState extends State<SetupTerminalScreen> {
       clientSecret: _clientSecretController.text.trim(),
       apiKey: _apiKeyController.text.trim(),
     );
-    _authController.performMachineLogin();
+    _authController.performMorLogin();
   }
 
   @override
@@ -41,7 +42,15 @@ class _SetupTerminalScreenState extends State<SetupTerminalScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('Device Binding Terminal', style: TextStyle(fontWeight: FontWeight.bold, color: theme.appBarTheme.foregroundColor ?? theme.colorScheme.onSurface)),
+        title: Text(
+          'Device Binding Terminal',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color:
+                theme.appBarTheme.foregroundColor ??
+                theme.colorScheme.onSurface,
+          ),
+        ),
         backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: 0,
       ),
@@ -74,26 +83,52 @@ class _SetupTerminalScreenState extends State<SetupTerminalScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
-                _buildTextField('TIN (Tax Identification Number)', _tinController, theme),
+                _buildTextField(
+                  'TIN (Tax Identification Number)',
+                  _tinController,
+                  theme,
+                ),
                 const SizedBox(height: 16),
                 _buildTextField('Client ID', _clientIdController, theme),
                 const SizedBox(height: 16),
-                _buildTextField('Client Secret', _clientSecretController, theme, obscureText: true),
+                _buildTextField(
+                  'Client Secret',
+                  _clientSecretController,
+                  theme,
+                  obscureText: true,
+                ),
                 const SizedBox(height: 16),
-                _buildTextField('API Key', _apiKeyController, theme, obscureText: true),
+                _buildTextField(
+                  'API Key',
+                  _apiKeyController,
+                  theme,
+                  obscureText: true,
+                ),
                 const SizedBox(height: 32),
-                Obx(() => ElevatedButton(
-                  onPressed: _authController.isLoggingIn.value ? null : _saveCredentials,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.primaryColor,
-                    foregroundColor: theme.scaffoldBackgroundColor,
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                Obx(
+                  () => ElevatedButton(
+                    onPressed: _authController.isLoggingIn.value
+                        ? null
+                        : _saveCredentials,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: _authController.isLoggingIn.value
+                        ? const CircularProgressIndicator(
+                            color: Colors.black,
+                          )
+                        : const Text(
+                            'Bind Device & Start',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
-                  child: _authController.isLoggingIn.value
-                      ? CircularProgressIndicator(color: theme.scaffoldBackgroundColor)
-                      : const Text('Bind Device & Start', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                )),
+                ),
               ],
             ),
           ),
@@ -102,7 +137,12 @@ class _SetupTerminalScreenState extends State<SetupTerminalScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, ThemeData theme, {bool obscureText = false}) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller,
+    ThemeData theme, {
+    bool obscureText = false,
+  }) {
     return TextField(
       controller: controller,
       obscureText: obscureText,

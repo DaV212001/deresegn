@@ -1,0 +1,48 @@
+erDiagram
+    COMPANY ||--o{ COMPANY_BRANCHES : has
+    COMPANY ||--o{ COMPANY_USERS : employs
+    COMPANY_BRANCHES ||--o{ MOR_INVOICES : registers
+    COMPANY_BRANCHES ||--o{ MOR_RECEIPTS : generates
+    COMPANY {
+        int id PK
+        string name
+    }
+    COMPANY_BRANCHES {
+        int id PK
+        int company_id FK
+        string branch_name
+        string tin_number
+        string client_id
+        string client_secret
+    }
+    COMPANY_USERS {
+        int id PK
+        int company_id FK
+        string name
+        string phone
+        string password
+        string role
+    }
+    MOR_INVOICES {
+        int id PK
+        int company_id FK
+        int branch_id FK
+        string irn
+        string document_number
+        string status
+        json full_response
+    }
+    MOR_RECEIPTS {
+        int id PK
+        int company_id FK
+        int branch_id FK
+        string irn
+        json request
+    }
+    SUPPLIES {
+        int id PK
+        string item_code
+        string product_description
+        decimal unit_price
+        string tax_code
+    }

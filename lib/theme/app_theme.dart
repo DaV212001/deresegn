@@ -24,6 +24,12 @@ class AppTheme {
       fillColor: Color(0xFFEEEEEE),
     ),
     dividerColor: Colors.grey[300],
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF00C896),
+        foregroundColor: Colors.black,
+      ),
+    ),
   );
 
   static final ThemeData darkTheme = ThemeData.dark().copyWith(
@@ -49,5 +55,11 @@ class AppTheme {
       fillColor: Color(0xFF2C2C2C),
     ),
     dividerColor: Colors.grey[800],
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF00FFB3),
+        foregroundColor: Colors.black,
+      ),
+    ),
   );
 }

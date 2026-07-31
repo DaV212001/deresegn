@@ -1,0 +1,2963 @@
+
+--- PAGE 1 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 1            
+ 
+ 
+ 
+ 
+                                 
+                 
+ 
+ 
+ 
+ 
+ 
+INSA - FX1 Application (Cloud) Audit Document 
+
+--- PAGE 2 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 2            
+ 
+TABLE OF CONTENTS 
+Contents 
+Introduction ................................................................................................................................................................ 6 
+Purpose ....................................................................................................................................................................... 6 
+Ownership .................................................................................................................................................................. 6 
+Scope .......................................................................................................................................................................... 6 
+4.1 Legal and Administrative Documents (Mandatory) ............................................................................................. 6 
+4.2 Technical Documentation for Web Application Security Testing (Mandatory) ................................................... 6 
+4.2.1 Business Architecture and Design ............................................................................................................. 6 
+a) FX1 DATA FLOW DIAGRAM ............................................................................................................................. 6 
+DATA FLOW DIAGRAM FOR NEW MODULES ...................................................................................................... 7 
+b) FX1 SYSTEM ARCHITECTURE DIAGRAM.......................................................................................................... 9 
+c) ERD (ENTITY RELATIONSHIP DIAGRAM)........................................................................................................ 10 
+4.2.2 Features of the Web Application ............................................................................................................. 11 
+4.2.4 Security Functionality Document ............................................................................................................ 11 
+AUTHENTICATION AND ACCESS CONTROL ....................................................................................................... 11 
+USER ID AUTHENTICATION ............................................................................................................................... 12 
+CHANGE PASSWORD ........................................................................................................................................ 13 
+USER ID ............................................................................................................................................................. 13 
+USER ID / PASSWORD ....................................................................................................................................... 14 
+SHARING INFORMATION .................................................................................................................................. 15 
+COMPLEXITY OF PASSWORD ............................................................................................................................ 15 
+PASSWORD EXPIRY ........................................................................................................................................... 15 
+PASSWORD HISTORY ........................................................................................................................................ 16 
+INVALID LOGIN ATTEMPT ................................................................................................................................. 16 
+LOCKOUT DURATION ........................................................................................................................................ 17 
+SESSION IDLE TIME ........................................................................................................................................... 17 
+ENCRYPTION & SECURE COMMUNICATION ..................................................................................................... 17 
+4.2.5 Secure Coding Standard Documentation (if available) ............................................................................ 18 
+Secure Coding Requirements per PCI S3 Documentation ................................................................................ 18 
+OWASP Developer Guide—Key Secure Practices for Coding ........................................................................... 18 
+
+--- PAGE 3 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 3            
+SAST / DAST / SCA Requirements ..................................................................................................................... 19 
+Secure Coding Checklist for Developers ........................................................................................................... 19 
+Developer Training Summary ........................................................................................................................... 20 
+Pull Request Creation Workflow ...................................................................................................................... 20 
+Code Review Checklist ...................................................................................................................................... 21 
+Pull Request Approval Workflow ...................................................................................................................... 21 
+Guidelines for Designated Approvers ............................................................................................................... 21 
+Tools and Configuration ................................................................................................................................... 22 
+Metrics and Reporting ...................................................................................................................................... 22 
+Exceptions ......................................................................................................................................................... 22 
+Web Software Attack Mitigation ...................................................................................................................... 22 
+Web Software Communications ....................................................................................................................... 23 
+4.2.3 Functional Requirements......................................................................................................................... 24 
+Web Software Access Controls ......................................................................................................................... 24 
+4.2.4 Non-Functional Requirements................................................................................................................. 26 
+Azure Cloud Defender Security Score ............................................................................................................... 26 
+Azure Advisor – Reliability ................................................................................................................................ 27 
+Azure Advisor - Operational Excellence ............................................................................................................ 28 
+Azure Advisor - Performance ............................................................................................................................ 29 
+4.2.5 Threat Modeling ...................................................................................................................................... 30 
+IDS Risk Management Framework ................................................................................................................... 30 
+Asset Identification, Valuation and Categorization .......................................................................................... 31 
+Risk assessment and management ................................................................................................................... 31 
+Total Asset Value .............................................................................................................................................. 32 
+Vulnerability...................................................................................................................................................... 32 
+Vulnerability rating factors ............................................................................................................................... 33 
+Threat assessment and rating methodology .................................................................................................... 34 
+Probability of Occurrence ................................................................................................................................. 35 
+Risk Acceptance Criteria ................................................................................................................................... 35 
+Control Implementation and Gap Analysis ....................................................................................................... 36 
+4.2.6 Previous Security Testing Reports (if available) ...................................................................................... 36 
+OWASP TOP 10 SECURITY TEST CASES (DETAILED) .......................................................................................... 36 
+TESTING METHODS ........................................................................................................................................... 39 
+
+--- PAGE 4 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 4            
+4.2.7 Secure Coding Standard Documentation (if available) ............................................................................ 39 
+Code Review Process ........................................................................................................................................ 39 
+Security Responsibilities of Developers ............................................................................................................ 40 
+OWASP Top 10 Overview & Developer Responsibilities .................................................................................. 40 
+Secure Coding Requirements per PCI S3 Documentation ................................................................................ 42 
+OWASP Developer Guide—Key Secure Practices for Coding ........................................................................... 43 
+SAST / DAST / SCA Requirements ..................................................................................................................... 44 
+Secure Coding Checklist for Developers ........................................................................................................... 44 
+Developer Training Summary ........................................................................................................................... 45 
+Pull Request Creation Workflow ...................................................................................................................... 45 
+Code Review Checklist ...................................................................................................................................... 45 
+Pull Request Approval Workflow ...................................................................................................................... 46 
+Guidelines for Designated Approvers ............................................................................................................... 46 
+Tools and Configuration ................................................................................................................................... 46 
+Metrics and Reporting ...................................................................................................................................... 46 
+Exceptions ......................................................................................................................................................... 46 
+5. API Security Audit Requirements.......................................................................................................................... 47 
+5.4.3 API Types.................................................................................................................................................. 47 
+5.4.5 Authentication Mechanism ..................................................................................................................... 47 
+5.4.6 Third-Party Integrations........................................................................................................................... 47 
+5.4.7 Compliance and Regulatory Requirements ............................................................................................. 47 
+5.4.8 Authorization and Access Control ........................................................................................................... 47 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+--- PAGE 5 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 5            
+ 
+COPYRIGHT © 2025 
+ 
+IDS Next Business Solutions Pvt Ltd believes that the information contained in the documentation is correct and reserves the 
+right to revise the same, make changes in it and the software without having to notify any person about the changes. Copyright 
+© 2010 IDS Softwares Pvt Ltd. All Rights Reserved. Registration No. SW-130519/2019 
+ 
+Trademarks 
+ 
+All company, brand and product names are referenced for identification purposes only and may be trademarks or registered 
+trademarks that are the sole property of their respective owners. 
+ 
+ 
+DISCLAIMER 
+ 
+IDS Next Business Solutions Private Limited, having its registered office at 2nd Floor, MFAR Green Heart, Phase IV Building, 
+MFAR Manyata Tech Park, Nagawara, Bengaluru, Karnataka, India – 560045, Karnataka, India, reserves the right to make 
+changes to this software product manual described herein without notice. IDS Next Business Solutions Pvt Ltd, has made all 
+reasonable efforts to ensure that the information in this manual is accurate and complete. However, IDS Next Business 
+Solutions Pvt Ltd shall not be liable for any technical or editorial errors or omissions made herein or for incidental, special, or 
+consequential damage of whatsoever nature resulting from the furnishing of this manual, or operation and performance of 
+the product in connection with this manual. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+--- PAGE 6 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 6            
+Introduction 
+ 
+Purpose 
+ 
+This document provides an overview of Web Application Security Testing Requirement Document by INSA Information 
+Networkecurity Administrator for FX1 Application, managed by IDS Next Business Solutions Pvt. Ltd. 
+ 
+Ownership 
+ 
+The owner of this document is SaaS Engineering Department, and the department will be responsible for updating and 
+maintaining this document. 
+ 
+Scope 
+ 
+The scope of this document is limited to describing Web Application Security Testing Requirement Document by INSA 
+Information Networkecurity Administrator for FX1 Application as implemented by the SaaS Engineering Department 
+ 
+4.1 Legal and Administrative Documents (Mandatory)  
+ 
+1. Updated Trade License  
+2. TIN Number or National ID  
+3. System/Product Patent Certificate (if available)  
+ 
+Please reach out to Mr. Jagadeesh Huggar from Legal Department for above details. 
+ 
+4.2 Technical Documentation for Web Application Security Testing (Mandatory)  
+ 
+To initiate the application audit process, customers must submit all required documentation and information as outlined 
+below. Compliance with these mandatory requirements is a prerequisite for the audit to proceed.  
+ 
+4.2.1 Business Architecture and Design 
+ 
+a) FX1 DATA FLOW DIAGRAM  
+ 
+
+--- PAGE 7 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 7            
+ 
+Figure 01 – FX POS Data Flow Diagram 
+ 
+In FX Point of Sale module, Settlement operations use the credit card settlements.  The data for settlement flows from billing, 
+which comes from order entry from Reservation, Restaurants, Dine-in restaurants, etc.  End of the successful settlement, print 
+settlement is called, apart from the information being captured in reports.  
+ 
+DATA FLOW DIAGRAM FOR NEW MODULES 
+ 
+
+--- PAGE 8 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 8            
+ 
+Figure 02 – Data Flow Diagram for New Modules 
+ 
+
+--- PAGE 9 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 9            
+b) FX1 SYSTEM ARCHITECTURE DIAGRAM 
+ 
+ 
+Figure 03 – Application Architecture Diagram 
+ 
+FX1 Application is cloud based application developed using .Net Core, Angular. The front end of the application is browser 
+based, while the backend uses MS SQL database, hosted on a MS SQL Server in Microsoft Azure, using DB as a Service. The DB 
+server and Application Server, are behind the firewall on Azure.  
+ 
+The Mobile app would be used for making Front Office Check-Ins, Reservations, Check-Outs, Settlements, Bars, Restaurants, 
+and other outlets for posting charges. Settlement is the area where credit card payment transactions are entered manually.  
+ 
+In FX CRS module, Advance/Deposit is collected through payment gateway option, where credit card payment transactions 
+are integrated with the system, through secure payment gateway.  
+ 
+User access FX1 Application through web and the request Is routed through Web Application Firewall (WAF) and redirects to 
+FX1 login page, where the user Is authenticated with his credentials through Admin API and Admin DB. Upon successful 
+authentication of the user, based on the modules access provided to the user, same are displayed on screen like FX Front 
+Office (FX FD), FX Point of Sales (FX POS), FX Housekeeping (FX HSK), FX CRS, etc.,  
+ 
+Operations are carried out In varios modules through respective API and transactions are updated In property or group CRS 
+database. 
+
+--- PAGE 10 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 10            
+c) ERD (ENTITY RELATIONSHIP DIAGRAM) 
+ 
+ 
+ 
+ 
+Figure 04 – FX1 Modules ERD Diagram 
+ 
+ 
+ 
+ 
+
+--- PAGE 11 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 11            
+4.2.2 Features of the Web Application  
+  
+• 
+Development frameworks (e.g., Django, Laravel, ASP.NET).  
+FX1 uses multiple services from Azure Stack for developing and hosting application on cloud in PaaS 
+solution, 
+as mentioned below. 
+o 
+Angular 4 & 7 
+o 
+Microsoft ASP.Net 4.8 and .Net Core 
+o 
+Azure SQL as Service  
+o 
+Azure App Services 
+o 
+Azure Service Bus 
+o 
+Azure Functions 
+o 
+Azure Logic Apps 
+o 
+Azure Storage Blob 
+o 
+Azure Web Jobs 
+• 
+Third-party service integrations.  
+o 
+Secure Payment Gateway's 
+o 
+Channel Manager and OTA's 
+• 
+Actor/user types (Admin, Guest, Super Admin, etc.).  
+o 
+Admin 
+o 
+User 
+• 
+System dependencies or minimum hosting requirements.  
+o 
+FX1 Application can be hosted In any Cloud Provider like Azure, AWS. Currently, Is hosted In Azure. 
+• 
+Implemented security standards or policies.  
+o 
+Web Application Firewall, TLS1.2, RBAC, MFA, VPN, IP Validation, API Tokenisation are Implemented. 
+• 
+Existing security infrastructure (e.g., WAF, Load Balancer, IDS/IPS).  
+o 
+WAF, Load Balancer (Azure Front Door) Is Implemented In current Infrastructure. 
+ 
+4.2.4 Security Functionality Document  
+ 
+AUTHENTICATION AND ACCESS CONTROL 
+ 
+IDS Next Business Solutions is following standard authentication requirements such as (authentication type and number of 
+factors) for all roles based on critical asset classification. The data associated with credentials is considered as critical asset.   
+ 
+1. Access allocation based on the job role (RBAC). 
+2. Type of access such as local, non-console, remote and level of privileges. IDS allows only user authentication; there 
+Is no remote or VPN access. 
+3. API authentication Is carried out using Tokenisation. 
+4. Controls implemented to protect authentication credentials from being forged, spoofed, leaked, guessed, or 
+circumvented.  
+5. Role-Based Access Control (RBAC) is followed towards the application; all users are assigned roles as per RBAC. 
+6. Credentials are protected using PBKDF2 hashing algorithm. 
+     
+FX1 Application does not provide any local, non-console (like Third Party VPNs, remote desktop) and other levels of privileges. 
+FX1 application Implemented token-based authentication for API's for accessing any critical assets. All the credentials used 
+for accessing application are securely hashed using PBDKF2 algorithm. 
+ 
+FX1 Application supports MFA using OTP (email) based login and IP Based login as well per user and same can be enabled 
+
+--- PAGE 12 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 12            
+based on customer request. 
+ 
+USER ID AUTHENTICATION  
+ 
+Unique user IDs and secure authentication are required for all administrative access and for all access to cardholder data. 
+Secure authentication must be enforced to all accounts generated or managed by the application by the completion of 
+installation and for subsequent changes after installation.  
+ 
+• 
+Do not use (or require the use of) default administrative accounts for other necessary software (EG.: the payment 
+application must not use the database default administrative account). 
+ 
+• 
+Enforce the changing of all default application passwords for all accounts that are generated or managed by the 
+application, by the completion of installation and for subsequent changes after installation. This applies to all accounts, 
+including user accounts, application and service accounts, and accounts used by the vendor for support purposes.  
+ 
+• 
+Assigns unique IDs for user accounts.  
+ 
+• 
+Authenticate using at least one of the following methods to authenticate all users:  
+o 
+Something you know, such as a password or passphrase. 
+o 
+Something you have, such as a token device or smart card. 
+ 
+• 
+Enforce the password complexities below by default: 
+o 
+Require a minimum length of at least seven (12) characters. 
+o 
+Contains both numeric and alphabetic characters. 
+o 
+Alternatively, the passwords/phrase must have complexity and strength at least equivalent to the parameters 
+specified above. 
+EG.: PCI-S3 Compliant Password: secure1 Non-Compliant Password: hack. 
+ 
+ 
+• 
+Enforce password changes to user passwords at least every 90 days. 
+
+--- PAGE 13 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 13            
+• 
+Enforce password history and requires that a new password is different than any of the last four (04) passwords used. 
+• 
+Limit repeated access attempts by locking out the user account after not more than five logon attempts. 
+• 
+Set the lockout duration to a minimum of “30” minutes or until an administrator enables the User ID. 
+• 
+Require the user to re-authenticate the session if the payment application session has been idle for more than 15 minutes. 
+The user is required to enter the password for performing the transactions as an additional security requirement instead 
+of the session time-out 
+• 
+The application user passwords are hashed using PBKDF2 hashing algorithm. The passwords are stored in 
+[Identity].[UserCredentials] table in the database in hashed format. 
+• 
+FX1 Application doesn’t require or encourage the use of group, shared or generic accounts and passwords. All the users 
+of the application are provided with a unique user id and password. 
+• 
+During Implementation, a pre-configured Supervisor user is created.  Upon creation of another user with the Supervisor 
+level access, the pre-configured user ID would be made passive.  The pre-configured Supervisor user 
+(tsc<customercode>@idsnext.com) password is also stored in PBKDF2 hashing algorithm. 
+• 
+To maintain PCI-S3 compliance, any changes made to authentication configuration would be verified as per the PCI-S3 
+recommendations. 
+ 
+FX1 doesn’t require the use of default administrative account for any functioning of the application unless another 
+Supervisor account is created as part of the installation. 
+ 
+CHANGE PASSWORD 
+ 
+FX1 by default enforces changing of all default application passwords generated or managed by the application, by the 
+completion of installation. Once the user login with his/her unique user id and default password in the application, the 
+application forces the user to change the password at first login. 
+ 
+ 
+ 
+ 
+Figure - Change Password 
+USER ID 
+ 
+The FX1 Application by defaults assigns a unique user id for each individual application users and does not allow same User 
+
+--- PAGE 14 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 14            
+ID to be created again. 
+ 
+ 
+ 
+Figure - Create User ID 
+ 
+ 
+USER ID / PASSWORD 
+ 
+FX1 Application requires each and every user to possess a valid username and password to authenticate to the system and 
+provide access to the application based on the success / failure of authentication. 
+ 
+ 
+ 
+Figure - User ID authentication Success/ Failure 
+
+--- PAGE 15 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 15            
+ 
+SHARING INFORMATION 
+ 
+The FX1 Application doesn’t requires or encourages the use of group, shared or generic accounts and passwords. All the users 
+of the application are provided with the unique user-id and password. Customers are also requested and advised not to share 
+their user account information and to keep it confidential with them. 
+ 
+COMPLEXITY OF PASSWORD 
+ 
+In FX1 Application password complexity is enabled by default as below. 
+ 
+• 
+In FX1 application password complexity is enabled by default. Password should contain at least 12 alphanumeric 
+characters.  
+• 
+FX1 application forces the user to change the application user account password every 90 days. 
+• 
+FX1 application by default keeps the last 4 passwords in history, so that the user’s new password cannot be the last 
+4 used passwords. 
+• 
+FX1 application by default locks the application user account after the five invalid login attempts 
+• 
+FX 1 application default session idle time out is 30 minutes, operational modules are configured with default session 
+idle timeout of 10 minutes, after which application redirects the user to login screen 
+• 
+FX1 application user account passwords are hashed using PBKDF2 hashing algorithm. 
+• 
+FX1 application doesn’t require or encourage the use of group, shared or generic accounts and passwords. All the 
+users of the application are provided with the unique user id and password. 
+ 
+ 
+ 
+Figure  - Password Complexity 
+ 
+PASSWORD EXPIRY 
+ 
+FX1 Application forces the user to change the application user account password every 90 days. Password expiry settings are 
+configurable. It allows the application administrator to configure password expiry days less than 90 days but not greater than 
+90. 
+ 
+ 
+
+--- PAGE 16 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 16            
+PASSWORD HISTORY 
+ 
+FX1 Application by default keeps the last 4 password in history, so that the users new password cannot be the last 4 used 
+passwords. 
+ 
+ 
+Figure - Reading last 4 password history when changing password 
+INVALID LOGIN ATTEMPT 
+ 
+FX1 Application by default locks the application user account after the five invalid login attempts. All the invalid attempts are 
+logged with the User Account Name, Date & Time. 
+ 
+ 
+ 
+ 
+Figure - Invalid Login Attempt popup 
+ 
+
+--- PAGE 17 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 17            
+LOCKOUT DURATION 
+ 
+FX1 Application by default locks the user, until the administrator enables the user id.  
+ 
+SESSION IDLE TIME 
+ 
+FX1 Application default session idle time out is configured as 07 minutes. Once the session is timed out it will prompt the user 
+to log out and login again with their username and password.  
+ 
+ENCRYPTION & SECURE COMMUNICATION 
+ 
+FX1 Application renders password unreadable all times in the rest and transit. Application uses one-way strong cryptographic 
+PBKDF2 hashing algorithm and each password is concatenated with unique random salt value and hashed and stored. Salt 
+Value is encrypted and stored along with password hashes in same table in the database.  
+ 
+Application is hosted over TLS 1.2 protocol and should be accessed only through Https protocol. If the application is hosted 
+over the public network, CA authorized security certificate to be installed or if it’s hosted in the intranet Self-signed security 
+Certificate with RSA 4096-bits to be installed. Https communication ensures that all the data sent over it are encrypted in 
+transit and it’s not prone to man-in-the-middle attack. 
+ 
+ 
+
+--- PAGE 18 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 18            
+4.2.5 Secure Coding Standard Documentation (if available)  
+ 
+Secure Coding Requirements per PCI S3 Documentation 
+ 
+Encryption Requirements 
+• 
+Use TLS 1.2+ for all in-scope systems. 
+• 
+Never transmit cardholder data unencrypted. 
+• 
+Use FIPS 140-2 validated crypto libraries. 
+ 
+Input Validation & Sanitization 
+• 
+Validate length, type, format, and allowed characters. 
+• 
+Reject unexpected input early. 
+• 
+Use WAF (Web Application Firewall) rules for PCI scope. 
+ 
+Authentication Requirements 
+• 
+Enforce MFA for all admin access. 
+• 
+Password rules must follow NIST & PCI: 
+o 
+Min 12 characters 
+o 
+Complexity required 
+o 
+Hash using Argon2id/Bcrypt/PBKDF2 
+ 
+Logging & Audit Trails 
+• 
+Log authentication events. 
+• 
+Log access to cardholder data. 
+• 
+Mask sensitive data. 
+• 
+Protect log integrity (no modification). 
+ 
+Secure Configuration 
+• 
+Harden servers using CIS Benchmarks. 
+• 
+Disable unnecessary services & debug endpoints. 
+• 
+Enforce least privilege for all application accounts. 
+ 
+OWASP Developer Guide—Key Secure Practices for Coding 
+ 
+Input Validation 
+• 
+Apply allowlist validation rather than denylist. 
+• 
+Reject input before using it. 
+• 
+Validate headers, cookies, query params, and file uploads. 
+ 
+Output Encoding 
+• 
+Encode output based on context: 
+o 
+HTML Encoding 
+o 
+JavaScript Encoding 
+ 
+o 
+CSS Encoding 
+o 
+URL Encoding 
+ 
+
+--- PAGE 19 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 19            
+Secure Database Access 
+• 
+Use ORM safely. 
+• 
+Never concatenate SQL strings. 
+• 
+Use stored procedures with parameters. 
+• 
+Implement DB-level least privilege (SELECT-only for read services). 
+ 
+Error Handling 
+• 
+Generic user-facing errors. 
+• 
+Detailed logs stored server-side. 
+• 
+Do not disclose system details, stack traces, SQL errors, or server paths. 
+ 
+Secure Session Management 
+• 
+Regenerate session identifiers. 
+• 
+Short session expiry. 
+• 
+Implement “idle timeout” and “absolute timeout”. 
+ 
+Secrets & Key Management 
+• 
+Never hardcode secrets. 
+• 
+Use: 
+o 
+Azure Key Vault 
+o 
+AWS Secrets Manager 
+o 
+HashiCorp Vault 
+• 
+Rotate keys automatically. 
+ 
+SAST / DAST / SCA Requirements 
+ 
+As part of the secure SDLC: 
+ 
+Security Tool Purpose 
+SAST 
+Static code scanning (Build pipeline) 
+DAST 
+Dynamic scanning (pre-production) 
+SCA 
+Find vulnerable dependencies 
+IAST 
+Runtime scanning during QA 
+ 
+No code is deployed to production without passing security scans. 
+ 
+Secure Coding Checklist for Developers 
+ 
+• 
+✔ Authentication & Authorization 
+• 
+MFA required for admin functions 
+• 
+No hardcoded credentials 
+• 
+Server-side role checks for every API 
+• 
+✔ Input Validation & Output Encoding 
+• 
+Validate every input 
+• 
+Use context-based encoding 
+
+--- PAGE 20 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 20            
+• 
+✔ Secrets Management 
+• 
+Use Key Vault, never config files 
+• 
+Rotate secrets regularly 
+• 
+✔ Logging & Monitoring 
+• 
+Mask PAN 
+• 
+No sensitive data in logs 
+• 
+Capture audit events 
+• 
+✔ Database Security 
+• 
+Use parameterized queries 
+• 
+Enforce least privilege DB accounts 
+• 
+✔ API Security 
+• 
+Validate schemas 
+• 
+Rate limiting on endpoints 
+• 
+Use secure tokens (JWT with short expiry) 
+• 
+✔ File Upload Security 
+• 
+Validate MIME, extension, and magic bytes 
+• 
+Store outside webroot 
+• 
+Scan using antivirus 
+• 
+✔ DevOps CI/CD Security 
+• 
+Signed builds 
+• 
+Security gates in pipelines 
+• 
+Dependency scanning 
+ 
+Developer Training Summary 
+ 
+By the end of this training, developers must be able to: 
+• 
+Understand OWASP Top 10 risks & mitigations 
+• 
+Apply cryptography safely 
+• 
+Implement secure authentication & authorization 
+• 
+Prevent injection & data exposure 
+• 
+Develop PCI-compliant code handling cardholder data 
+• 
+Produce secure, maintainable, and compliant software 
+ 
+Pull Request Creation Workflow 
+ 
+1. Branching Strategy: 
+o 
+Use the agreed branching model (e.g., GitFlow or Feature Branching). 
+o 
+Ensure branch names follow the defined convention (e.g., feature/xyz, bugfix/abc). 
+2. Commit Guidelines: 
+o 
+Write meaningful commit messages (e.g., "Added new validation logic for user input"). 
+o 
+Squash or clean up commits before creating the pull request. 
+3. Creating the Pull Request: 
+o 
+Navigate to the Bitbucket repository and create a PR from the feature branch to the target branch (e.g., 
+develop, main). 
+o 
+Add a detailed description of the PR, including: 
+
+--- PAGE 21 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 21            
+• 
+Problem statement or feature being implemented. 
+• 
+Summary of changes made. 
+• 
+Any dependencies or additional context. 
+o 
+Assign appropriate reviewers. 
+4. Code Coverage: 
+o 
+Ensure unit tests cover the new code. 
+o 
+Verify the CI/CD pipeline passes successfully before submission. 
+ 
+Code Review Checklist 
+ 
+Reviewers should consider the following: 
+• 
+Code Quality: 
+o 
+Does the code follow the company defined coding standards? 
+o 
+Is the code readable and maintainable? 
+• 
+Functionality: 
+o 
+Does the implementation solve the stated problem? 
+o 
+Are edge cases and error handling addressed? 
+• 
+Performance: 
+o 
+Does the code introduce any performance bottlenecks? 
+o 
+Are there more efficient ways to implement the solution? 
+• 
+Testing: 
+o 
+Are there sufficient unit tests? 
+o 
+Do tests cover edge cases and expected outcomes? 
+• 
+Documentation: 
+o 
+Is the code commented where necessary? 
+o 
+Are any required documentation or README updates included? 
+ 
+Pull Request Approval Workflow 
+ 
+1. Review Process: 
+o 
+Reviewers add inline comments and overall feedback. 
+o 
+Developers address feedback and update the PR accordingly. 
+2. Approval: 
+o 
+Once the reviewer is satisfied, they approve the PR in Bitbucket. 
+o 
+Designated approvers review critical changes as needed. 
+3. Merge Process: 
+o 
+After approval, the developer merges the PR into the target branch. 
+o 
+Resolve any merge conflicts before merging. 
+o 
+Ensure the CI/CD pipeline is green post-merge. 
+ 
+Guidelines for Designated Approvers 
+ 
+• 
+Focus on high-level design and overall impact. 
+• 
+Verify that the reviewer’s feedback has been addressed. 
+• 
+Approve only when satisfied with the quality and readiness of the code. 
+ 
+
+--- PAGE 22 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 22            
+Tools and Configuration 
+ 
+• 
+Bitbucket Settings: 
+o 
+Enable branch protection rules to require PR approvals. 
+o 
+Configure a minimum number of reviewers (e.g., at least one approval required). 
+o 
+Integrate CI/CD pipelines to ensure automated checks are mandatory. 
+• 
+Review Tools: 
+o 
+Use inline comments and suggestion tools for providing feedback. 
+o 
+Leverage Bitbucket’ s "Approve" and "Request Changes" features to formalize decisions. 
+ 
+Metrics and Reporting 
+ 
+• 
+Track the following metrics to measure the effectiveness of the review process: 
+• 
+Number of PRs reviewed. 
+• 
+Average time taken for review. 
+• 
+Number of defects identified post-merge. 
+ 
+Exceptions 
+ 
+• 
+Emergency hotfixes may bypass the standard review process but require retrospective review. 
+• 
+Document any exceptions for audit purposes. 
+ 
+Web Software Attack Mitigation 
+ 
+Mitigating attacks on web applications is crucial for maintaining the integrity and security of the FX1. This section addresses the various 
+security controls implemented to protect the application from common web-based threats. It includes details on defense mechanisms, 
+security headers, input validation, resource protection, and strategies for handling malicious content and attacks targeting web interfaces. 
+ 
+Software Security Controls for Common Web Attacks 
+ 
+FX1 protects against: 
+• 
+SQL Injection 
+• 
+XSS (Cross-Site Scripting) 
+• 
+CSRF (Cross-Site Request Forgery) 
+• 
+Broken Authentication 
+• 
+Parameter Tampering 
+• 
+Directory Traversal 
+• 
+SSRF & Request Manipulation 
+• 
+API Replay Attacks 
+ 
+These protections are achieved through server-side validation, ORM-based data access, secure frameworks enforcement. 
+ 
+HTTPS Security Headers: 
+ 
+FX1 enforces the following headers: 
+• 
+Strict-Transport-Security (HSTS) 
+• 
+X-Frame-Options: DENY 
+• 
+X-Content-Type-Options: nosniff 
+• 
+Content-Security-Policy (CSP) 
+• 
+Referrer-Policy 
+• 
+X-XSS-Protection 
+• 
+SameSite cookies 
+
+--- PAGE 23 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 23            
+Azure Front Door and WAF provides additional header enforcement and anomaly detection. 
+ 
+Handling Untrusted Input Data: 
+ 
+• 
+All input is validated and sanitized server-side. 
+• 
+Whitelisting is applied for known valid formats (e.g., date, number, hotel codes). 
+• 
+Incoming requests from OTAs, CRS systems, and channel managers are sanitized and validated before processing. 
+ 
+Parser and Interpreter Configurations: 
+ 
+• 
+JSON, XML, and form-data parsers use secure configurations. 
+• 
+External entity (XXE) processing is fully disabled. 
+• 
+XML payloads from partners (Expedia, Agoda, etc.) are validated against schemas. 
+ 
+Resource Starvation Attack Protection: 
+ 
+• 
+Rate limiting and request throttling at the API gateway prevent DoS-style attacks. 
+• 
+Azure WAF policies detect abnormal traffic spikes. 
+• 
+Application code enforces execution timeouts and limits on payload sizes. 
+ 
+Malicious File Content Protection: 
+ 
+• 
+File type (pdf, jpg, bmp) validation 
+• 
+Content-size restrictions (1 MB) 
+ 
+Protection from Hostile Object Creation and Data Tampering: 
+ 
+• 
+Model binding uses strict type validation. 
+• 
+Object injection vectors are eliminated using strong typing and DTO validation. 
+• 
+All business-sensitive transactions (rates, bookings, payments) include server-side verification and logging. 
+ 
+Protection from Multi-Origin Resource Sharing (MORS) Attacks: 
+ 
+• 
+CORS is strictly limited to the FX1 domain(s) idsnext.live and trusted and approved websites. 
+• 
+Wildcard origins (*) are not permitted. 
+• 
+Credentialed requests only allowed for trusted domains. 
+ 
+Web Software Communications 
+ 
+Secure communication is vital to protecting sensitive data during transmission between clients and servers as well as 
+between server systems. This section describes the controls implemented to ensure that data transmitted over the network 
+is protected through encryption and mutual authentication. It also addresses the use of certificates, including internally 
+generated or self-signed certificates, and how these practices are justified and managed. 
+ 
+Encryption for Sensitive Data During Transmission: 
+ 
+• 
+All client-to-server communication uses TLS 1.2. 
+• 
+HTTPS is enforced globally. 
+• 
+Sensitive data (Credit Card Number credentials) is encrypted using AES-256 algorithm end-to-end. 
+• 
+Certificate pinning (where supported) is applied for mobile clients. 
+ 
+ 
+Server-to-Server Communication : 
+ 
+FX1 interacts with: 
+• 
+CRS 
+
+--- PAGE 24 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 24            
+• 
+PMS 
+• 
+OTA/Channel Manager partners (Expedia, Agoda, Booking.com) 
+• 
+Payment gateways 
+• 
+Internal APIs  
+Security controls include: 
+• 
+API authentication using Token / OAuth 2.0 / API keys / HMAC 
+• 
+Mutual TLS for high-trust integrations 
+• 
+IP whitelisting  
+• 
+Azure Private Link for internal APIs  
+• 
+Signed payloads or timestamped security tokens (if required by partner systems) 
+ 
+Internally Generated or Self-Signed Certificates: 
+ 
+• 
+FX1 primarily uses CA-signed certificates for all Internet-facing services. 
+• 
+Self-signed certificates are not used  
+• 
+All certificates—CA-signed—are managed using: 
+o 
+Azure Key Vault 
+o 
+Strict rotation schedules 
+o 
+Access-controlled retrieval policies 
+o 
+Monitoring for expiration 
+ 
+ 
+4.2.3 Functional Requirements  
+ 
+Web Software Access Controls 
+ 
+The security of web applications, particularly those accessible via the Internet, is paramount to protecting sensitive functions 
+and resources. This section outlines the security controls implemented for managing user access to these critical components 
+within FX1. It details the mechanisms for ensuring secure access, effective session management, and robust enforcement of 
+access controls. The goal is to ensure that access is granted only to authorized users, and that security measures align with 
+industry standards and best practices to mitigate risks and vulnerabilities. 
+ 
+Access Control Mechanisms: 
+ 
+FX1 implements the following access control mechanisms: 
+• 
+Identity Provider Integration: FX1 uses Username and Password Identify Provider and Token-based authentication 
+(as applicable) to ensure secure identity validation. 
+• 
+Role-Based Access Control (RBAC): User access is restricted based on roles such as Property Admin and Property 
+User. Each module of FX1 (FX CRS, FX Front Office, FX POS, FX SPA) enforces granular permission sets. 
+• 
+Least Privilege Principle: Users are granted only the necessary access to perform assigned functions. 
+• 
+Account Lifecycle Management: User creation, modification, suspension, and deletion follow a controlled workflow 
+in FX1 administrative modules. 
+• 
+MFA Enforcement: Multi-factor authentication (if enabled) is required for privileged and sensitive operations. 
+ 
+Session Management: 
+ 
+FX1 follows secure session management practices: 
+• 
+Secure Tokens: Sessions are managed via short-lived access tokens with cryptographically signed claims. 
+• 
+Session Expiration and Renewal: Tokens expire automatically after the user is logged out and renewed on every 
+login.  
+• 
+Secure Cookie Flags: Cookies use the Secure, HttpOnly, and SameSite attributes to prevent interception and CSRF. 
+
+--- PAGE 25 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 25            
+• 
+Idle Timeout: Sessions automatically terminate after a period of inactivity. 
+• 
+Logout Invalidation: Logout actions immediately invalidate tokens and associated sessions. 
+ 
+Access Control Implementation 
+ 
+Access control mechanisms are carefully implemented to ensure robustness: 
+ 
+● 
+Correctness:  
+o 
+Access decisions are executed at server-side. 
+o 
+All access checks reference centralized role-permission mappings. 
+o 
+API endpoints validate authorization for every request. 
+ 
+● 
+Appropriateness:  
+o 
+Sensitive functions (rate updates, reservations, inventory, financial data) require elevated permissions. 
+o 
+Privileged operations are logged and monitored. 
+ 
+● 
+Vulnerability Prevention:  
+ 
+FX1 prevents common access control vulnerabilities by: 
+o 
+Blocking URL tampering 
+o 
+Preventing privilege escalation 
+o 
+Protecting admin routes with strict RBAC 
+o 
+Enforcing server-side authorization for all API call 
+ 
+Restriction of Internet-Accessible Interfaces: 
+ 
+• 
+Only the FX1 UI application and required public REST APIs are exposed to the Internet. 
+• 
+Administrative APIs, internal services, configuration modules, and backend utilities are restricted behind Azure 
+Private Endpoints / VNET Integration (where configured). 
+• 
+Ports other than HTTPS (443) are blocked at WAF. 
+ 
+Enforcement of Access Control Rules: 
+ 
+• 
+Access rules are enforced at every layer: UI, API Gateway, backend API controllers, and database stored procedures 
+(as applicable). 
+• 
+Unauthorized requests return standardized HTTP 401/403 responses. 
+• 
+Azure App Service enforces additional access policies. 
+ 
+Access Control Rules: 
+ 
+• 
+Access to FX1 modules (FX CRS, FX Front Office, FX POS, FX SPA, FX Finance) is governed by RBAC. 
+• 
+Audit trails capture who carried out what transaction, which date, and which time. 
+• 
+API traffic is limited to approved partners such as Staah, Sabre, etc. 
+ 
+Client-Side Security Controls: 
+ 
+• 
+Sensitive logic is not implemented on the client side. 
+• 
+Client-side code (Angular) validates only non-security functional behavior. 
+• 
+All enforcement happens on the server. 
+• 
+Security headers prevent client-side script injection or manipulation. 
+ 
+ 
+
+--- PAGE 26 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 26            
+4.2.4 Non-Functional Requirements  
+ 
+Azure Cloud Defender Security Score 
+ 
+The security score reflects our overall security posture, identifying areas for enhancement. 
+FX Interface Subscription (Security Score - 92%) 
+ 
+ 
+FX-Fortune Cloud - FX1 Application & DB Subscription (Security Score - 94%) 
+ 
+ 
+ 
+ 
+ 
+
+--- PAGE 27 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 27            
+FX Finance Application Subscription (Security Score - 91%) 
+ 
+ 
+This score provides a measure of our current defences, with specific recommendations for improving security in critical areas 
+such as identity and access management, networking, and data protection. 
+ 
+Azure Advisor – Reliability 
+ 
+Azure Advisor’s recommendations to ensure high availability and fault tolerance for our Azure infrastructure. 
+FX Finance Application Subscription (Reliability Score - 81%) 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+--- PAGE 28 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 28            
+FX Interface Subscription (Reliability Score - 91%) 
+ 
+ 
+FX-Fortune Cloud (FX Application & DB Subscription) (Reliability Score - 98%) 
+ 
+ 
+ 
+These insights suggest optimizations to increase system uptime and minimize disruptions for the FX1 application. 
+ 
+Azure Advisor - Operational Excellence 
+ 
+Evaluation of the operational processes to maintain the FX1 application efficiently on Azure. 
+ 
+FX Finance Application Subscription (Operational Excellence Score - 100%) 
+ 
+ 
+ 
+ 
+ 
+
+--- PAGE 29 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 29            
+FX Interface Subscription (Operational Excellence Score - 100%) 
+ 
+ 
+ 
+FX-Fortune Cloud (FX Application & DB Subscription) (Operational Excellence Score - 100%) 
+ 
+ 
+ 
+The report highlights areas for automating processes, simplifying operations, and monitoring for proactive incident 
+management. 
+ 
+Azure Advisor - Performance 
+ 
+Suggestions to optimize system performance and reduce latency for users of the FX1 application. 
+ 
+FX Finance Application Subscription (Performance Score - 100%) 
+ 
+ 
+ 
+
+--- PAGE 30 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 30            
+FX Interface Subscription (Performance Score - 100%) 
+ 
+ 
+ 
+FX-Fortune Cloud (FX Application & DB Subscription) (Performance Score - 100%) 
+ 
+ 
+ 
+Performance recommendations include steps to ensure optimal usage of Azure resources, improve application 
+responsiveness, and reduce infrastructure bottlenecks. 
+ 
+4.2.5 Threat Modeling  
+ 
+IDS maintains an Information security Risk Register.  The structure of the risk register can change from time to time to better 
+fit the IDS’s operation.  
+ 
+The information security Risk Register is maintained by IDS and is regularly reviewed at the Operational Risk Forum to ensure 
+pro-active risk management. 
+ 
+IDS Risk Management Framework 
+ 
+The first steps in information security strategic planning in any form of business are risk management and risk evaluation. This 
+is necessarily broad, including business processes, people and physical infrastructure, as well as the information system. 
+ 
+The security risk evaluation needs to assess the asset value to predict the impact and consequence of any damage. 
+ 
+The main objective of this framework is to have IDS aligns to applicable models for organizations to measure, manage and 
+follow upon assets, risk and controls implementation in the organization. 
+ 
+Framework briefly presents concepts hierarchically from asset valuation to control implementation processes for a specific 
+
+--- PAGE 31 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 31            
+asset based on the summarized steps.  
+ 
+1. Identify the owner and custody of the asset. 
+2. Identify and list information systems assets of the organization. (List all interfacing applications, people, hardware or 
+other containers for each asset.) Containers are the place where an information asset or data “lives” or any type of 
+information asset (data) is stored transported or processed.  
+3. Identify the security objectives of confidentiality, integrity and availability (CIA) to conduct an impact assessment 
+based upon the criticality of the asset to the operation of the company. 
+4. Identify the asset’s security categories and its estimated value. 
+5. Determine the threat and vulnerability’s quantitative value and rates. 
+6. Estimate the probability of occurrence/likelihood of impact. 
+7. Identify existing controls and perform a gap analysis. 
+ 
+Asset Identification, Valuation and Categorization 
+ 
+Identification, valuation and categorization of information systems assets are critical tasks of the process to properly develop 
+and deploy the required security control for the specified IT assets (indicate data and container). Organizations or individuals 
+able to implement security for assets by using this model must first identify and categorize the organization’s IT assets that 
+need to be protected in the security process. 
+ 
+Mapping an information asset (such as data) to all its critical containers leads to the technology assets, physical records and 
+people that are important to storing, transporting and processing the asset. The map of information assets will be used to 
+determine all the information assets that reside on a specific container. In addition, the value of a container depends on the 
+data that are processed and transported (through the network) or stored (reside) within that specific container. Security audits 
+should investigate how the data or information is processed, transferred and stored in a secure manner. 
+ 
+Risk assessment and management 
+ 
+The risk assessment comprises the qualitative assessment and quantitative measurement of individual risk, including the 
+interrelationship of their effects. Risk management constitutes a strategy to avoid losses and use available opportunities or, 
+rather, opportunities potentially arising from risk areas.  
+ 
+Normally, no single strategy will be able to cover all IT asset risk, but a balanced set of strategies will usually provide the best 
+solutions. Once the risk is identified, it can be evaluated as acceptable or not. If it is acceptable, no further actions are required 
+other than communicating and monitoring the risk, but if the risk is not acceptable, it must be controlled through four separate 
+options of prevention and/or mitigation measures: 
+ 
+1. Reduce the impact. 
+2. Reduce the likelihood. 
+3. Transfer the risk (to insurance or a subcontractor). 
+4. Avoid the risk. (Temporarily distancing the target from the threat summarizes the potential impact definitions for the 
+CIA security objectives.) 
+ 
+This framework discusses risk mitigation strategy based on the CIA security objectives. 
+ 
+The overall objective of this section is to quantitatively measure risk impacts of an organization’s specific IT assets and to 
+propose a proper mitigation strategy. Concepts from the International Organization for Standardization (ISO)/ International 
+Electro technical Commission (IEC) ISO/IEC 27001:2013, Information technology—Security techniques—Information security 
+management systems—Requirements. 
+ 
+
+--- PAGE 32 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 32            
+Hence, quantitative measurement of risk impact is implemented based on the following formula: 
+ 
+This could be any type of risk that is conceivable for a business, or any risk associated with an action that is possible in certain 
+circumstances. This risk also refers to a threat or damage that may occur on operations of the business. When a business 
+undertakes any operations within a particular industry and in specific markets, it faces potential risk. 
+ 
+Risk Impact = Total Asset Value X Severity of Threat X Severity of Vulnerability X Probability of Occurrence 
+ 
+Total Asset Value 
+ 
+Figure 1-Modelfor Measuring Value of an Asset Based on CIA 
+Security Objectives 
+Low (Rating of 1) 
+Medium (Rating of 2) 
+High (Rating of 3) 
+Confidentiality 
+Limited adverse effect on 
+organizational 
+operations, 
+assets 
+or 
+individuals. 
+Serious adverse effect on 
+organizational 
+operations, 
+assets 
+or 
+individuals. 
+Severe or catastrophic 
+adverse 
+effect 
+on 
+organizational 
+operations, 
+assets 
+or 
+individuals. 
+The 
+unauthorized 
+disclosure 
+of 
+information/data could 
+be expected to have a: 
+Integrity 
+Limited adverse effect on 
+organizational 
+operations, 
+assets 
+or 
+individuals. 
+Serious adverse effect on 
+organizational 
+operations, 
+assets 
+or 
+individuals. 
+Severe or catastrophic 
+adverse 
+effect 
+on 
+organizational 
+operations, 
+assets 
+or 
+individuals. 
+The 
+unau1horized 
+modification 
+or 
+destruction 
+of 
+information/ data could 
+be expected to have a: 
+Availability 
+Limited adverse effect on 
+organizational 
+operations, 
+assets 
+or 
+individuals. 
+Serious adverse effect on 
+organizational 
+operations, 
+assets 
+or 
+individuals. 
+Severe or catastrophic 
+adverse 
+effect 
+on 
+organizational 
+operations, 
+assets 
+or 
+individuals. 
+The disruption or access 
+to 
+or 
+use 
+of 
+information/data or an 
+information 
+system 
+could be expected to 
+have A. 
+ 
+• 
+The value of an asset depends on the sensitivity of data inside the container and their potential impact on CIA. 
+• 
+CIA of information will have a minimum value of 1 for each. 
+• 
+The value of levels for CIA is as follows: A rating of 3 is high, 2 is medium and 1 is low. 
+• 
+The value of the information asset is determined by the highest value of C or I or A.. 
+ 
+Based on the model, it is possible to create a matrix for value of an asset as illustrated in figure 1. 
+ 
+Total Asset Value is the Highest value obtained from CIA. 
+ 
+Vulnerability  
+ 
+The presence of vulnerability does not in itself cause harm; vulnerability is merely a condition or a set of conditions that could 
+allow assets to be harmed by an attack. When vulnerability is exploited by a threat, it increases the likelihood of attack and 
+leads to risk. 
+ 
+Vulnerability rating gives an indication or opportunity to see the weakness inherent or residing in the information assets of 
+the organization. 
+ 
+Vulnerability and threat valuation assumptions include: 
+
+--- PAGE 33 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 33            
+ 
+The same 1 to 3 rating scale will be used, in which a specific vulnerability or threat rated as high is assigned a 3, medium a 2, 
+low a 1. (figure 2). 
+ 
+The severity of the “Threat” and the “Vulnerability” is graded as very low (1), low (2), medium (3), high (4) and very high (5) 
+(figure 3). 
+ 
+ 
+Figure   2    Model for Susceptibility and Exposure Ratings 
+Susceptibility 
+RATING 
+EXPOSURE 
+Minor 
+susceptibility: 
+Vulnerability 
+requires 
+significant resources to exploit with little potential 
+for loss. 
+1 
+    Minor Exposure: Effects of the 
+Venerability are tightly contained 
+and do not increase the probability 
+of additional vulnerabilities being 
+exploited. 
+Moderate susceptibility: Vulnerability requires 
+significant resources to exploit with significant 
+potential for loss. Or vulnerability requires little 
+resources to exploit, moderate potential for loss. 
+2 
+    Moderate 
+exposure: 
+Vulnerability can be expected to 
+affect more than one system 
+element 
+or 
+component 
+Exploitation 
+increases 
+the 
+probability 
+of 
+additional 
+vulnerabilities being exploited. 
+High Susceptibility: Vulnerability requires few 
+resources to exploit with significant potential for 
+loss 
+3 
+  High 
+Exposure: 
+Vulnerability 
+affects a majority of system 
+components. 
+Exploitation 
+significantly 
+increases 
+the 
+probability 
+of 
+additional 
+vulnerabilities being exploited. 
+ 
+Figure 3 Model for Severity of Vulnerability Grading 
+Rating 
+Grade 
+Description 
+1 
+Very low (Vl) 
+Minor 
+exposure, 
+minor 
+susceptibility 
+2 
+  Low(l) 
+Minor 
+exposure, 
+moderate 
+susceptibility; 
+or 
+moderate 
+exposure, minor susceptibility 
+3 
+Medium (M) 
+Highly 
+exposed, 
+minor 
+susceptibility or minor exposure, 
+high susceptibility; or moderate 
+exposure, moderate susceptibility 
+4 
+High(H) 
+Highly 
+exposed, 
+moderate 
+susceptibility; 
+or 
+moderate 
+exposure, high susceptibility  
+5 
+Very high (VH) 
+Highly exposed, high susceptibility 
+ 
+Vulnerability rating factors 
+ 
+Vulnerability is the intersection of three elements: a system susceptibility or flaw, attacker access to the flaw, and attacker 
+capability to exploit the flaw. 
+ 
+
+--- PAGE 34 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 34            
+Susceptibility is simply to measure the effort required to successfully exploit a given weakness. For example, fire is a threat. 
+Poor fire prevention standards, poorly managed flammable liquids and poor circuit insulation are some of the weaknesses 
+(vulnerabilities) or factors that help the fire threat to happen and cause damage. 
+ 
+Exposure (attacker access to the flaw) is the potential exposure to loss, resulting from the occurrence of one or more threat 
+events. It may be disseminated across other system components. Figure 2 depicts a model to rate the susceptibility and 
+exposure of a flow or vulnerability of an asset. 
+ 
+To measure the overall value of the severity of a vulnerability, the combination of the value of susceptibility and exposure 
+rating must first be decided, as shown in figure 2. (Note: This rating table is similarly used for threat factors [impact and 
+capability rating] in the following threat assessment section.) 
+ 
+Threat assessment and rating methodology 
+ 
+Each threat is derived from a specific vulnerability, rather than identifying threats generally without considering vulnerability. 
+ 
+STRIDE Methodology is used to identify, assess, and monitor software threats and design weaknesses (i.e., flaws). The 
+assessment accounts for the entire code base, including how the use of third-party, open-source, or shared components or 
+libraries, APIs, services, and applications used for the delivery and operation of the software may be leveraged in an attack. 
+The assessment results in a recorded inventory of threats and design flaws. 
+ 
+Measuring the value of a threat depends on the rating value of its impact and capability. 
+Impacts are a forceful consequence or a strong effect of the launch of a threat on the business. 
+ 
+Capability is a measure of a threat agent’s ability (including the level of effort required) to successfully attack an asset by 
+exploiting its vulnerabilities, e.g., the threat agent’s technical ability, knowledge and available material to exploit the 
+vulnerability. 
+ 
+As with vulnerability measurement elements (susceptibility and exposure), rating, capability and impact should also be 
+considered for threat measurement. Figure 4 shows how to use capability and impact for threat ratings. 
+ 
+Figure 4-Model for Capability and Impact of Threat Ratings 
+CAPABILITY 
+RATING 
+IMPACT 
+Little or no capability such as 
+knowledge, resource or technical 
+skill to launch a threat on a given 
+information 
+asset 
+of 
+the 
+organization. 
+1 
+Exercise of the threat may result in 
+the loss of some/ few assets or 
+resources; may have little effect 
+on the organization's business 
+continuity, immaterial financial 
+loss, low legal impact and low 
+impact on business process. 
+Moderate capability indicates the 
+knowledge and skills to mount 
+attack, but some resources are 
+lacking. Or, knowledge is lacking, 
+but sufficient resources to mount 
+an attack on a given information 
+asset of the organization does exist 
+2 
+2    Exercise of the threat may 
+result in the loss of some assets or 
+resources, may have a moderate 
+effect 
+on 
+the 
+organization's 
+business 
+continuity, 
+some 
+material financial loss, average 
+business process impact and 
+perceptible legal impact. 
+High capability indicates possession 
+of knowledge, skills and resources 
+to 
+mountain 
+attack 
+on 
+an 
+information 
+asset 
+of 
+the 
+3 
+ Exercise of the vulnerability may 
+result in the costly loss of major 
+assets 
+or 
+resources; 
+may 
+significantly violate, harm, or 
+
+--- PAGE 35 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 35            
+organization. 
+impede an organization's mission, 
+reputation, or interest, or may 
+result 
+in 
+serious 
+injury 
+or 
+catastrophic impact 
+ 
+The model for grading the severity of the threat uses impact and capability of the threat, like the severity of vulnerability 
+matrix in figure 6, The only difference is susceptibility and exposure for vulnerabilities are replaced with impact and capability 
+for threat. 
+Figure – 4A – Model for severity of threat grading 
+ 
+Figure - 4A - Model for severity of Threat Grading 
+Rating 
+Grade 
+Description 
+1 
+Very Low (VL) 
+Minor Impact, Minor capability  
+2 
+Low (L) 
+Minor capability, moderate impact or minor impact, moderate 
+capability 
+3 
+Medium (M) 
+Highly capability, minor impact or minor capability, High impact, or 
+moderate capability, moderate impact 
+4 
+High (H) 
+Highly capable, moderate impact or moderate capability, high 
+impact 
+5 
+Very High (VH) 
+Highly capable, highly impactable 
+ 
+ 
+Probability of Occurrence 
+ 
+This is an estimate of how often a hazardous event occurs. The likelihood can be expressed in terms of the frequency of 
+occurrence. A review of historic events assists with this determination. Each hazard is rated in accordance with the numerical 
+ratings and definitions shown in figure  
+ 
+A likelihood assessment estimates the frequency of a threat happening. The likelihood can be expressed in terms of the 
+frequency of occurrence which is depicted in figure 5. 
+ 
+Figure 5-Model for Probability or Likelihood of Risk 
+Value 
+Description of Probability 
+1 
+Never happened (has not happened in the past three 
+years) 
+2 
+Rare (happens once in year) 
+3 
+Periodic (happens once in a quarter) 
+4 
+Regular (takes place once in a fortnight) 
+5 
+Frequent (happens once in a week) 
+ 
+Risk Impact = Total Asset Value X Severity of Threat X Severity of Vulnerability X Probability of Occurrence Risk Acceptance 
+Value and Criteria 
+ 
+Based on the previously discussed risk analysis concepts, risk mitigation options are acceptable, tolerable and intolerable risk, 
+the values of which follow: 
+ 
+Risk Acceptance Criteria 
+ 
+• 
+Acceptable risk has a risk impact value of less than 60, which is the product of the maximum asset value (3), low 
+
+--- PAGE 36 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 36            
+vulnerability value (2), low threat value (2) and the maximum frequency of likelihood (5). The calculation, therefore, 
+is 3*2*2*5= 60. 
+• 
+Tolerable risk has a risk impact value ranging from 60 to 135, which is the product of the maximum asset value (3), 
+medium vulnerability value and threat value (3 each), and the maximum frequency of likelihood (5). The calculation 
+is 3*3*3*5=135  
+• 
+Intolerable risk has a risk impact value greater than 135, which means the risk beyond the tolerable risk amount, > 
+136 
+• 
+All the residual risks are mitigated further for the risks having value above 60 and below 135. Proactive monitoring is 
+carried out 
+ 
+Control Implementation and Gap Analysis 
+ 
+The process of determining mitigation strategies is called control analysis.  
+ 
+Control mechanisms are used to restrain, regulate or reduce vulnerabilities; they can be corrective, detective or preventive. 
+ 
+After implementation of controls again the Risk Impact Value is calculated. After the mitigation plan in place the Risk impact 
+Value should   
+ 
+After the control has been implemented the value of Threat, Vulnerability and Probability of occurrence of the identified risk 
+will reduce, Keeping the asset value  
+remaining constant.  
+ 
+New risk impact Value = Asset Value (Reduced Threat * Reduce Vulnerability * Reduce Probability of occurrence) 
+ 
+Figure 6 - Example for Potential Risk and Risk Impact 
+Total 
+Asset 
+Value 
+Vulnerability 
+Severity Value 
+Threat 
+Severity 
+Value 
+Potential Risk 
+Probability 
+Risk 
+Impact 
+Value 
+3 
+1(VL) 
+1(VL) 
+3*1*1=3 
+3 (Periodic) 
+3*3 = 9 
+3 
+3(M) 
+3(M) 
+3*3*3=27 
+  
+4 
+(Regular) 
+  
+27*4= 108 
+3 
+4(H) 
+4(H) 
+3*4*4 = 48 
+2 (Rare) 
+48*2 = 96 
+3 
+5(VH) 
+5(VH) 
+3*5*5=75 
+5 (Frequent) 
+75*5 = 375 
+ 
+4.2.6 Previous Security Testing Reports (if available)  
+ 
+OWASP TOP 10 SECURITY TEST CASES (DETAILED) 
+ 
+A01: Broken Access Control 
+• 
+Security Tests 
+• 
+Attempt horizontal privilege escalation (access another user's resource) 
+• 
+Attempt vertical escalation (admin endpoints) 
+• 
+Bypass authorization by modifying: 
+o 
+URL params 
+o 
+JWT token claims 
+
+--- PAGE 37 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 37            
+o 
+Hidden fields 
+• 
+PCI Alignment 
+• 
+Enforce role-based access (RBAC) 
+• 
+Access control must be server-side 
+ 
+A02: Cryptographic Failures 
+• 
+Security Tests 
+• 
+Verify all sensitive fields encrypted at rest: 
+o 
+PAN → must be tokenized, truncated, or encrypted 
+• 
+Test downgrade attack prevention (TLS 1.2+) 
+• 
+Validate disallowed ciphers (PCI requirement 4) 
+• 
+PCI Alignment 
+• 
+PAN must never be displayed unless masked 
+• 
+Key rotation & secure storage required 
+ 
+A03: Injection 
+• 
+Security Tests 
+• 
+SQL Injection: ' OR 1=1 -- 
+• 
+NoSQLi, XPath injection, LDAP injection 
+• 
+Validate: 
+o 
+Parameterized queries 
+o 
+ORM protection enabled 
+o 
+Input validation on all user-controlled data 
+• 
+PCI Alignment 
+• 
+Mandatory secure coding for injection protection 
+• 
+SAST tools must scan builds 
+ 
+A04: Insecure Design 
+• 
+Security Tests 
+• 
+Missing rate limiting 
+• 
+No multi-step verification for financial operations 
+• 
+Lack of secure workflow patterns 
+• 
+PCI Alignment 
+• 
+Secure design reviews mandatory 
+ 
+A05: Security Misconfiguration 
+• 
+Security Tests 
+• 
+Check cloud storage exposure: 
+o 
+Blob/S3 buckets publicly readable? 
+• 
+Default credentials in VMs/App Services? 
+• 
+Detailed error messages exposed? 
+• 
+PCI Alignment 
+• 
+No default passwords 
+• 
+Harden server builds 
+ 
+A06: Vulnerable & Outdated Components 
+
+--- PAGE 38 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 38            
+• 
+Security Tests 
+• 
+Verify dependencies using: 
+o 
+OWASP Dependency Check 
+o 
+Snyk 
+o 
+GitHub Dependabot 
+• 
+Check: 
+o 
+Framework versions 
+o 
+OpenSSL vulnerabilities 
+o 
+Apache, NGINX, PHP, Python, .NET versions 
+• 
+PCI Alignment 
+• 
+Patching policy required 
+• 
+No unsupported OS/runtime permitted 
+ 
+A07: Identification & Authentication Failures 
+• 
+Security Tests 
+• 
+Weak passwords 
+• 
+MFA bypass attempt 
+• 
+Session fixation attacks 
+• 
+PCI Alignment 
+• 
+MFA mandatory for admin access 
+• 
+Secure session ID generation required 
+ 
+A08: Software & Data Integrity Failures 
+• 
+Security Tests 
+• 
+CI/CD pipeline tampering 
+• 
+Validate: 
+o 
+Hashing of deployments 
+o 
+Code-signing enforced 
+o 
+Dependencies downloaded from trusted registries 
+• 
+PCI Alignment 
+• 
+Secure SDLC controls 
+• 
+Integrity verification on all code 
+ 
+A09: Security Logging & Monitoring Failures 
+• 
+Security Tests 
+• 
+Missing logs for: 
+o 
+Login attempts 
+o 
+Failed transactions 
+o 
+Changes to admin settings 
+• 
+Ensure log tampering protections 
+ 
+• 
+PCI Alignment 
+• 
+Logs must be retained 1 year 
+• 
+Logs must include: user ID, timestamp, event type 
+ 
+A10: SSRF 
+
+--- PAGE 39 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 39            
+• 
+Security Tests 
+• 
+Try redirecting server to connect to: 
+o 
+Internal metadata endpoint 
+o 
+Internal services (Redis, DB) 
+• 
+Validate: 
+o 
+Blocklist/allowlist outbound calls 
+o 
+No user-controlled URLs passed to server 
+• 
+PCI Alignment 
+• 
+Protect cardholder zone from external exposure 
+ 
+TESTING METHODS  
+ 
+Static Application Security Testing (SAST) 
+Required before every release. 
+Recommended tools: 
+• 
+SonarQube 
+• 
+Checkmarx 
+• 
+Fortify 
+• 
+GitHub CodeQL 
+ 
+Dynamic Application Security Testing (DAST) 
+Required at least annually + after major changes. 
+Tools: 
+• 
+OWASP ZAP 
+• 
+Burp Suite Pro 
+• 
+Netsparker / Invicti 
+ 
+Interactive Application Security Testing (IAST) 
+Useful for runtime vulnerability detection. 
+Tools: 
+• 
+Contrast Security 
+• 
+HCL AppScan 
+ 
+Penetration Testing 
+Required annually + after major architectural changes. 
+Scope: 
+• 
+App pentest (OWASP) 
+• 
+Network pentest (PCI) 
+• 
+Cloud config pentest 
+ 
+4.2.7 Secure Coding Standard Documentation (if available)  
+ 
+Code Review Process   
+ 
+To ensure code quality, maintainability, and adherence to coding standards, all code changes must undergo a formal review 
+process via pull requests (PRs) in Bitbucket and receive approval from a designated reviewer. 
+ 
+• 
+Developer: 
+
+--- PAGE 40 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 40            
+o 
+Create a pull request with the necessary code changes. 
+o 
+Add a clear and concise description of the changes made. 
+o 
+Ensure the PR includes unit tests, documentation updates, and follows coding guidelines. 
+o 
+Address reviewer comments promptly. 
+• 
+Reviewer: 
+o 
+Review the pull request thoroughly. 
+o 
+Verify that the code meets coding standards and best practices. 
+o 
+Ensure functionality is correct and any potential edge cases are handled. 
+o 
+Provide constructive feedback and approve the PR if it meets all criteria. 
+• 
+Designated Approver: 
+o 
+Perform a final review if required (e.g., for critical changes). 
+o 
+Approve or reject the PR based on overall quality and impact. 
+ 
+Security Responsibilities of Developers 
+ 
+• 
+Write code following industry-standard secure coding guidelines. 
+• 
+Perform security reviews before merging your code. 
+• 
+Validate all input & sanitize outputs. 
+• 
+Apply least privilege in code, APIs, and DB queries. 
+• 
+Follow PCI DSS rules when handling cardholder or sensitive data. 
+• 
+Fix vulnerabilities identified by SAST/DAST tools before release. 
+ 
+OWASP Top 10 Overview & Developer Responsibilities 
+ 
+A01 – Broken Access Control 
+• 
+Risk: 
+Unauthorized access to resources, privilege escalation, data leakage. 
+• 
+Developer Practices: 
+• 
+Enforce server-side authorization on every request. 
+• 
+Implement strong RBAC/ABAC rules. 
+• 
+Avoid exposing internal identifiers: 
+❌ /invoice?id=234 → ✔ /invoice/{GUID} 
+• 
+Deny by default; allow only explicitly permitted actions. 
+• 
+Validate ownership of every resource before returning it. 
+ 
+A02 – Cryptographic Failures 
+• 
+Risk: 
+Plain text data exposure, weak encryption, PCI violations. 
+• 
+Developer Practices: 
+• 
+Encrypt all sensitive data using AES-256-GCM. 
+• 
+Hash passwords with: 
+✔ Argon2id (recommended) 
+✔ bcrypt or PBKDF2 
+• 
+Never store: 
+❌ CVV 
+❌ Full PAN (unmasked) 
+
+--- PAGE 41 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 41            
+❌ Passwords 
+• 
+Enforce TLS 1.2+ everywhere. 
+• 
+Use Key Vaults, not config files, for secrets. 
+ 
+A03 – Injection (SQL, Command, LDAP, XSS) 
+• 
+Risk: 
+Data compromise, remote execution, unauthorized access. 
+• 
+Developer Practices: 
+• 
+Always use parameterized queries: 
+• 
+SELECT * FROM Users WHERE Email = @Email; 
+• 
+Reject dangerous characters in user input. 
+• 
+Validate file uploads & sanitize filenames. 
+• 
+Use ORM frameworks safely. 
+• 
+Encode output based on context: HTML, JS, URL. 
+ 
+A04 – Insecure Design 
+• 
+Risk: 
+Missing threat modeling, flawed security workflows. 
+• 
+Developer Practices: 
+• 
+Include security in design & user stories. 
+• 
+Perform threat modeling using STRIDE or OWASP TMT. 
+• 
+Avoid storing sensitive data unless absolutely required (PCI Rule). 
+ 
+A05 – Security Misconfiguration 
+• 
+Risk: 
+Default credentials, exposed admin panels, unnecessary services. 
+• 
+Developer Practices: 
+• 
+Remove unused services, ports, headers. 
+• 
+Rotate credentials periodically. 
+• 
+Turn off detailed error messages in production. 
+• 
+Ensure secure configurations in Docker, Kubernetes, IIS, NGINX, Apache. 
+ 
+A06 – Vulnerable and Outdated Components 
+• 
+Risk: 
+Known vulnerable frameworks or libraries. 
+• 
+Developer Practices: 
+• 
+Keep dependencies updated monthly. 
+• 
+Use SCA tools: Snyk, OWASP Dependency Check, GitHub Dependabot. 
+• 
+Remove unused frameworks, libraries, and plugins. 
+ 
+A07 – Identification & Authentication Failures 
+• 
+Risk: 
+Compromised credentials, session hijacking, weak authentication. 
+• 
+Developer Practices: 
+• 
+Use MFA for privileged access. 
+• 
+Lock accounts after repeated failed logins. 
+• 
+Use secure cookies: 
+
+--- PAGE 42 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 42            
+HttpOnly, Secure, SameSite=Strict 
+• 
+Regenerate session IDs on login. 
+ 
+A08 – Software & Data Integrity Failures 
+• 
+Developer Practices: 
+• 
+Implement digital signature validation for critical data. 
+• 
+Validate CI/CD pipeline integrity. 
+• 
+Use signed dependencies only. 
+• 
+Enforce anti-tampering controls (PCI). 
+ 
+A09 – Security Logging & Monitoring Failures 
+• 
+Risk: 
+No visibility, delayed detection, non-compliance. 
+• 
+Developer Practices: 
+• 
+Log: 
+o 
+failed logins 
+o 
+privilege changes 
+o 
+access denied events 
+• 
+Mask sensitive data in logs (PCI): 
+o 
+Mask PAN—show only first 6 and last 4 digits. 
+• 
+Integrate logs with SIEM (Azure Sentinel, Splunk, ELK). 
+ 
+A10 – Server-Side Request Forgery (SSRF) 
+• 
+Developer Practices: 
+• 
+Validate outbound URLs. 
+• 
+Disable unnecessary internal service access. 
+• 
+Use allowlists for external calls. 
+• 
+Block metadata-service access unless required. 
+ 
+Secure Coding Requirements per PCI S3 Documentation 
+ 
+Encryption Requirements 
+• 
+Use TLS 1.2+ for all in-scope systems. 
+• 
+Never transmit cardholder data unencrypted. 
+• 
+Use FIPS 140-2 validated crypto libraries. 
+ 
+Input Validation & Sanitization 
+• 
+Validate length, type, format, and allowed characters. 
+• 
+Reject unexpected input early. 
+• 
+Use WAF (Web Application Firewall) rules for PCI scope. 
+ 
+Authentication Requirements 
+• 
+Enforce MFA for all admin access. 
+• 
+Password rules must follow NIST & PCI: 
+o 
+Min 12 characters 
+o 
+Complexity required 
+o 
+Hash using Argon2id/Bcrypt/PBKDF2 
+
+--- PAGE 43 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 43            
+ 
+Logging & Audit Trails 
+• 
+Log authentication events. 
+• 
+Log access to cardholder data. 
+• 
+Mask sensitive data. 
+• 
+Protect log integrity (no modification). 
+ 
+Secure Configuration 
+• 
+Harden servers using CIS Benchmarks. 
+• 
+Disable unnecessary services & debug endpoints. 
+• 
+Enforce least privilege for all application accounts. 
+ 
+OWASP Developer Guide—Key Secure Practices for Coding 
+ 
+Input Validation 
+• 
+Apply allowlist validation rather than denylist. 
+• 
+Reject input before using it. 
+• 
+Validate headers, cookies, query params, and file uploads. 
+ 
+Output Encoding 
+• 
+Encode output based on context: 
+o 
+HTML Encoding 
+o 
+JavaScript Encoding 
+ 
+o 
+CSS Encoding 
+o 
+URL Encoding 
+ 
+Secure Database Access 
+• 
+Use ORM safely. 
+• 
+Never concatenate SQL strings. 
+• 
+Use stored procedures with parameters. 
+• 
+Implement DB-level least privilege (SELECT-only for read services). 
+ 
+Error Handling 
+• 
+Generic user-facing errors. 
+• 
+Detailed logs stored server-side. 
+• 
+Do not disclose system details, stack traces, SQL errors, or server paths. 
+ 
+Secure Session Management 
+• 
+Regenerate session identifiers. 
+• 
+Short session expiry. 
+• 
+Implement “idle timeout” and “absolute timeout”. 
+ 
+Secrets & Key Management 
+• 
+Never hardcode secrets. 
+• 
+Use: 
+o 
+Azure Key Vault 
+
+--- PAGE 44 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 44            
+o 
+AWS Secrets Manager 
+o 
+HashiCorp Vault 
+• 
+Rotate keys automatically. 
+ 
+SAST / DAST / SCA Requirements 
+ 
+As part of the secure SDLC: 
+ 
+Security Tool Purpose 
+SAST 
+Static code scanning (Build pipeline) 
+DAST 
+Dynamic scanning (pre-production) 
+SCA 
+Find vulnerable dependencies 
+IAST 
+Runtime scanning during QA 
+ 
+No code is deployed to production without passing security scans. 
+ 
+Secure Coding Checklist for Developers 
+ 
+• 
+✔ Authentication & Authorization 
+• 
+MFA required for admin functions 
+• 
+No hardcoded credentials 
+• 
+Server-side role checks for every API 
+• 
+✔ Input Validation & Output Encoding 
+• 
+Validate every input 
+• 
+Use context-based encoding 
+• 
+✔ Secrets Management 
+• 
+Use Key Vault, never config files 
+• 
+Rotate secrets regularly 
+• 
+✔ Logging & Monitoring 
+• 
+Mask PAN 
+• 
+No sensitive data in logs 
+• 
+Capture audit events 
+• 
+✔ Database Security 
+• 
+Use parameterized queries 
+• 
+Enforce least privilege DB accounts 
+• 
+✔ API Security 
+• 
+Validate schemas 
+• 
+Rate limiting on endpoints 
+• 
+Use secure tokens (JWT with short expiry) 
+• 
+✔ File Upload Security 
+• 
+Validate MIME, extension, and magic bytes 
+• 
+Store outside webroot 
+• 
+Scan using antivirus 
+• 
+✔ DevOps CI/CD Security 
+• 
+Signed builds 
+
+--- PAGE 45 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 45            
+• 
+Security gates in pipelines 
+• 
+Dependency scanning 
+ 
+Developer Training Summary 
+ 
+By the end of this training, developers must be able to: 
+• 
+Understand OWASP Top 10 risks & mitigations 
+• 
+Apply cryptography safely 
+• 
+Implement secure authentication & authorization 
+• 
+Prevent injection & data exposure 
+• 
+Develop PCI-compliant code handling cardholder data 
+• 
+Produce secure, maintainable, and compliant software 
+ 
+Pull Request Creation Workflow 
+ 
+1. Branching Strategy: 
+o 
+Use the agreed branching model (e.g., GitFlow or Feature Branching). 
+o 
+Ensure branch names follow the defined convention (e.g., feature/xyz, bugfix/abc). 
+2. Commit Guidelines: 
+o 
+Write meaningful commit messages (e.g., "Added new validation logic for user input"). 
+o 
+Squash or clean up commits before creating the pull request. 
+3. Creating the Pull Request: 
+o 
+Navigate to the Bitbucket repository and create a PR from the feature branch to the target branch (e.g., 
+develop, main). 
+o 
+Add a detailed description of the PR, including: 
+• 
+Problem statement or feature being implemented. 
+• 
+Summary of changes made. 
+• 
+Any dependencies or additional context. 
+o 
+Assign appropriate reviewers. 
+4. Code Coverage: 
+o 
+Ensure unit tests cover the new code. 
+o 
+Verify the CI/CD pipeline passes successfully before submission. 
+ 
+Code Review Checklist 
+ 
+Reviewers should consider the following: 
+• 
+Code Quality: 
+o 
+Does the code follow the company defined coding standards? 
+o 
+Is the code readable and maintainable? 
+• 
+Functionality: 
+o 
+Does the implementation solve the stated problem? 
+o 
+Are edge cases and error handling addressed? 
+• 
+Performance: 
+o 
+Does the code introduce any performance bottlenecks? 
+o 
+Are there more efficient ways to implement the solution? 
+• 
+Testing: 
+
+--- PAGE 46 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 46            
+o 
+Are there sufficient unit tests? 
+o 
+Do tests cover edge cases and expected outcomes? 
+• 
+Documentation: 
+o 
+Is the code commented where necessary? 
+o 
+Are any required documentation or README updates included? 
+ 
+Pull Request Approval Workflow 
+ 
+1. Review Process: 
+o 
+Reviewers add inline comments and overall feedback. 
+o 
+Developers address feedback and update the PR accordingly. 
+2. Approval: 
+o 
+Once the reviewer is satisfied, they approve the PR in Bitbucket. 
+o 
+Designated approvers review critical changes as needed. 
+3. Merge Process: 
+o 
+After approval, the developer merges the PR into the target branch. 
+o 
+Resolve any merge conflicts before merging. 
+o 
+Ensure the CI/CD pipeline is green post-merge. 
+ 
+Guidelines for Designated Approvers 
+ 
+• 
+Focus on high-level design and overall impact. 
+• 
+Verify that the reviewer’s feedback has been addressed. 
+• 
+Approve only when satisfied with the quality and readiness of the code. 
+ 
+Tools and Configuration 
+ 
+• 
+Bitbucket Settings: 
+o 
+Enable branch protection rules to require PR approvals. 
+o 
+Configure a minimum number of reviewers (e.g., at least one approval required). 
+o 
+Integrate CI/CD pipelines to ensure automated checks are mandatory. 
+• 
+Review Tools: 
+o 
+Use inline comments and suggestion tools for providing feedback. 
+o 
+Leverage Bitbucket’ s "Approve" and "Request Changes" features to formalize decisions. 
+ 
+Metrics and Reporting 
+ 
+• 
+Track the following metrics to measure the effectiveness of the review process: 
+• 
+Number of PRs reviewed. 
+• 
+Average time taken for review. 
+• 
+Number of defects identified post-merge. 
+ 
+Exceptions 
+ 
+• 
+Emergency hotfixes may bypass the standard review process but require retrospective review. 
+• 
+Document any exceptions for audit purposes. 
+ 
+
+--- PAGE 47 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 47            
+5. API Security Audit Requirements  
+ 
+5.4.3 API Types  
+ 
+• 
+Specify API type (REST, SOAP).  
+o 
+REST API 
+• 
+Describe supported data formats (JSON, XML, etc.).  
+o 
+JSON 
+ 
+5.4.5 Authentication Mechanism  
+ 
+• 
+Disclose authentication mechanisms (OAuth 2.0, JWT, API keys, Mutual TLS, etc.).  
+o 
+Tokenization Authentication mechanism I 
+• 
+Document token lifecycle, renewal, and revocation processes.  
+o 
+Token Is valid till 48 hours as per Business Requirement on continued session of the user. On Logout of user 
+the tokens are revoked. 
+ 
+5.4.6 Third-Party Integrations  
+ 
+• 
+Declare all third-party APIs and services; document data exchange mechanisms.  
+o 
+Any thrid-party API/s like OTA or Channel Manager Integrations, data exchange Is carried out In JSON / HTNG 
+format in HTTPS Port over TLS1.2 with SSL. 
+ 
+5.4.7 Compliance and Regulatory Requirements  
+ 
+• 
+Specify applicable requirements (e.g., PCI DSS, GDPR).  
+o 
+PCI S3 Assessment Is In Progress, GDPR requirement are In place In FX Application 
+ 
+5.4.8 Authorization and Access Control  
+ 
+FX1 implements the following access control mechanisms: 
+ 
+• 
+Identity Provider Integration: FX1 uses Username and Password Identify Provider and Token-based authentication 
+(as applicable) to ensure secure identity validation. 
+• 
+Role-Based Access Control (RBAC): User access is restricted based on roles such as Property Admin and Property 
+User. Each module of FX1 (FX CRS, FX Front Office, FX POS, FX SPA) enforces granular permission sets. 
+• 
+Least Privilege Principle: Users are granted only the necessary access to perform assigned functions. 
+• 
+Account Lifecycle Management: User creation, modification, suspension, and deletion follow a controlled workflow 
+in FX1 administrative modules. 
+• 
+MFA Enforcement: Multi-factor authentication (if enabled) is required for privileged and sensitive operations. 
+• 
+Access rules are enforced at every layer: UI, API Gateway, backend API controllers, and database stored procedures 
+(as applicable). 
+• 
+Unauthorized requests return standardized HTTP 401/403 responses. 
+• 
+Azure App Service enforces additional access policies. 
+• 
+Access to FX1 modules (FX CRS, FX Front Office, FX POS, FX SPA, FX Finance) is governed by RBAC. 
+• 
+Audit trails capture who carried out what transaction, which date, and which time. 
+
+--- PAGE 48 ---
+ 
+ 
+ 
+Africa | Middle East | South Asia | SEAPR 
+Company Confidential – IDS Next Business Solutions Pvt Ltd. Do not distribute without prior permission.            
+ Page | 48            
+• 
+API traffic is limited to approved partners such as Staah, Sabre, etc. 

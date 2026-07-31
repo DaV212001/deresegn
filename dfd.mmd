@@ -1,0 +1,21 @@
+graph TD
+    User([User / Cashier])
+    MobileApp[Flutter POS Mobile App]
+    Backend[Laravel Backend API]
+    OfflineDB[(Local SQLite Queue)]
+    MoR[Ministry of Revenues API]
+    Database[(Backend MySQL Database)]
+
+    User -->|Enters Invoice/Sales Data| MobileApp
+    MobileApp -->|Validates Input| MobileApp
+    MobileApp -->|If Offline: Queue Data| OfflineDB
+    MobileApp -- "If Online: Submit Invoice (HTTPS/JWT)" --> Backend
+    OfflineDB -- "Background Sync (When Online)" --> Backend
+    Backend -->|Stores Pending Invoice| Database
+    Backend -- "Requests Temp Fiscal Token" --> MoR
+    MoR -- "Returns Temporary Token" --> Backend
+    Backend -- "Submits Signed Invoice" --> MoR
+    MoR -- "Returns Fiscal Receipt (RRN/MRN)" --> Backend
+    Backend -->|Updates Invoice Status| Database
+    Backend -->|Returns Success & PDF URL| MobileApp
+    MobileApp -->|Displays / Prints PDF| User

@@ -19,23 +19,19 @@ class _BranchSetupScreenState extends State<BranchSetupScreen> {
       phone = TextEditingController(),
       email = TextEditingController(),
       tin = TextEditingController(),
+      newBranchPassword = TextEditingController(),
       clientId = TextEditingController(),
       secret = TextEditingController(),
       key = TextEditingController();
   PlatformFile? privateKey, certificate;
-  final existingBranchId = TextEditingController();
+  final existingBranchTin = TextEditingController();
+  final existingBranchPassword = TextEditingController();
   bool saving = false;
+  bool isLogin = true;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (ConfigPreference.getBranchId() != null &&
-          !ConfigPreference.isLoggedIn() &&
-          Get.isRegistered<AuthController>()) {
-        Get.find<AuthController>().performMachineLogin();
-      }
-    });
   }
 
   @override
@@ -46,10 +42,12 @@ class _BranchSetupScreenState extends State<BranchSetupScreen> {
       phone,
       email,
       tin,
+      newBranchPassword,
       clientId,
       secret,
       key,
-      existingBranchId,
+      existingBranchTin,
+      existingBranchPassword,
     ]) {
       c.dispose();
     }
@@ -113,6 +111,7 @@ class _BranchSetupScreenState extends State<BranchSetupScreen> {
         'location': location.text,
         'phone_number': phone.text,
         'email': email.text,
+        'password': newBranchPassword.text,
         'tin_number': tin.text,
         'client_id': clientId.text,
         'client_secret': secret.text,
@@ -147,7 +146,7 @@ class _BranchSetupScreenState extends State<BranchSetupScreen> {
             apiKey: key.text.trim(),
             tin: tin.text.trim(),
           );
-          await Get.find<AuthController>().performMachineLogin();
+          await Get.find<AuthController>().performBranchLogin(tin.text.trim(), newBranchPassword.text.trim());
         },
         onFailure: (e, r) => Get.snackbar('Branch setup failed', '$e'),
       );
@@ -216,90 +215,105 @@ class _BranchSetupScreenState extends State<BranchSetupScreen> {
                     ],
                   ),
                   const SizedBox(height: 26),
-                  Text(
-                    'Existing branch',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: existingBranchId,
-                    decoration: d('Branch ID', icon: Icons.tag_outlined),
-                  ),
-                  const SizedBox(height: 10),
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      if (existingBranchId.text.trim().isNotEmpty) {
-                        await ConfigPreference.saveBranchId(
-                          existingBranchId.text.trim(),
-                        );
-                        await Get.find<AuthController>().performMachineLogin();
-                      }
-                    },
-                    icon: const Icon(Icons.login),
-                    label: const Text('Continue with existing branch'),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    child: Row(
-                      children: [
-                        Expanded(child: Divider(color: theme.dividerColor)),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Text('OR', style: theme.textTheme.labelSmall),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: isLogin ? theme.colorScheme.primary.withOpacity(0.1) : null,
+                            side: BorderSide(color: isLogin ? theme.colorScheme.primary : theme.dividerColor),
+                          ),
+                          onPressed: () => setState(() => isLogin = true),
+                          child: const Text('Login to Branch'),
                         ),
-                        Expanded(child: Divider(color: theme.dividerColor)),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: !isLogin ? theme.colorScheme.primary.withOpacity(0.1) : null,
+                            side: BorderSide(color: !isLogin ? theme.colorScheme.primary : theme.dividerColor),
+                          ),
+                          onPressed: () => setState(() => isLogin = false),
+                          child: const Text('Create New'),
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    'Create new branch',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  const SizedBox(height: 24),
+                  if (isLogin) ...[
+                    TextField(
+                      controller: existingBranchTin,
+                      decoration: d('TIN Number', icon: Icons.badge_outlined),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  f(name, 'Branch name', icon: Icons.store_outlined),
-                  f(location, 'Location', icon: Icons.location_on_outlined),
-                  f(phone, 'Phone number', icon: Icons.phone_outlined),
-                  f(email, 'Email', icon: Icons.email_outlined),
-                  f(tin, 'TIN number', icon: Icons.badge_outlined),
-                  f(clientId, 'MOR client ID', icon: Icons.vpn_key_outlined),
-                  f(secret, 'MOR client secret', icon: Icons.lock_outline),
-                  f(key, 'MOR API key', icon: Icons.key_outlined),
-                  OutlinedButton.icon(
-                    onPressed: () => pick(true),
-                    icon: const Icon(Icons.key_outlined),
-                    label: Text(
-                      privateKey?.name ?? 'Select private key (.key)',
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: existingBranchPassword,
+                      obscureText: true,
+                      decoration: d('Password', icon: Icons.lock_outline),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  OutlinedButton.icon(
-                    onPressed: () => pick(false),
-                    icon: const Icon(Icons.verified_outlined),
-                    label: Text(
-                      certificate?.name ?? 'Select certificate (.pem/.crt)',
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          if (existingBranchTin.text.trim().isNotEmpty &&
+                              existingBranchPassword.text.trim().isNotEmpty) {
+                            await Get.find<AuthController>().performBranchLogin(
+                              existingBranchTin.text.trim(),
+                              existingBranchPassword.text.trim(),
+                            );
+                          } else {
+                            Get.snackbar('Missing details', 'Please enter TIN and password.');
+                          }
+                        },
+                        icon: const Icon(Icons.login),
+                        label: const Text('Login to branch'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    height: 52,
-                    child: ElevatedButton.icon(
-                      onPressed: saving ? null : save,
-                      icon: saving
-                          ? const SizedBox.shrink()
-                          : const Icon(Icons.add_business_outlined),
-                      label: saving
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Create branch'),
+                  ] else ...[
+                    f(name, 'Branch name', icon: Icons.store_outlined),
+                    f(location, 'Location', icon: Icons.location_on_outlined),
+                    f(phone, 'Phone number', icon: Icons.phone_outlined),
+                    f(email, 'Email', icon: Icons.email_outlined),
+                    f(tin, 'TIN number', icon: Icons.badge_outlined),
+                    f(newBranchPassword, 'Password', icon: Icons.lock_outline),
+                    f(clientId, 'MOR client ID', icon: Icons.vpn_key_outlined),
+                    f(secret, 'MOR client secret', icon: Icons.lock_outline),
+                    f(key, 'MOR API key', icon: Icons.key_outlined),
+                    OutlinedButton.icon(
+                      onPressed: () => pick(true),
+                      icon: const Icon(Icons.key_outlined),
+                      label: Text(
+                        privateKey?.name ?? 'Select private key (.key)',
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: () => pick(false),
+                      icon: const Icon(Icons.verified_outlined),
+                      label: Text(
+                        certificate?.name ?? 'Select certificate (.pem/.crt)',
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: saving ? null : save,
+                        icon: saving
+                            ? const SizedBox.shrink()
+                            : const Icon(Icons.add_business_outlined),
+                        label: saving
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                              )
+                            : const Text('Create branch'),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

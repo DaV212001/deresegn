@@ -1,0 +1,23 @@
+graph TD
+    subgraph Frontend [Flutter Frontend]
+        MobileApp[Mobile/Tablet Device]
+        LocalDB[(SharedPreferences)]
+    end
+
+    subgraph Backend [Laravel API Backend]
+        App[App Service]
+        DB[(MySQL Database)]
+        Storage[(Local Server Storage)]
+    end
+
+    subgraph External [External Integrations]
+        MoR[MoR E-Invoicing]
+        SMTP[SMTP Provider]
+    end
+
+    MobileApp -->|HTTPS/JWT| App
+    MobileApp -->|Local Cache| LocalDB
+    App -->|SQL Queries| DB
+    App -->|Uploads| Storage
+    App -->|Fiscal Sync| MoR
+    App -->|Sends Receipts| SMTP

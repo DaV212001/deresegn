@@ -110,10 +110,6 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
         actions: [
           TextButton(onPressed: () => Get.back(), child: Text('cancel'.tr)),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00FFB3),
-              foregroundColor: Colors.black,
-            ),
             onPressed: () {
               if (descController.text.isNotEmpty &&
                   priceController.text.isNotEmpty) {
@@ -380,8 +376,6 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
                               icon: const Icon(Icons.refresh),
                               label: Text('refresh_catalog'.tr),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF00FFB3),
-                                foregroundColor: Colors.black,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 24,
                                   vertical: 12,

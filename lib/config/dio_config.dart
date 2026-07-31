@@ -47,18 +47,15 @@ class AuthInterceptor extends Interceptor {
         options.path.contains('/company/register') ||
         options.path.contains('/company/login') ||
         options.path == '/api/companies' ||
-        options.path == '/api/login';
+        options.path == '/api/branch/login';
     final isCompanyEndpoint = options.path == '/api/branches';
     if (isPublicEndpoint || isCompanyEndpoint) {
       return handler.next(options);
     }
     if (ConfigPreference.isAccessTokenExpired()) {
-      Logger().d('Token expired proactive check. Refreshing...');
-      final newToken = await _refreshAccessToken();
-      if (newToken == null) {
-        await _redirectToLogin();
-        return handler.reject(_sessionExpiredException(options));
-      }
+      Logger().d('Branch token expired. Logging out...');
+      await _redirectToLogin();
+      return handler.reject(_sessionExpiredException(options));
     }
 
     final token = options.path == '/api/branches'
@@ -68,6 +65,13 @@ class AuthInterceptor extends Interceptor {
       options.headers['Authorization'] = 'Bearer $token';
     }
 
+    if (options.path != '/api/login') {
+      final morToken = ConfigPreference.getMorToken();
+      if (morToken != null) {
+        options.headers['Mor-Token'] = 'Bearer $morToken';
+      }
+    }
+
     return handler.next(options);
   }
 
@@ -75,20 +79,32 @@ class AuthInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     if (err.response?.statusCode == 401 &&
         !err.requestOptions.path.contains('/auth/')) {
-      Logger().d('401 Unauthorized detected. Attempting reactive refresh...');
-      final newToken = await _refreshAccessToken();
-      if (newToken != null) {
-        final req = err.requestOptions;
-        req.headers['Authorization'] = 'Bearer $newToken';
+      final data = err.response?.data;
+      final isMorError = data is Map &&
+          (data['code'] == '4503' || data['message'] == 'GATEWAY ERROR');
 
-        final dio = await DioConfig.dio();
-        try {
-          final cloneResponse = await dio.fetch(req);
-          return handler.resolve(cloneResponse);
-        } catch (e) {
-          return handler.next(err);
+      if (isMorError) {
+        Logger().d('MoR 401 Unauthorized detected. Attempting reactive refresh...');
+        final newToken = await _refreshAccessToken();
+        if (newToken != null) {
+          final req = err.requestOptions;
+          req.headers['Mor-Token'] = 'Bearer $newToken';
+
+          final dio = await DioConfig.dio();
+          try {
+            final cloneResponse = await dio.fetch(req);
+            return handler.resolve(cloneResponse);
+          } catch (e) {
+            return handler.next(err);
+          }
+        } else {
+          await _redirectToLogin();
+          return handler.reject(
+            _sessionExpiredException(err.requestOptions, response: err.response),
+          );
         }
       } else {
+        Logger().d('Branch 401 Unauthorized detected. Logging out...');
         await _redirectToLogin();
         return handler.reject(
           _sessionExpiredException(err.requestOptions, response: err.response),
@@ -114,7 +130,7 @@ class AuthInterceptor extends Interceptor {
   }
 
   Future<String?> _performTokenRefresh() async {
-    Logger().d('Starting token refresh request...');
+    Logger().d('Starting MoR token refresh request...');
     final refreshToken = ConfigPreference.getRefreshToken();
     if (refreshToken == null) {
       Logger().e('No refresh token found in storage');
@@ -144,18 +160,18 @@ class AuthInterceptor extends Interceptor {
           final expiresIn = data['expiresIn'] ?? 3600;
 
           if (newAccessToken != null) {
-            await ConfigPreference.updateTokens(
+            await ConfigPreference.updateMorTokens(
               newAccessToken,
               newRefreshToken,
               expiresIn,
             );
-            Logger().i('Token refresh successful');
+            Logger().i('MoR Token refresh successful');
             return newAccessToken;
           }
         }
       }
     } catch (e) {
-      Logger().e('Token refresh failed with exception', error: e);
+      Logger().e('MoR Token refresh failed with exception', error: e);
     }
     return null;
   }

@@ -308,8 +308,6 @@ class InvoiceDetailScreen extends StatelessWidget {
                                 }
                               },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF00FFB3),
-                          foregroundColor: Colors.black,
                           minimumSize: const Size(double.infinity, 50),
                         ),
                         child: controller.isSubmittingReceipt.value
@@ -412,8 +410,6 @@ class InvoiceDetailScreen extends StatelessWidget {
                           }
                         },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00FFB3),
-                    foregroundColor: Colors.black,
                     minimumSize: const Size(double.infinity, 50),
                   ),
                   child: controller.isSubmittingWithholding.value

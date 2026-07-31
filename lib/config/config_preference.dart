@@ -8,6 +8,7 @@ class ConfigPreference {
   static String? _accessToken;
   static String? _refreshToken;
   static String? _companyAccessToken;
+  static String? _morToken;
 
   // Device Credentials Keys
   static const String keyClientId = 'client_id';
@@ -19,6 +20,7 @@ class ConfigPreference {
   static const String keyAccessToken = 'access_token';
   static const String keyRefreshToken = 'refresh_token';
   static const String keyCompanyAccessToken = 'company_access_token';
+  static const String keyMorToken = 'mor_token';
   static const String keyCompanyId = 'company_id';
   static const String keyBranchId = 'branch_id';
 
@@ -29,6 +31,7 @@ class ConfigPreference {
     _accessToken = await _storage.read(key: keyAccessToken);
     _refreshToken = await _storage.read(key: keyRefreshToken);
     _companyAccessToken = await _storage.read(key: keyCompanyAccessToken);
+    _morToken = await _storage.read(key: keyMorToken);
     _companyId = await _storage.read(key: keyCompanyId);
     _branchId = await _storage.read(key: keyBranchId);
   }
@@ -62,6 +65,7 @@ class ConfigPreference {
   static String? getAccessToken() => _accessToken;
   static String? getRefreshToken() => _refreshToken;
   static String? getCompanyAccessToken() => _companyAccessToken;
+  static String? getMorToken() => _morToken;
 
   static Future<void> updateCompanyToken(String token) async {
     _companyAccessToken = token;
@@ -78,14 +82,19 @@ class ConfigPreference {
     }
   }
 
-  static Future<void> updateTokens(
-    String access,
+  static Future<void> updateBranchToken(String access) async {
+    _accessToken = access;
+    await _storage.write(key: keyAccessToken, value: access);
+  }
+
+  static Future<void> updateMorTokens(
+    String mor,
     String refresh,
     int expires,
   ) async {
-    _accessToken = access;
+    _morToken = mor;
     _refreshToken = refresh;
-    await _storage.write(key: keyAccessToken, value: access);
+    await _storage.write(key: keyMorToken, value: mor);
     await _storage.write(key: keyRefreshToken, value: refresh);
   }
 
@@ -96,9 +105,9 @@ class ConfigPreference {
   }
 
   static Future<void> clearMorTokens() async {
-    _accessToken = null;
+    _morToken = null;
     _refreshToken = null;
-    await _storage.delete(key: keyAccessToken);
+    await _storage.delete(key: keyMorToken);
     await _storage.delete(key: keyRefreshToken);
   }
 
