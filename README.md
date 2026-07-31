@@ -1,17 +1,17 @@
-# deresegn
+# Deresegn POS Mobile App
 
-A new Flutter project.
+Deresegn is an advanced, cross-platform Point of Sale (POS) and SaaS mobile application built with Flutter. It integrates seamlessly with the Ethiopian Ministry of Revenues (MoR) e-invoicing systems.
 
-## Getting Started
+## Features
+- **Offline-First Syncing:** Temporarily queues invoices locally during network outages and syncs when back online.
+- **MoR Token Exchange:** Securely requests and manages temporary MoR tokens for fiscal receipt signing.
+- **Multi-Tenant Architecture:** Robust JWT-based authentication ensuring data isolation across companies and branches.
+- **Role-Based Access Control:** Secure handling of Branch TINs and passwords.
 
-This project is a starting point for a Flutter application.
+## Architecture
+- **Framework:** Flutter SDK ^3.12.2
+- **State Management:** GetX (`get` plugin)
+- **Networking:** `dio` for HTTPS requests
+- **Storage:** `flutter_secure_storage` and `shared_preferences`
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+For the INSA security audit, please review the provided test accounts and specific functionalities detailed in the documentation.
