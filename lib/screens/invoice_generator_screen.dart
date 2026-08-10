@@ -118,7 +118,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
             color:
                 theme.appBarTheme.foregroundColor ??
                 theme.colorScheme.onSurface,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w600,
             fontSize: 24,
             letterSpacing: -1,
           ),
@@ -132,12 +132,12 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
             insets: const EdgeInsets.symmetric(horizontal: 48.0),
           ),
           labelStyle: const TextStyle(
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w600,
             fontSize: 12,
             letterSpacing: 1,
           ),
           unselectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w500,
             fontSize: 12,
             letterSpacing: 1,
           ),
@@ -153,7 +153,11 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [_buildBuyerTab(), _buildItemsTab(), _buildSummaryTab()],
+        children: [
+          _buildBuyerTab(),
+          _buildItemsTab(),
+          _buildSummaryTab(context),
+        ],
       ),
     );
   }
@@ -196,7 +200,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                       style: TextStyle(
                         color: theme.textTheme.bodyLarge?.color,
                         fontSize: 18,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -234,7 +238,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                             ? Icons.check_box_rounded
                             : Icons.check_box_outline_blank_rounded,
                         color: _isWalkIn
-                            ? const Color(0xFF00FFB3)
+                            ? Theme.of(context).primaryColor
                             : Colors.grey,
                         size: 24,
                       ),
@@ -281,10 +285,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
               children: [
                 Text(
                   'continue_to_items'.tr,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 SizedBox(width: 8),
                 Icon(Icons.arrow_forward_rounded, size: 18),
@@ -429,7 +430,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                                 ? Icons.check_box_rounded
                                 : Icons.check_box_outline_blank_rounded,
                             color: _saveToCatalog
-                                ? const Color(0xFF00FFB3)
+                                ? Theme.of(context).primaryColor
                                 : Colors.grey,
                             size: 20,
                           ),
@@ -484,7 +485,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                     icon: const Icon(Icons.add_rounded, size: 18),
                     label: Text(
                       'add_item'.tr,
-                      style: TextStyle(fontWeight: FontWeight.w900),
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
@@ -523,7 +524,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
             ),
             child: Text(
               'review_summary'.tr,
-              style: TextStyle(fontWeight: FontWeight.w900),
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
         ),
@@ -543,7 +544,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
         child: IntrinsicHeight(
           child: Row(
             children: [
-              Container(width: 4, color: const Color(0xFF00FFB3)),
+              Container(width: 4, color: Theme.of(context).primaryColor),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -621,9 +622,9 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                           ),
                           Text(
                             '${item.totalLineAmount.toStringAsFixed(2)} ETB',
-                            style: const TextStyle(
-                              color: Color(0xFF00FFB3),
-                              fontWeight: FontWeight.w900,
+                            style: TextStyle(
+                              color: Theme.of(context).primaryColor,
+                              fontWeight: FontWeight.w600,
                               fontSize: 14,
                             ),
                           ),
@@ -640,7 +641,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
     );
   }
 
-  Widget _buildSummaryTab() {
+  Widget _buildSummaryTab(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -661,12 +662,14 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF00FFB3).withOpacity(0.1),
+                          color: Theme.of(
+                            context,
+                          ).primaryColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.receipt_long_rounded,
-                          color: Color(0xFF00FFB3),
+                          color: Theme.of(context).primaryColor,
                           size: 20,
                         ),
                       ),
@@ -676,7 +679,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                         style: TextStyle(
                           color: Theme.of(context).textTheme.bodyLarge?.color,
                           fontSize: 18,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -723,7 +726,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                         '${_controller.grandTotal.toStringAsFixed(2)} ETB',
                         style: TextStyle(
                           color: Theme.of(context).textTheme.bodyLarge?.color,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                           fontSize: 20,
                           letterSpacing: -0.5,
                         ),
@@ -850,30 +853,30 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                   ElevatedButton(
                     onPressed: _controller.isSubmitting.value
                         ? null
-                        : () => _controller.registerFormInvoice(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00FFB3),
-                      foregroundColor: Colors.black,
-                      minimumSize: const Size(double.infinity, 60),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      elevation: 8,
-                      shadowColor: const Color(0xFF00FFB3).withOpacity(0.4),
-                    ),
+                        : () => _controller.registerFormInvoice(context),
+                    // style: ElevatedButton.styleFrom(
+                    //   backgroundColor: const Color(0xFF2F3283),
+                    //   foregroundColor: Colors.black,
+                    //   minimumSize: const Size(double.infinity, 60),
+                    //   shape: RoundedRectangleBorder(
+                    //     borderRadius: BorderRadius.circular(18),
+                    //   ),
+                    //   elevation: 8,
+                    //   shadowColor: const Color(0xFF2F3283).withOpacity(0.4),
+                    // ),
                     child: _controller.isSubmitting.value
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 24,
                             width: 24,
                             child: CircularProgressIndicator(
-                              color: Colors.black,
+                              color: Theme.of(context).colorScheme.onPrimary,
                               strokeWidth: 3,
                             ),
                           )
                         : Text(
                             'submit_invoice'.tr,
                             style: TextStyle(
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w600,
                               fontSize: 16,
                             ),
                           ),
@@ -882,7 +885,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                   TextButton(
                     onPressed: _controller.isSubmitting.value
                         ? null
-                        : () => _controller.registerSampleInvoice(),
+                        : () => _controller.registerSampleInvoice(context),
                     child: Text(
                       'Post Test Transaction',
                       style: TextStyle(
@@ -941,7 +944,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
           fontSize: 14,
         ),
         prefixIcon: icon != null
-            ? Icon(icon, color: const Color(0xFF00FFB3), size: 20)
+            ? Icon(icon, color: Theme.of(context).primaryColor, size: 20)
             : null,
         filled: true,
         fillColor: Theme.of(context).inputDecorationTheme.fillColor,
@@ -951,7 +954,10 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF00FFB3), width: 1),
+          borderSide: BorderSide(
+            color: Theme.of(context).primaryColor,
+            width: 1,
+          ),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -989,7 +995,10 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF00FFB3), width: 1),
+          borderSide: BorderSide(
+            color: Theme.of(context).primaryColor,
+            width: 1,
+          ),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,

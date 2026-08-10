@@ -129,16 +129,13 @@ class ConfigPreference {
   }
 
   static Future<String> getClientId() async =>
-      (await _storage.read(key: keyClientId)) ??
-      "127ae9ad-8de2-4856-ba88-4e6a49ad10d0";
+      (await _storage.read(key: keyClientId)) ?? "";
   static Future<String> getClientSecret() async =>
-      (await _storage.read(key: keyClientSecret)) ??
-      "d3ddb848-9daa-44ab-8d96-374fcc8c9e6b";
+      (await _storage.read(key: keyClientSecret)) ?? "";
   static Future<String> getApiKey() async =>
-      (await _storage.read(key: keyApiKey)) ??
-      "dc481579-a6e7-4594-abcf-5493e261685e";
+      (await _storage.read(key: keyApiKey)) ?? "";
   static Future<String> getTin() async =>
-      (await _storage.read(key: keyTin)) ?? "0000037187";
+      (await _storage.read(key: keyTin)) ?? "";
 
   static Future<void> clearDeviceCredentials() async {
     await _storage.delete(key: keyClientId);

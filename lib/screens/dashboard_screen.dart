@@ -29,24 +29,28 @@ class DashboardScreen extends StatelessWidget {
         icon: const Icon(CupertinoIcons.plus_square, size: 20),
         title: ("register".tr),
         activeColorPrimary: theme.primaryColor,
+        textStyle: TextStyle(fontWeight: FontWeight.bold),
         inactiveColorPrimary: CupertinoColors.systemGrey,
       ),
       PersistentBottomNavBarItem(
         icon: const Icon(CupertinoIcons.square_list, size: 20),
         title: ("history".tr),
         activeColorPrimary: theme.primaryColor,
+        textStyle: TextStyle(fontWeight: FontWeight.bold),
         inactiveColorPrimary: CupertinoColors.systemGrey,
       ),
       PersistentBottomNavBarItem(
         icon: const Icon(CupertinoIcons.archivebox, size: 20),
         title: ("products".tr),
         activeColorPrimary: theme.primaryColor,
+        textStyle: TextStyle(fontWeight: FontWeight.bold),
         inactiveColorPrimary: CupertinoColors.systemGrey,
       ),
       PersistentBottomNavBarItem(
         icon: const Icon(CupertinoIcons.settings),
         title: ("settings".tr),
         activeColorPrimary: theme.primaryColor,
+        textStyle: TextStyle(fontWeight: FontWeight.bold),
         inactiveColorPrimary: CupertinoColors.systemGrey,
       ),
     ];

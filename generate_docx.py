@@ -1,7 +1,7 @@
 import pypandoc
 
-input_file = "INSA_Documentation.md"
-output_file = "INSA_Documentation_Final.docx"
+input_file = "INSA_Documentation_Combined.md"
+output_file = "INSA_Documentation_F2.docx"
 
 try:
     pypandoc.convert_file(input_file, 'docx', outputfile=output_file)

@@ -117,8 +117,8 @@ class _SetupTerminalScreenState extends State<SetupTerminalScreen> {
                       ),
                     ),
                     child: _authController.isLoggingIn.value
-                        ? const CircularProgressIndicator(
-                            color: Colors.black,
+                        ? CircularProgressIndicator(
+                            color: theme.colorScheme.onPrimary,
                           )
                         : const Text(
                             'Bind Device & Start',

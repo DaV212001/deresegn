@@ -83,7 +83,7 @@ The following legal prerequisites and administrative documents are mandatory pri
 - **SUPPLIES**: Represents inventory items, holding `item_code`, `unit_price`, and `tax_code`.
 
 ### 3.2 Features of the Web Application
-- **Development Frameworks**: Flutter (Frontend), Laravel 8 (Backend).
+- **Development Frameworks**: Flutter (SDK ^3.12.2) and Dart (>=3.0.0) for Frontend; Laravel 8 (PHP) for Backend.
 - **Offline Reliability**: Invoices generated during internet outages are converted to JSON and queued locally in SharedPreferences.
 - **Actor Types**: 
   - *Super Admin / Owner*: Global oversight, company registration.

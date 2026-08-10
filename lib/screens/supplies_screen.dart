@@ -1,3 +1,4 @@
+import 'package:deresegn/theme/theme_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -155,7 +156,6 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
         actions: [
           TextButton(onPressed: () => Get.back(), child: Text('cancel'.tr)),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
               _controller.deleteSupply(id);
               Get.back();
@@ -205,7 +205,7 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
             color:
                 theme.appBarTheme.foregroundColor ??
                 theme.colorScheme.onSurface,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w600,
             fontSize: 24,
             letterSpacing: -1,
           ),
@@ -302,9 +302,13 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
                         child: Text(
                           filter.toLowerCase().tr.toUpperCase(),
                           style: TextStyle(
-                            color: isSelected ? Colors.black : Colors.grey,
+                            color: isSelected
+                                ? Get.find<ThemeService>().isDarkMode
+                                      ? Colors.black
+                                      : Colors.white
+                                : Colors.grey,
                             fontSize: 11,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w600,
                             letterSpacing: 1,
                           ),
                         ),
@@ -319,8 +323,10 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
           Expanded(
             child: Obx(() {
               if (_controller.isLoadingSupplies.value) {
-                return const Center(
-                  child: CircularProgressIndicator(color: Color(0xFF00FFB3)),
+                return Center(
+                  child: CircularProgressIndicator(
+                    color: Theme.of(context).primaryColor,
+                  ),
                 );
               }
 
@@ -411,8 +417,7 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddSupplyDialog,
-        backgroundColor: theme.primaryColor,
-        child: Icon(Icons.add, color: theme.scaffoldBackgroundColor),
+        child: const Icon(Icons.add),
       ),
     );
   }
@@ -421,7 +426,7 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
     final bool isService = item.natureOfSupplies.toLowerCase() == 'service';
     final Color accentColor = isService
         ? const Color(0xFF448AFF)
-        : const Color(0xFF00FFB3);
+        : Theme.of(context).primaryColor;
 
     return Container(
       decoration: BoxDecoration(
@@ -534,7 +539,7 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
                             style: TextStyle(
                               color: accentColor.withOpacity(0.5),
                               fontSize: 10,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
@@ -544,7 +549,7 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
                                 context,
                               ).textTheme.bodyLarge?.color,
                               fontSize: 24,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w600,
                               letterSpacing: -1,
                             ),
                           ),
@@ -574,7 +579,7 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
         style: TextStyle(
           color: color,
           fontSize: 9,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
         ),
       ),

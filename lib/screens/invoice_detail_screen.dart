@@ -128,8 +128,6 @@ class InvoiceDetailScreen extends StatelessWidget {
                                   .then((_) => Navigator.pop(context));
                             },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF3366),
-                        foregroundColor: Colors.white,
                         minimumSize: const Size(double.infinity, 50),
                       ),
                       child: controller.isSubmitting.value
@@ -138,7 +136,9 @@ class InvoiceDetailScreen extends StatelessWidget {
                             )
                           : Text(
                               'cancel'.tr,
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                     ),
                   ),
@@ -311,8 +311,8 @@ class InvoiceDetailScreen extends StatelessWidget {
                           minimumSize: const Size(double.infinity, 50),
                         ),
                         child: controller.isSubmittingReceipt.value
-                            ? const CircularProgressIndicator(
-                                color: Colors.black,
+                            ? CircularProgressIndicator(
+                                color: theme.colorScheme.onPrimary,
                               )
                             : Text(
                                 'receipt'.tr,
@@ -413,7 +413,9 @@ class InvoiceDetailScreen extends StatelessWidget {
                     minimumSize: const Size(double.infinity, 50),
                   ),
                   child: controller.isSubmittingWithholding.value
-                      ? const CircularProgressIndicator(color: Colors.black)
+                      ? CircularProgressIndicator(
+                          color: theme.colorScheme.onPrimary,
+                        )
                       : const Text(
                           'Register 2% Withholding',
                           style: TextStyle(fontWeight: FontWeight.bold),
@@ -433,7 +435,9 @@ class InvoiceDetailScreen extends StatelessWidget {
     ThemeData theme,
   ) async {
     Get.dialog(
-      const Center(child: CircularProgressIndicator(color: Color(0xFF00FFB3))),
+      Center(
+        child: CircularProgressIndicator(color: Theme.of(context).primaryColor),
+      ),
       barrierDismissible: false,
     );
     try {
@@ -669,8 +673,8 @@ class InvoiceDetailScreen extends StatelessWidget {
                       ),
                       Text(
                         '${itemMap['TotalLineAmount']} $currency',
-                        style: const TextStyle(
-                          color: Color(0xFF00FFB3),
+                        style: TextStyle(
+                          color: Theme.of(context).primaryColor,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -705,7 +709,7 @@ class InvoiceDetailScreen extends StatelessWidget {
                   child: _ActionCard(
                     icon: CupertinoIcons.money_dollar,
                     title: 'receipt'.tr,
-                    color: const Color(0xFF00FFB3),
+                    color: Theme.of(context).primaryColor,
                     onTap: () => _showSalesReceiptBottomSheet(context),
                   ),
                 ),
@@ -714,7 +718,7 @@ class InvoiceDetailScreen extends StatelessWidget {
                 //   child: _ActionCard(
                 //     icon: CupertinoIcons.percent,
                 //     title: 'withholding'.tr,
-                //     color: const Color(0xFF00FFB3),
+                //     color: const Color(0xFF2F3283),
                 //     onTap: () => _showWithholdingBottomSheet(context),
                 //   ),
                 // ),
@@ -736,8 +740,10 @@ class InvoiceDetailScreen extends StatelessWidget {
                   tag: invoice.irn,
                 );
                 if (controller.isLoading.value) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: Color(0xFF00FFB3)),
+                  return Center(
+                    child: CircularProgressIndicator(
+                      color: Theme.of(context).primaryColor,
+                    ),
                   );
                 }
                 if (controller.errorMessage.isNotEmpty) {
@@ -763,7 +769,7 @@ class InvoiceDetailScreen extends StatelessWidget {
                 return Column(
                   children: controller.receipts.map((receipt) {
                     final statusColor = receipt.status == 'A'
-                        ? const Color(0xFF00FFB3)
+                        ? Theme.of(context).primaryColor
                         : Colors.orange;
                     final statusText = receipt.status == 'A'
                         ? 'Active'

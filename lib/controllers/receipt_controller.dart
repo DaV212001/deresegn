@@ -26,7 +26,7 @@ class ReceiptController extends GetxController {
     isSubmittingReceipt.value = true;
     ReceiptSummary? result;
 
-    final tin = await ConfigPreference.getTin() ?? '0000037187';
+    final tin = await ConfigPreference.getTin();
     final systemNumber = await AppSettings.getSystemNumber();
     final cashierName = await AppSettings.getCashierName();
 

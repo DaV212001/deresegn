@@ -146,7 +146,10 @@ class _BranchSetupScreenState extends State<BranchSetupScreen> {
             apiKey: key.text.trim(),
             tin: tin.text.trim(),
           );
-          await Get.find<AuthController>().performBranchLogin(tin.text.trim(), newBranchPassword.text.trim());
+          await Get.find<AuthController>().performBranchLogin(
+            tin.text.trim(),
+            newBranchPassword.text.trim(),
+          );
         },
         onFailure: (e, r) => Get.snackbar('Branch setup failed', '$e'),
       );
@@ -220,22 +223,40 @@ class _BranchSetupScreenState extends State<BranchSetupScreen> {
                       Expanded(
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
-                            backgroundColor: isLogin ? theme.colorScheme.primary.withOpacity(0.1) : null,
-                            side: BorderSide(color: isLogin ? theme.colorScheme.primary : theme.dividerColor),
+                            backgroundColor: isLogin
+                                ? theme.colorScheme.primary.withOpacity(0.1)
+                                : null,
+                            side: BorderSide(
+                              color: isLogin
+                                  ? theme.colorScheme.primary
+                                  : theme.dividerColor,
+                            ),
                           ),
                           onPressed: () => setState(() => isLogin = true),
-                          child: const Text('Login to Branch'),
+                          child: const Text(
+                            'Login',
+                            style: TextStyle(fontSize: 12),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
-                            backgroundColor: !isLogin ? theme.colorScheme.primary.withOpacity(0.1) : null,
-                            side: BorderSide(color: !isLogin ? theme.colorScheme.primary : theme.dividerColor),
+                            backgroundColor: !isLogin
+                                ? theme.colorScheme.primary.withOpacity(0.1)
+                                : null,
+                            side: BorderSide(
+                              color: !isLogin
+                                  ? theme.colorScheme.primary
+                                  : theme.dividerColor,
+                            ),
                           ),
                           onPressed: () => setState(() => isLogin = false),
-                          child: const Text('Create New'),
+                          child: const Text(
+                            'Create New',
+                            style: TextStyle(fontSize: 12),
+                          ),
                         ),
                       ),
                     ],
@@ -253,24 +274,44 @@ class _BranchSetupScreenState extends State<BranchSetupScreen> {
                       decoration: d('Password', icon: Icons.lock_outline),
                     ),
                     const SizedBox(height: 20),
-                    SizedBox(
-                      height: 52,
-                      child: ElevatedButton.icon(
-                        onPressed: () async {
-                          if (existingBranchTin.text.trim().isNotEmpty &&
-                              existingBranchPassword.text.trim().isNotEmpty) {
-                            await Get.find<AuthController>().performBranchLogin(
-                              existingBranchTin.text.trim(),
-                              existingBranchPassword.text.trim(),
-                            );
-                          } else {
-                            Get.snackbar('Missing details', 'Please enter TIN and password.');
-                          }
-                        },
-                        icon: const Icon(Icons.login),
-                        label: const Text('Login to branch'),
-                      ),
-                    ),
+                    Obx(() {
+                      final auth = Get.find<AuthController>();
+                      return SizedBox(
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          onPressed: auth.isLoggingIn.value
+                              ? null
+                              : () async {
+                                  if (existingBranchTin.text.trim().isNotEmpty &&
+                                      existingBranchPassword.text.trim()
+                                          .isNotEmpty) {
+                                    await auth.performBranchLogin(
+                                      existingBranchTin.text.trim(),
+                                      existingBranchPassword.text.trim(),
+                                    );
+                                  } else {
+                                    Get.snackbar(
+                                      'Missing details',
+                                      'Please enter TIN and password.',
+                                    );
+                                  }
+                                },
+                          icon: auth.isLoggingIn.value
+                              ? const SizedBox.shrink()
+                              : const Icon(Icons.login),
+                          label: auth.isLoggingIn.value
+                              ? SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: theme.colorScheme.onPrimary,
+                                  ),
+                                )
+                              : const Text('Login to branch'),
+                        ),
+                      );
+                    }),
                   ] else ...[
                     f(name, 'Branch name', icon: Icons.store_outlined),
                     f(location, 'Location', icon: Icons.location_on_outlined),
@@ -305,10 +346,13 @@ class _BranchSetupScreenState extends State<BranchSetupScreen> {
                             ? const SizedBox.shrink()
                             : const Icon(Icons.add_business_outlined),
                         label: saving
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 22,
                                 height: 22,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: theme.colorScheme.onPrimary,
+                                ),
                               )
                             : const Text('Create branch'),
                       ),

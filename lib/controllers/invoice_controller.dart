@@ -5,13 +5,11 @@ import 'dart:typed_data';
 import 'package:deresegn/config/dio_config.dart';
 import 'package:dio/dio.dart' as dio_lib;
 import 'package:flutter/material.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:pdf/pdf.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:flutter/material.dart' show debugPrint;
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
+import 'package:pdf/widgets.dart' as pw;
 
 import '../config/app_settings.dart';
 import '../config/config_preference.dart';
@@ -22,8 +20,8 @@ import '../screens/invoice_detail_screen.dart';
 import '../screens/pdf_preview_screen.dart';
 import '../services/api_service.dart';
 import '../services/invoice_pdf_service.dart';
-import '../services/receipt_pdf_service.dart';
 import '../services/offline_queue_service.dart';
+import '../services/receipt_pdf_service.dart';
 import 'invoice_history_controller.dart';
 import 'receipt_controller.dart';
 
@@ -283,7 +281,7 @@ class InvoiceController extends GetxController {
     return DateTime.now().millisecondsSinceEpoch % 100000;
   }
 
-  Future<void> registerFormInvoice() async {
+  Future<void> registerFormInvoice(BuildContext context) async {
     if (items.isEmpty || buyerName.value.isEmpty) {
       Get.snackbar(
         'Error',
@@ -295,7 +293,7 @@ class InvoiceController extends GetxController {
     isSubmitting.value = true;
     final int nextDocNumber = await _getNextDocumentNumber();
 
-    final tin = await ConfigPreference.getTin() ?? '0000037187';
+    final tin = await ConfigPreference.getTin();
     final cashierName = await AppSettings.getCashierName();
     final systemNumber = await AppSettings.getSystemNumber();
     final tradeName = await AppSettings.getTradeName();
@@ -336,12 +334,11 @@ class InvoiceController extends GetxController {
       payTerm = "CREDIT";
     }
 
-    final String docReason =
-        (docType == "CRE" || docType == "DEB")
-            ? (adjustmentReason.value.trim().isNotEmpty
-                ? adjustmentReason.value.trim()
-                : "Adjustment Note")
-            : "Sales Invoice";
+    final String docReason = (docType == "CRE" || docType == "DEB")
+        ? (adjustmentReason.value.trim().isNotEmpty
+              ? adjustmentReason.value.trim()
+              : "Adjustment Note")
+        : "Sales Invoice";
 
     final Map<String, dynamic> valDetails = {
       "TotalValue": grandTotal.toStringAsFixed(2),
@@ -416,13 +413,13 @@ class InvoiceController extends GetxController {
       version: "1",
     );
 
-    await _sendInvoiceRequest(request);
+    await _sendInvoiceRequest(context, request);
   }
 
-  Future<void> registerSampleInvoice() async {
+  Future<void> registerSampleInvoice(BuildContext context) async {
     isSubmitting.value = true;
     final int nextDocNumber = await _getNextDocumentNumber();
-    final tin = await ConfigPreference.getTin() ?? '0000037187';
+    final tin = await ConfigPreference.getTin();
     final cashierName = await AppSettings.getCashierName();
     final systemNumber = await AppSettings.getSystemNumber();
     final tradeName = await AppSettings.getTradeName();
@@ -503,7 +500,7 @@ class InvoiceController extends GetxController {
       version: "1",
     );
 
-    await _sendInvoiceRequest(request);
+    await _sendInvoiceRequest(context, request);
   }
 
   String? _extractExpectedValue(dynamic responseData) {
@@ -518,6 +515,7 @@ class InvoiceController extends GetxController {
   }
 
   Future<void> _sendInvoiceRequest(
+    BuildContext context,
     InvoiceRegisterRequest request, {
     int retryCount = 0,
   }) async {
@@ -535,7 +533,9 @@ class InvoiceController extends GetxController {
         Get.dialog(
           Dialog(
             backgroundColor: Get.theme.colorScheme.surface,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(24.0),
               child: Column(
@@ -543,9 +543,19 @@ class InvoiceController extends GetxController {
                 children: [
                   const CircularProgressIndicator(),
                   const SizedBox(height: 16),
-                  Text('Invoice Registered', style: TextStyle(fontWeight: FontWeight.bold, color: Get.theme.colorScheme.primary, fontSize: 16)),
+                  Text(
+                    'Invoice Registered',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Get.theme.colorScheme.primary,
+                      fontSize: 16,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  const Text('Generating receipt & PDF...', textAlign: TextAlign.center),
+                  const Text(
+                    'Generating receipt & PDF...',
+                    textAlign: TextAlign.center,
+                  ),
                 ],
               ),
             ),
@@ -567,27 +577,25 @@ class InvoiceController extends GetxController {
         }
 
         // If not found in history yet, construct a minimal summary from local state
-        if (registeredInvoice == null) {
-          registeredInvoice = InvoiceSummary(
-            id: 0,
-            irn: irn,
-            documentNumber: request.documentDetails['DocumentNumber'],
-            status: 'A',
-            buyer: BuyerInfo(legalName: buyerName.value, tin: buyerTin.value),
-            totals: TotalsInfo(
-              totalValue: grandTotal.toStringAsFixed(2),
-              taxValue: totalVat.toStringAsFixed(2),
-              currency: 'ETB',
-            ),
-            createdAt: DateTime.now().toIso8601String(),
-            requestPayload: request.toJson(),
-          );
-        }
+        registeredInvoice ??= InvoiceSummary(
+          id: 0,
+          irn: irn,
+          documentNumber: request.documentDetails['DocumentNumber'],
+          status: 'A',
+          buyer: BuyerInfo(legalName: buyerName.value, tin: buyerTin.value),
+          totals: TotalsInfo(
+            totalValue: grandTotal.toStringAsFixed(2),
+            taxValue: totalVat.toStringAsFixed(2),
+            currency: 'ETB',
+          ),
+          createdAt: DateTime.now().toIso8601String(),
+          requestPayload: request.toJson(),
+        );
 
         clearForm();
 
         // Automatically register receipt and show combined PDF preview
-        _autoRegisterReceiptAndPreview(registeredInvoice);
+        _autoRegisterReceiptAndPreview(registeredInvoice, context);
       },
       onFailure: (error, response) async {
         final dynamic errorData = (error is dio_lib.DioException)
@@ -598,48 +606,65 @@ class InvoiceController extends GetxController {
             : (error is int ? error : response?.statusCode);
 
         if (error is dio_lib.DioException) {
-          final isNetworkError = error.type == dio_lib.DioExceptionType.connectionTimeout ||
-                                 error.type == dio_lib.DioExceptionType.sendTimeout ||
-                                 error.type == dio_lib.DioExceptionType.receiveTimeout ||
-                                 error.type == dio_lib.DioExceptionType.connectionError ||
-                                 (error.type == dio_lib.DioExceptionType.unknown && error.error is SocketException);
+          final isNetworkError =
+              error.type == dio_lib.DioExceptionType.connectionTimeout ||
+              error.type == dio_lib.DioExceptionType.sendTimeout ||
+              error.type == dio_lib.DioExceptionType.receiveTimeout ||
+              error.type == dio_lib.DioExceptionType.connectionError ||
+              (error.type == dio_lib.DioExceptionType.unknown &&
+                  error.error is SocketException);
           if (isNetworkError) {
-             final queueService = Get.find<OfflineQueueService>();
-             await queueService.addInvoiceToQueue(request, buyerName.value, grandTotal.toStringAsFixed(2));
-             
-             if (Get.isDialogOpen ?? false) {
-               Get.back();
-             }
-             
-             Get.dialog(
-               Dialog(
-                 backgroundColor: Get.theme.colorScheme.surface,
-                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                 child: Padding(
-                   padding: const EdgeInsets.all(24.0),
-                   child: Column(
-                     mainAxisSize: MainAxisSize.min,
-                     children: [
-                       Icon(Icons.cloud_off, size: 48, color: Colors.orange),
-                       const SizedBox(height: 16),
-                       Text('No Connection', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                       const SizedBox(height: 8),
-                       Text('The invoice has been saved offline and will be registered automatically when connection is restored.', textAlign: TextAlign.center),
-                       const SizedBox(height: 24),
-                       ElevatedButton(
-                         onPressed: () => Get.back(),
-                         child: const Text('OK'),
-                       ),
-                     ],
-                   ),
-                 ),
-               ),
-               barrierDismissible: false,
-             );
-             
-             clearForm();
-             isSubmitting.value = false;
-             return;
+            final queueService = Get.find<OfflineQueueService>();
+            await queueService.addInvoiceToQueue(
+              request,
+              buyerName.value,
+              grandTotal.toStringAsFixed(2),
+            );
+
+            if (Get.isDialogOpen ?? false) {
+              Get.back();
+            }
+
+            Get.dialog(
+              Dialog(
+                backgroundColor: Get.theme.colorScheme.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.cloud_off, size: 48, color: Colors.orange),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No Connection',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'The invoice has been saved offline and will be registered automatically when connection is restored.',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: () => Get.back(),
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              barrierDismissible: false,
+            );
+
+            clearForm();
+            isSubmitting.value = false;
+            return;
           }
         }
 
@@ -652,7 +677,7 @@ class InvoiceController extends GetxController {
             request.documentDetails['DocumentNumber'] = expectedValue;
             request.sourceSystem['InvoiceCounter'] =
                 int.tryParse(expectedValue) ?? expectedValue;
-            _sendInvoiceRequest(request, retryCount: retryCount + 1);
+            _sendInvoiceRequest(context, request, retryCount: retryCount + 1);
             return;
           }
         }
@@ -668,7 +693,10 @@ class InvoiceController extends GetxController {
     );
   }
 
-  Future<void> _autoRegisterReceiptAndPreview(InvoiceSummary invoice) async {
+  Future<void> _autoRegisterReceiptAndPreview(
+    InvoiceSummary invoice,
+    BuildContext context,
+  ) async {
     try {
       final receiptController = Get.put(ReceiptController());
       final receipt = await receiptController.registerSalesReceipt(
@@ -722,7 +750,7 @@ class InvoiceController extends GetxController {
       }
       Logger().e('Error in auto receipt/preview: $e');
       // Fallback to showing the dialog if something fails
-      _showPostRegistrationDialog(invoice);
+      _showPostRegistrationDialog(invoice, context);
     } finally {
       isSubmitting.value = false;
     }
@@ -734,7 +762,9 @@ class InvoiceController extends GetxController {
   ) async {
     pw.Font? ethiopicRegular;
     try {
-      final regData = await rootBundle.load('assets/fonts/NotoSansEthiopic-Regular.ttf');
+      final regData = await rootBundle.load(
+        'assets/fonts/NotoSansEthiopic-Regular.ttf',
+      );
       ethiopicRegular = pw.Font.ttf(regData);
     } catch (e) {
       debugPrint('Ethiopic font load error: $e');
@@ -755,7 +785,10 @@ class InvoiceController extends GetxController {
     return pdf.save();
   }
 
-  void _showPostRegistrationDialog(InvoiceSummary invoice) {
+  void _showPostRegistrationDialog(
+    InvoiceSummary invoice,
+    BuildContext context,
+  ) {
     Get.dialog(
       barrierDismissible: false,
       Dialog(
@@ -769,12 +802,12 @@ class InvoiceController extends GetxController {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF00FFB3).withOpacity(0.1),
+                  color: Theme.of(context).primaryColor.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.check_circle_outline_rounded,
-                  color: Color(0xFF00FFB3),
+                  color: Theme.of(context).primaryColor,
                   size: 48,
                 ),
               ),
@@ -784,7 +817,7 @@ class InvoiceController extends GetxController {
                 style: TextStyle(
                   color: Get.theme.colorScheme.onSurface,
                   fontSize: 22,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 8),
@@ -801,17 +834,9 @@ class InvoiceController extends GetxController {
                   Get.back();
                   Get.to(() => InvoiceDetailScreen(invoice: invoice));
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00FFB3),
-                  foregroundColor: Colors.black,
-                  minimumSize: const Size(double.infinity, 54),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
                 child: const Text(
                   'Register Sales Receipt',
-                  style: TextStyle(fontWeight: FontWeight.w900),
+                  style: TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
               const SizedBox(height: 12),

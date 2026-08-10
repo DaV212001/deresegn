@@ -182,12 +182,10 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
               withNavBar: false,
             );
           },
-          backgroundColor: theme.primaryColor,
-          foregroundColor: theme.scaffoldBackgroundColor,
           icon: const Icon(CupertinoIcons.add),
           label: Text(
             'new_invoice'.tr,
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ),
       ),

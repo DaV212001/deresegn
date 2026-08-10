@@ -235,7 +235,7 @@ class SettingsScreen extends StatelessWidget {
         title.toUpperCase(),
         style: TextStyle(
           color: theme.primaryColor,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w600,
           fontSize: 13,
           letterSpacing: 1.2,
         ),
