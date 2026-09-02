@@ -1,0 +1,353 @@
+<h1>Mobile Application Security Testing Requirements Document</h1>
+<p><strong>Prepared By</strong>: Information Network Security Administration (INSA) 2025
+<strong>Submitted by</strong>: Micro Sun and Solutions PLC (MSS)
+<strong>Submitted to</strong>: Information Network Security Administration (INSA)</p>
+<hr />
+<h2>Table of Contents</h2>
+<ol>
+<li>Introduction<ol>
+<li>Purpose</li>
+<li>Ownership</li>
+<li>Scope</li>
+<li>Objective of this certificate requested</li>
+</ol>
+</li>
+<li>Legal and Administrative Documents</li>
+<li>Technical Documentation for Web Application Security Testing<ol>
+<li>Business Architecture and Design</li>
+<li>Features of the Web Application</li>
+<li>Security Functionality Document</li>
+<li>Secure Coding Standard Documentation</li>
+<li>Threat Modeling &amp; Risk Management</li>
+<li>Previous Security Testing Reports</li>
+<li>OS Supported by the Mobile Application</li>
+<li>Hybrid Framework Specifics</li>
+<li>Logging &amp; Monitoring Setup</li>
+<li>Specific Functionalities for Detailed Testing</li>
+<li>Restrictions or Limitations on Testing Approach</li>
+<li>Compliance or Regulatory Requirements</li>
+<li>Known Vulnerabilities or Security Concerns</li>
+</ol>
+</li>
+<li>API Security Audit Requirements<ol>
+<li>API Types</li>
+<li>Authentication Mechanism</li>
+<li>Third-Party Integrations</li>
+<li>Authorization and Access Control</li>
+<li>Full API Documentation</li>
+</ol>
+</li>
+<li>Contact Information and Communication Channel</li>
+<li>Specific Scope Table</li>
+<li>Conclusion</li>
+</ol>
+<hr />
+<h2>Background of Organization</h2>
+<p>Micro Sun and Solutions PLC (MSS) is an IT company founded in January 1997, specializing in hardware and network solutions. We offer customized solutions tailored to various industries, including government, banking, and telecom. We focus on high-quality software development and implementation, providing comprehensive corporate solutions across multiple sectors. Our company emphasizes 100% customer satisfaction and aims to deliver quality products and services at an affordable cost.</p>
+<hr />
+<h2>1. Introduction</h2>
+<h3>1.1 Purpose</h3>
+<p>This document provides an overview of the Web and Mobile Application Security Testing Requirements Document, compiled for the Information Network Security Administration (INSA). The application in scope is the <strong>Deresegn Point of Sale (POS) and SaaS Application</strong>, which integrates with the Ethiopian Ministry of Revenues (MoR) e-invoicing system.</p>
+<h3>1.2 Ownership</h3>
+<p>The owner of this document is the <strong>Deresegn Engineering and Compliance Department</strong>. </p>
+<h3>1.3 Scope</h3>
+<p>The scope encompasses the security mechanisms, architectural layouts, and data flows of the Deresegn POS/SaaS application:
+- The Flutter-based mobile client interfaces.
+- The Laravel 8 (PHP) backend REST API.
+- The local SharedPreferences storage handling offline queuing.
+- The integration with the Ministry of Revenues (MoR) e-invoicing API.</p>
+<h3>1.4 Objective of this certificate requested</h3>
+<p>The objective of requesting this security certificate is to comply with the national cybersecurity mandates established by the Information Network Security Administration (INSA). Obtaining this certification ensures that the Deresegn Point of Sale (POS) and SaaS Application meets the rigorous security, integrity, and confidentiality standards required before public rollout and handling sensitive MoR fiscal data.</p>
+<hr />
+<h2>2. Legal and Administrative Documents (Mandatory)</h2>
+<p>The following legal prerequisites and administrative documents are mandatory prior to the finalization of the INSA audit:
+1. <strong>Updated Trade License</strong>: [Placeholder for Trade License ID]
+2. <strong>TIN Number or National ID</strong>: [Placeholder for TIN Number]
+3. <strong>System/Product Patent Certificate (if available)</strong>: [Placeholder for Patent]</p>
+<hr />
+<h2>3. Technical Documentation for Web Application Security Testing</h2>
+<h3>3.1 Business Architecture and Design</h3>
+<h4>3.1.1 Data Flow Diagram (DFD)</h4>
+<p><img alt="Data Flow Diagram" src="dfd.png" /></p>
+<ol>
+<li><strong>Invoice Initialization</strong>: The cashier (User) selects items and initiates an invoice on the Flutter POS Application.</li>
+<li><strong>Local Validation</strong>: The mobile app validates inventory and necessary fields locally.</li>
+<li><strong>Network Check &amp; Queuing</strong>: </li>
+<li>Offline: The transaction is queued securely in local SharedPreferences.</li>
+<li>Online: The request is transmitted via HTTPS to the Laravel backend.</li>
+<li><strong>Backend Processing &amp; Authentication</strong>: The Laravel API authenticates the user via a JWT token. It checks the specific Branch TIN and fetches the Branch Password to request a temporary MoR token.</li>
+<li><strong>Fiscal Registration</strong>: The backend submits the payload to the MoR API. The MoR returns a fiscal receipt number.</li>
+<li><strong>Finalization</strong>: The backend updates the database and returns a success response.</li>
+</ol>
+<h4>3.1.2 System Architecture Diagram</h4>
+<p><img alt="System Architecture Diagram" src="sys_arch.png" /></p>
+<ul>
+<li><strong>Presentation Layer (Frontend)</strong>: Flutter (Dart). Employs GetX for state management and routing, and SharedPreferences for offline queuing.</li>
+<li><strong>Application Layer (Backend)</strong>: Built with the Laravel 8 framework.</li>
+<li><strong>Data Layer (Backend)</strong>: Relational MySQL database. Storage for receipts is offloaded to the local server storage.</li>
+<li><strong>Integration Layer</strong>: Connects securely with the Ministry of Revenues (MoR) API.</li>
+</ul>
+<h4>3.1.3 Entity Relationship Diagram (ERD)</h4>
+<p><img alt="Entity Relationship Diagram" src="erd.png" /></p>
+<p><strong>Key Entities and Definitions</strong>:
+- <strong>COMPANY &amp; COMPANY_USERS</strong>: <code>COMPANY</code> represents the master tenant. <code>COMPANY_USERS</code> contains <code>name</code>, <code>phone</code>, <code>password</code>, and <code>role</code>. 
+- <strong>COMPANY_BRANCHES</strong>: Represent the physical stores tied to a company. They contain the critical <code>tin_number</code>, <code>client_id</code>, and <code>client_secret</code> (encrypted via model casts).
+- <strong>MOR_INVOICES</strong>: The central fiscal transactional record. Holds <code>irn</code>, <code>document_number</code>, <code>status</code>, and the <code>full_response</code> (JSON). Tied to both a Branch and a Company.
+- <strong>MOR_RECEIPTS</strong>: Represents actual payments synced with the MoR. 
+- <strong>SUPPLIES</strong>: Represents inventory items, holding <code>item_code</code>, <code>unit_price</code>, and <code>tax_code</code>.</p>
+<h3>3.2 Features of the Web Application</h3>
+<ul>
+<li><strong>Development Frameworks</strong>: Flutter (SDK ^3.12.2) and Dart (&gt;=3.0.0) for Frontend; Laravel 8 (PHP) for Backend.</li>
+<li><strong>Offline Reliability</strong>: Invoices generated during internet outages are converted to JSON and queued locally in SharedPreferences.</li>
+<li><strong>Actor Types</strong>: </li>
+<li><em>Super Admin / Owner</em>: Global oversight, company registration.</li>
+<li><em>Branch Users</em>: Restricted to specific branch checkout functions.</li>
+</ul>
+<h3>3.3 Security Functionality Document</h3>
+<h4>3.3.1 Authentication and Access Control</h4>
+<ol>
+<li><strong>Access Allocation</strong>: Users are assigned roles (e.g., owner) upon creation.</li>
+<li><strong>API Authentication</strong>: Executed via JSON Web Tokens (JWT). The payload is signed with an HS256 cryptographic secret.</li>
+</ol>
+<h4>3.3.2 User ID Authentication</h4>
+<p>Authentication utilizes unique Phone Numbers and Passwords tied to specific Company IDs.</p>
+<h4>3.3.3 Change Password</h4>
+<p>The application relies on users to set their password during registration or account creation. There is currently no mechanism that forces a user to change their password upon their first login. </p>
+<h4>3.3.4 User ID / Password Management</h4>
+<p>Each user registers with a unique Phone Number. The system relies on administrative procedures to discourage the sharing of accounts between cashiers.</p>
+<h4>3.3.5 Sharing Information</h4>
+<p>Users are expected to keep their credentials confidential.</p>
+<h4>3.3.6 Complexity of Password</h4>
+<p>The backend API enforces a minimum password length of six (6) characters during registration and login. Passwords are mathematically hashed exclusively using Laravel's native Bcrypt implementation (<code>Hash::make</code>). There are no programmatic requirements for special characters, numbers, or mixed casing.</p>
+<h4>3.3.7 Password Expiry</h4>
+<p>The application does not currently enforce password expiration or rotation. Passwords remain valid indefinitely unless manually changed by the user or an administrator.</p>
+<h4>3.3.8 Password History</h4>
+<p>Password history is not tracked in the database. Users are permitted to reuse old passwords if they choose to change them.</p>
+<h4>3.3.9 Invalid Login Attempt</h4>
+<p>If a user submits an incorrect password, the API returns a standard <code>401 Unauthorized</code> response. The application currently relies on the hosting provider's infrastructure to handle mass brute-force attacks, as API-level rate limiting (<code>ThrottlesLogins</code>) is not explicitly implemented on the authentication endpoints.</p>
+<h4>3.3.10 Lockout Duration</h4>
+<p>Because invalid login attempts are not systematically counted in the database, there is no automatic lockout duration enforced on user accounts.</p>
+<h4>3.3.11 Session Idle Time</h4>
+<p>The JWT Time-To-Live (TTL) is configured to expire after 60 minutes. Once the 60 minutes elapse, the token is invalidated and the user must re-authenticate.</p>
+<h4>3.3.12 Encryption &amp; Secure Communication</h4>
+<ul>
+<li><strong>Data in Transit</strong>: The application relies on standard TLS encryption provided by the hosting environment for all API communications.</li>
+<li><strong>Data at Rest</strong>: Passwords are never stored in plaintext (hashed using Bcrypt). Sensitive MoR credentials (<code>client_secret</code>, <code>api_key</code>) in the <code>company_branches</code> table are encrypted at rest using Laravel's model casting mechanism (<code>encrypted</code>).</li>
+</ul>
+<h3>3.4 Secure Coding Standard Documentation</h3>
+<h4>3.4.1 Secure Coding Requirements</h4>
+<ul>
+<li><strong>Input Validation</strong>: API endpoints utilize Laravel Validator logic (e.g., <code>Validator::make</code>) to ensure required fields and correct data types are passed.</li>
+<li><strong>Database Safety</strong>: The Eloquent ORM is utilized to interact with the MySQL database, which utilizes PDO parameterization to mitigate SQL Injection (SQLi) vulnerabilities.</li>
+<li><strong>Secrets Management</strong>: Database credentials and JWT secrets are injected via environment variables (<code>.env</code>).</li>
+</ul>
+<h3>3.5 Threat Modeling &amp; Risk Management</h3>
+<h4>3.5.1 Asset Identification</h4>
+<ol>
+<li><strong>Critical (High Risk)</strong>: MoR fiscal tokens, Branch TIN passwords, user password hashes.</li>
+<li><strong>Important (Medium Risk)</strong>: Invoice historical data.</li>
+<li><strong>Public (Low Risk)</strong>: Item catalogs.</li>
+</ol>
+<h4>3.5.2 Risk Assessment and Management</h4>
+<ul>
+<li><strong>Spoofing</strong>: Mitigated by stateless JWT validation ensuring requests originate from authenticated users.</li>
+<li><strong>Information Disclosure</strong>: Prevented by hiding sensitive data (like the <code>client_secret</code> and <code>api_key</code>) from API JSON responses using Laravel's <code>$hidden</code> array on Eloquent models.</li>
+</ul>
+<h3>3.6 Previous Security Testing Reports</h3>
+<p>The application relies on standard Laravel and Flutter linting alongside standard functional testing. Any comprehensive penetration testing is performed prior to major production releases locally.</p>
+<h3>3.7 OS Supported by the Mobile Application</h3>
+<p>The application supports the Android operating system. 
+* <strong>Minimum Supported OS:</strong> Android 5.0 (Lollipop) - API Level 21 (Flutter default <code>minSdkVersion</code>).
+* <strong>Maximum Supported OS:</strong> Android 14 - API Level 34 (Flutter default <code>targetSdkVersion</code>).
+<em>(Note: iOS is currently out of scope for this specific audit, but the framework is cross-platform capable).</em></p>
+<h3>3.8 Hybrid Framework Specifics</h3>
+<p>The Deresegn mobile application is a hybrid cross-platform application developed using the <strong>Flutter framework (SDK ^3.12.2)</strong> and Dart language. 
+* <strong>State Management &amp; Routing:</strong> Handled by the <code>get</code> plugin (GetX).
+* <strong>Network &amp; API Communication:</strong> Managed via the <code>dio</code> HTTP client.
+* <strong>Storage &amp; Native Interaction:</strong> Uses <code>flutter_secure_storage</code> for securely caching tokens, and <code>shared_preferences</code> for managing the local offline invoice queue. The application compiles directly to native ARM code, ensuring high performance without relying on web-views for core business logic.</p>
+<h3>3.9 Logging &amp; Monitoring Setup</h3>
+<p>The application utilizes the <code>logger</code> package to track user activity, network state changes, and security events. 
+* <strong>Client-Side Logging:</strong> Important application state changes (e.g., <code>Network restored, attempting to sync offline queue</code>, <code>Company authentication required</code>) and HTTP request failures (e.g., <code>Retrying GET path after X seconds</code>) are logged to the console for debugging. 
+* <strong>Production Alerting:</strong> In production, standard HTTP 4xx and 5xx errors are captured by the backend server logs.</p>
+<h3>3.10 Specific Functionalities for Detailed Testing</h3>
+<p>We request that the INSA audit specifically focuses on the following security-critical workflows:
+1. <strong>Invoice Generation:</strong> The core flow of generating, validating, and submitting fiscal invoices securely to the MoR.
+2. <strong>The Offline-to-Online Sync Mechanism:</strong> Validating the security of invoices temporarily queued in <code>shared_preferences</code> during network outages.
+3. <strong>MoR Token Exchange:</strong> The backend process of reading the Branch TIN and Password, requesting a temporary MoR token, and signing the fiscal receipt.
+4. <strong>Multi-Tenant Authentication:</strong> The JWT-based login flows (<code>/api/company/login</code>, <code>/api/branch/login</code>) ensuring strict data isolation between companies and branches.</p>
+<h3>3.11 Restrictions or Limitations on Testing Approach</h3>
+<ul>
+<li><strong>No Denial-of-Service (DoS) or DDoS:</strong> Please refrain from conducting volumetric attacks against the production API (<code>https://api.deresegn.com</code>).</li>
+<li><strong>Safe Testing Environment:</strong> All dynamic testing should be conducted using the provided Test Accounts. Testers must not tamper with or attempt to modify live financial data belonging to other companies in the multi-tenant database.</li>
+</ul>
+<h3>3.12 Compliance or Regulatory Requirements</h3>
+<p>The application strictly adheres to the fiscal and invoicing regulations mandated by the <strong>Ethiopian Ministry of Revenues (MoR)</strong>. This requires exact formatting of JSON payloads, strict transmission of tax codes, and secure handling of Branch TINs and passwords.</p>
+<h3>3.13 Known Vulnerabilities or Security Concerns</h3>
+<ul>
+<li><strong>Password Rotation:</strong> The system currently does not enforce a mandatory password rotation policy or require users to change their passwords upon first login.</li>
+<li><strong>Brute-Force Protection:</strong> API-level rate limiting (ThrottlesLogins) is currently offloaded to the hosting infrastructure rather than explicitly implemented on the <code>/api/login</code> endpoints in the application layer.</li>
+</ul>
+<hr />
+<h2>4. API Security Audit Requirements</h2>
+<h3>4.1 API Types</h3>
+<p>The backend exposes RESTful APIs utilizing HTTP methods and JSON formats.</p>
+<h3>4.2 Authentication Mechanism</h3>
+<ol>
+<li><strong>Client to Backend</strong>: Authenticated using <strong>JWT (JSON Web Tokens)</strong> passed in the <code>Authorization: Bearer &lt;token&gt;</code> header.</li>
+<li><strong>Backend to MoR</strong>: The Laravel server reads the branch's specific TIN and Password from the database, exchanges them for a temporary MoR token, and injects this temporary token into the headers of fiscal requests.</li>
+</ol>
+<h3>4.3 Third-Party Integrations</h3>
+<p>The primary integration is the <strong>Ethiopian Ministry of Revenues (MoR) e-invoicing API</strong>. </p>
+<h3>4.4 Authorization and Access Control</h3>
+<p>Endpoints are protected by JWT middleware to ensure that only authenticated companies and their respective users can access their financial records.</p>
+<h3>4.5 Full API Documentation</h3>
+<p>The mobile client interacts with the backend over HTTPS (<code>https://api.deresegn.com</code>). </p>
+<h4>Core Authentication &amp; Organization Endpoints</h4>
+<ul>
+<li><strong><code>GET /api/companies</code></strong> </li>
+<li><strong>Description:</strong> Retrieves a public list of active companies for the pre-login picker.</li>
+<li>
+<p><strong>Response:</strong> Array of objects <code>[{ "id": integer, "company_name": string }]</code></p>
+</li>
+<li>
+<p><strong><code>POST /api/company/register</code></strong> </p>
+</li>
+<li><strong>Description:</strong> Registers a new parent company and owner user.</li>
+<li><strong>Request Body:</strong> <code>{ "company_name": string (optional), "tin_number": string (optional), "owner_name": string (optional), "phone": string (required), "password": string (required, min: 6) }</code></li>
+<li>
+<p><strong>Response:</strong> <code>{ "user": object, "token": JWT }</code> (201 Created)</p>
+</li>
+<li>
+<p><strong><code>POST /api/company/login</code></strong> </p>
+</li>
+<li><strong>Description:</strong> Authenticates the parent company/owner user.</li>
+<li><strong>Request Body:</strong> <code>{ "phone": string (required), "password": string (required), "company_id": integer (optional), "tin_number": string (optional) }</code></li>
+<li>
+<p><strong>Response:</strong> <code>{ "user": object, "token": JWT }</code></p>
+</li>
+<li>
+<p><strong><code>POST /api/branch/login</code></strong> </p>
+</li>
+<li><strong>Description:</strong> Authenticates a specific branch using its TIN and branch password.</li>
+<li><strong>Request Body:</strong> <code>{ "tin_number": string (required), "password": string (required) }</code></li>
+<li>
+<p><strong>Response:</strong> <code>{ "branch": object, "token": JWT }</code></p>
+</li>
+<li>
+<p><strong><code>POST /api/branches</code></strong> (Requires Bearer Token)</p>
+</li>
+<li><strong>Description:</strong> Creates a new branch under the authenticated company.</li>
+<li><strong>Request Body (Multipart Form):</strong> <code>branch_name</code>, <code>location</code>, <code>phone_number</code>, <code>email</code>, <code>tin_number</code>, <code>client_id</code>, <code>client_secret</code>, <code>api_key</code>, <code>password</code>, <code>private_key</code> (file), <code>certificate</code> (file).</li>
+<li><strong>Response:</strong> The created branch object (201 Created)</li>
+</ul>
+<h4>Supply Catalog Endpoints</h4>
+<ul>
+<li><strong><code>GET /api/supplies</code></strong></li>
+<li><strong>Description:</strong> Retrieves the list of supplies/items in the catalog.</li>
+<li><strong><code>POST /api/supplies</code></strong></li>
+<li><strong>Description:</strong> Adds a new item to the supply catalog.</li>
+</ul>
+<h4>Ministry of Revenues (MoR) Integration Endpoints</h4>
+<p><em>All routes below (except <code>/api/refresh/token</code>) require a <code>Branch-Id</code> header to resolve the specific branch's MoR credentials.</em></p>
+<ul>
+<li><strong><code>POST /api/login</code></strong></li>
+<li><strong>Description:</strong> Automates the MoR authentication flow using the branch's securely stored <code>client_secret</code> and <code>api_key</code>.</li>
+<li><strong>Headers:</strong> <code>Branch-Id: &lt;branch_id&gt;</code></li>
+<li>
+<p><strong>Response:</strong> Forwards the MoR authorization token.</p>
+</li>
+<li>
+<p><strong><code>POST /api/invoice/register</code></strong></p>
+</li>
+<li><strong>Description:</strong> Registers a new fiscal invoice with the MoR.</li>
+<li><strong>Headers:</strong> <code>Branch-Id: &lt;branch_id&gt;</code>, <code>Mor-Token: &lt;token&gt;</code></li>
+<li><strong>Request Body:</strong> Follows exact MoR JSON specification for invoice payload.</li>
+<li>
+<p><strong>Response:</strong> Forwards MoR response (e.g., success, validation errors).</p>
+</li>
+<li>
+<p><strong><code>POST /api/cancel/invoice</code></strong></p>
+</li>
+<li><strong>Description:</strong> Cancels a previously registered MoR invoice.</li>
+<li>
+<p><strong>Headers:</strong> <code>Branch-Id: &lt;branch_id&gt;</code>, <code>Mor-Token: &lt;token&gt;</code></p>
+</li>
+<li>
+<p><strong><code>POST /api/irn/verfiy</code></strong></p>
+</li>
+<li><strong>Description:</strong> Verifies an Invoice Reference Number (IRN) with the MoR.</li>
+<li>
+<p><strong>Headers:</strong> <code>Branch-Id: &lt;branch_id&gt;</code>, <code>Mor-Token: &lt;token&gt;</code></p>
+</li>
+<li>
+<p><strong><code>POST /api/receipt/sales</code></strong> &amp; <strong><code>POST /api/receipt/withholding</code></strong></p>
+</li>
+<li><strong>Description:</strong> Submits standard sales and withholding receipts to MoR.</li>
+<li>
+<p><strong>Headers:</strong> <code>Branch-Id: &lt;branch_id&gt;</code>, <code>Mor-Token: &lt;token&gt;</code></p>
+</li>
+<li>
+<p><strong><code>POST /api/refresh/token</code></strong></p>
+</li>
+<li><strong>Description:</strong> Refreshes an existing MoR authorization token.</li>
+</ul>
+<h4>Invoice Retrieval Endpoints (Read-Only)</h4>
+<ul>
+<li><strong><code>GET /api/invoices</code></strong> &amp; <strong><code>GET /api/invoices/{id}</code></strong></li>
+<li><strong>Description:</strong> Retrieves historical invoices registered by the application.</li>
+<li><strong><code>GET /api/receipts/{type}/{value}</code></strong> </li>
+<li><strong>Description:</strong> Retrieval endpoint supporting multiple identifier types (e.g., <code>rrn</code>, <code>mor</code>, <code>irn</code>).</li>
+</ul>
+<hr />
+<h2>5. Contact Information and Communication Channel</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Name</th>
+<th style="text-align: left;">Role</th>
+<th style="text-align: left;">Address (Email and Mobile)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Amanuiel Tilahun</td>
+<td style="text-align: left;">CIO</td>
+<td style="text-align: left;">Email: tilahunamanuiel0@gmail.com <br> Mobile: +251911058179</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>6. Specific Scope Table</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Name of the Assets to be Audited</th>
+<th style="text-align: left;">APK/official link</th>
+<th style="text-align: left;">Test Account</th>
+<th style="text-align: left;">Static Analysis</th>
+<th style="text-align: left;">Dynamic Analysis</th>
+<th style="text-align: left;">Automated Source Code Analysis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Deresegn POS Mobile App</td>
+<td style="text-align: left;"><strong>APK Download:</strong> <a href="https://github.com/DaV212001/deresegn/releases/latest/download/app-release.apk">GitHub Release v1.0.0</a> <br><br> <strong>Source Code (Static Analysis):</strong> <a href="https://github.com/DaV212001/deresegn">GitHub Repository</a></td>
+<td style="text-align: left;"><strong>Company login:</strong> <br> Phone: 25191134567 <br> Password: password123 <br> Company ID: 9 <br><br> <strong>Branch login:</strong> <br> Tin: 0000037187 <br> Password: Maru@123</td>
+<td style="text-align: left;">Yes</td>
+<td style="text-align: left;">Yes</td>
+<td style="text-align: left;">Yes</td>
+</tr>
+<tr>
+<td style="text-align: left;">Deresegn Backend API</td>
+<td style="text-align: left;">https://api.deresegn.com</td>
+<td style="text-align: left;"><em>(Tested via mobile app accounts above)</em></td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">Yes</td>
+<td style="text-align: left;">No</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>7. Conclusion</h2>
+<p>Micro Sun and Solutions PLC is fully committed to maintaining a robust security posture for the Deresegn POS/SaaS application. Through the implementation of strict JWT authentication, secure local storage, local offline queuing, and encrypted MoR token management, we have designed the application to protect sensitive fiscal data at rest and in transit. We welcome INSA's comprehensive security audit to validate our compliance, strengthen our service delivery, and reduce our exposure to cyber threats.</p>
