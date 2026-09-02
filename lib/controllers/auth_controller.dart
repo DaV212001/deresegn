@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:deresegn/config/dio_config.dart';
 import 'package:dio/dio.dart' as dio_lib;
 import 'package:get/get.dart';
@@ -23,7 +24,7 @@ class AuthController extends GetxController {
     isLinked.value = ConfigPreference.getCompanyAccessToken() != null;
   }
 
-  Future<void> registerCompany(
+  Future<bool> registerCompany(
     String companyName,
     String tin,
     String owner,
@@ -33,6 +34,7 @@ class AuthController extends GetxController {
     String website,
   ) async {
     isCompanyLoading.value = true;
+    bool success = false;
     await ApiService.registerCompany(
       CompanyRegisterRequest(
         companyName: companyName,
@@ -47,22 +49,19 @@ class AuthController extends GetxController {
         final token = _tokenFromResponse(response.data);
         if (token != null) {
           await ConfigPreference.updateCompanyToken(token);
-          await ConfigPreference.clearMorTokens();
-          await ConfigPreference.clearBranch();
           await ConfigPreference.saveCompanyContext(
             companyId: _idFromResponse(response.data) ?? '',
           );
-          Get.offAllNamed('/branch-setup');
-        } else {
-          Get.snackbar('Registered', 'Company created. You can now log in.');
         }
+        success = true;
       },
       onFailure: (e, r) => _handleError(e, r),
     );
     isCompanyLoading.value = false;
+    return success;
   }
 
-  Future<void> loginCompany(
+  Future<bool> loginCompany(
     String phone,
     String password,
     String companyId,
@@ -72,9 +71,10 @@ class AuthController extends GetxController {
         'Missing details',
         'Phone, password, and company ID are required.',
       );
-      return;
+      return false;
     }
     isCompanyLoading.value = true;
+    bool success = false;
     await ApiService.loginCompany(
       CompanyLoginRequest(
         phone: phone.trim(),
@@ -94,15 +94,15 @@ class AuthController extends GetxController {
           return;
         }
         await ConfigPreference.updateCompanyToken('$token');
-        await ConfigPreference.clearBranch();
         await ConfigPreference.saveCompanyContext(
           companyId: '${data['company_id'] ?? data['companyId'] ?? companyId}',
         );
-        Get.offAllNamed('/branch-setup');
+        success = true;
       },
       onFailure: (e, r) => _handleError(e, r),
     );
     isCompanyLoading.value = false;
+    return success;
   }
 
   Future<void> performBranchLogin(String tin, String password) async {
@@ -126,21 +126,120 @@ class AuthController extends GetxController {
             apiKey: '',
             tin: branchDetails['tin_number'] ?? tin,
           );
-          await performMorLogin();
+          isLoggingIn.value = false;
+          Get.offAllNamed('/dashboard');
         } else {
           Logger().w('Branch login returned 200 but missing token payload.');
           isLoggingIn.value = false;
         }
       },
       onFailure: (error, response) {
-        Logger().e('Branch login failed: $error');
+        Logger().e('Login failed: $error');
         _handleError(error, response);
         isLoggingIn.value = false;
-        Get.snackbar(
-          'Login Failed',
-          'Could not authenticate branch. Status: ${response.statusCode}',
-        );
       },
+    );
+  }
+
+  Future<bool> ensureMorAuth() async {
+    final morToken = ConfigPreference.getMorToken();
+    if (morToken != null && morToken.isNotEmpty) {
+      return true;
+    }
+
+    bool success = false;
+    await ApiService.login(
+      onSuccess: (response) async {
+        final body = response.data is Map ? response.data : <String, dynamic>{};
+        final data = body['data'] is Map ? body['data'] : body;
+        final token = data['accessToken'] ?? data['access_token'] ?? data['token'];
+        final refresh = data['refreshToken'] ?? data['refresh_token'] ?? '';
+        final expires = data['expiresIn'] ?? data['expires_in'] ?? 3600;
+
+        if (token != null && '$token'.isNotEmpty) {
+          final int expiryInt = expires is int ? expires : (int.tryParse('$expires') ?? 3600);
+          await ConfigPreference.updateMorTokens('$token', '$refresh', expiryInt);
+          Logger().i('Deferred MoR login successful.');
+          success = true;
+        } else {
+          Logger().w('MoR login returned 200 but missing token.');
+          success = false;
+        }
+      },
+      onFailure: (error, response) {
+        Logger().e('Deferred MoR login failed: $error');
+        success = false;
+      },
+    );
+
+    return success;
+  }
+
+  void showMorCredentialsRequiredDialog({String action = 'perform this action'}) {
+    Get.dialog(
+      Dialog(
+        backgroundColor: Get.theme.colorScheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.support_agent_rounded,
+                  color: Colors.amber,
+                  size: 44,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'MoR Setup Required',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Get.theme.textTheme.bodyLarge?.color,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'To $action, your branch must have Ministry of Revenues (MoR) credentials configured.\n\nPlease contact support to set up your MoR credentials.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Get.theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Get.back(),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

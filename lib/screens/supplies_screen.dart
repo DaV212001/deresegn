@@ -112,25 +112,38 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
           TextButton(onPressed: () => Get.back(), child: Text('cancel'.tr)),
           ElevatedButton(
             onPressed: () {
-              if (descController.text.isNotEmpty &&
-                  priceController.text.isNotEmpty) {
-                final newItem = InvoiceItem(
-                  description: descController.text,
-                  unitPrice: double.tryParse(priceController.text) ?? 0,
-                  quantity: 1,
-                  taxCategory: selectedTax.value,
-                  natureOfSupplies: selectedNature,
-                  unit: selectedUnit,
-                  itemCode: itemCodeController.text,
-                );
-
-                if (existingItem == null) {
-                  _controller.saveItemToCatalog(newItem);
-                } else {
-                  _controller.updateSupply(existingItem.id!, newItem);
-                }
-                Get.back();
+              final desc = descController.text.trim();
+              final priceText = priceController.text.trim();
+              if (desc.isEmpty) {
+                Get.snackbar('Missing details', 'Please enter a product description.');
+                return;
               }
+              if (priceText.isEmpty) {
+                Get.snackbar('Missing details', 'Please enter a unit price.');
+                return;
+              }
+              final price = double.tryParse(priceText);
+              if (price == null || price < 0) {
+                Get.snackbar('Invalid Price', 'Please enter a valid positive number for unit price.');
+                return;
+              }
+
+              final newItem = InvoiceItem(
+                description: desc,
+                unitPrice: price,
+                quantity: 1,
+                taxCategory: selectedTax.value,
+                natureOfSupplies: selectedNature,
+                unit: selectedUnit,
+                itemCode: itemCodeController.text.trim(),
+              );
+
+              if (existingItem == null) {
+                _controller.saveItemToCatalog(newItem);
+              } else {
+                _controller.updateSupply(existingItem.id!, newItem);
+              }
+              Get.back();
             },
             child: Text(
               existingItem == null ? 'save_supply'.tr : 'update_supply'.tr,

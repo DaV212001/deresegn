@@ -22,6 +22,7 @@ import '../services/api_service.dart';
 import '../services/invoice_pdf_service.dart';
 import '../services/offline_queue_service.dart';
 import '../services/receipt_pdf_service.dart';
+import 'auth_controller.dart';
 import 'invoice_history_controller.dart';
 import 'receipt_controller.dart';
 
@@ -290,6 +291,20 @@ class InvoiceController extends GetxController {
       return;
     }
 
+    final authController = Get.isRegistered<AuthController>()
+        ? Get.find<AuthController>()
+        : Get.put(AuthController());
+    final hasMorAuth = await authController.ensureMorAuth();
+    if (!hasMorAuth) {
+      authController.showMorCredentialsRequiredDialog(action: 'create an invoice');
+      Get.snackbar(
+        'MoR Credentials Required',
+        'Please contact support to set up your MoR credentials.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
     isSubmitting.value = true;
     final int nextDocNumber = await _getNextDocumentNumber();
 
@@ -417,6 +432,20 @@ class InvoiceController extends GetxController {
   }
 
   Future<void> registerSampleInvoice(BuildContext context) async {
+    final authController = Get.isRegistered<AuthController>()
+        ? Get.find<AuthController>()
+        : Get.put(AuthController());
+    final hasMorAuth = await authController.ensureMorAuth();
+    if (!hasMorAuth) {
+      authController.showMorCredentialsRequiredDialog(action: 'create an invoice');
+      Get.snackbar(
+        'MoR Credentials Required',
+        'Please contact support to set up your MoR credentials.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
     isSubmitting.value = true;
     final int nextDocNumber = await _getNextDocumentNumber();
     final tin = await ConfigPreference.getTin();
@@ -877,10 +906,22 @@ class InvoiceController extends GetxController {
     }
 
     // Log the final error message being shown to the user
+    final int? statusCode = (error is dio_lib.DioException)
+        ? error.response?.statusCode
+        : (error is int ? error : response?.statusCode);
+    final isMorAuthError = statusCode == 401 ||
+        errorMsg.toLowerCase().contains('mor') ||
+        errorMsg.toLowerCase().contains('gateway') ||
+        errorMsg.toLowerCase().contains('credential');
+
+    if (isMorAuthError) {
+      errorMsg = 'Please contact support to set up your MoR credentials.';
+    }
+
     Logger().e('Final Error Message: $errorMsg');
 
     Get.snackbar(
-      'Error',
+      isMorAuthError ? 'MoR Credentials Required' : 'Error',
       errorMsg,
       snackPosition: SnackPosition.BOTTOM,
       duration: const Duration(seconds: 5),
@@ -950,6 +991,20 @@ class CancelInvoiceController extends GetxController {
   var isSubmitting = false.obs;
 
   Future<void> cancelInvoice(String irn, String reasonCode) async {
+    final authController = Get.isRegistered<AuthController>()
+        ? Get.find<AuthController>()
+        : Get.put(AuthController());
+    final hasMorAuth = await authController.ensureMorAuth();
+    if (!hasMorAuth) {
+      authController.showMorCredentialsRequiredDialog(action: 'cancel an invoice');
+      Get.snackbar(
+        'MoR Credentials Required',
+        'Please contact support to set up your MoR credentials.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
     isSubmitting.value = true;
     final req = InvoiceCancelRequest(irn: irn, reasonCode: reasonCode);
     await ApiService.cancelInvoice(

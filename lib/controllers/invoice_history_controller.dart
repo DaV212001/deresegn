@@ -1,8 +1,10 @@
+import 'package:dio/dio.dart' as dio_lib;
 import 'package:get/get.dart';
 import 'package:logger/logger.dart';
 
 import '../models/invoice_history_model.dart';
 import '../services/api_service.dart';
+import 'auth_controller.dart';
 
 class InvoiceHistoryController extends GetxController {
   var invoices = <InvoiceSummary>[].obs;
@@ -42,6 +44,18 @@ class InvoiceHistoryController extends GetxController {
 
     hasError.value = false;
 
+    final authController = Get.isRegistered<AuthController>()
+        ? Get.find<AuthController>()
+        : Get.put(AuthController());
+    final hasMorAuth = await authController.ensureMorAuth();
+    if (!hasMorAuth) {
+      hasError.value = true;
+      errorMessage.value = 'Please contact support to set up your MoR credentials.';
+      isLoading.value = false;
+      isLoadingMore.value = false;
+      return;
+    }
+
     String? startStr = startDate.value != null
         ? startDate.value!.toIso8601String().split('T')[0]
         : null;
@@ -66,7 +80,26 @@ class InvoiceHistoryController extends GetxController {
       onFailure: (error, response) {
         Logger().e('Failed to fetch invoices: $error');
         hasError.value = true;
-        errorMessage.value = 'Failed to load invoices. Please try again.';
+
+        final dynamic errorData = (error is dio_lib.DioException)
+            ? error.response?.data
+            : response.data;
+        final int? statusCode = (error is dio_lib.DioException)
+            ? error.response?.statusCode
+            : response.statusCode;
+
+        final isMorError = statusCode == 401 ||
+            (errorData is Map &&
+                (errorData['code'] == '4503' ||
+                 errorData['message'] == 'GATEWAY ERROR' ||
+                 '${errorData['message']}'.toLowerCase().contains('mor') ||
+                 '${errorData['message']}'.toLowerCase().contains('credential')));
+
+        if (isMorError) {
+          errorMessage.value = 'Please contact support to set up your MoR credentials.';
+        } else {
+          errorMessage.value = 'Failed to load invoices. Please try again.';
+        }
         isLoading.value = false;
         isLoadingMore.value = false;
       },

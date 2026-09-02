@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../controllers/auth_controller.dart';
-import '../models/company_models.dart';
-import '../services/api_service.dart';
+import 'branch_setup_screen.dart';
 
 class CompanyAuthScreen extends StatefulWidget {
   const CompanyAuthScreen({super.key});
@@ -14,62 +14,34 @@ class CompanyAuthScreen extends StatefulWidget {
 
 class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
   final controller = Get.find<AuthController>();
-  final phone = TextEditingController();
-  final password = TextEditingController();
-  final companyId = TextEditingController();
-  final companyName = TextEditingController();
+
+  // Login Controllers
+  final loginPhone = TextEditingController();
+  final loginPassword = TextEditingController();
+
+  // Sign Up Controllers
+  final name = TextEditingController();
   final tin = TextEditingController();
   final owner = TextEditingController();
+  final phone = TextEditingController();
+  final password = TextEditingController();
   final email = TextEditingController();
   final website = TextEditingController();
 
   bool register = false;
-  bool companiesLoading = false;
-  bool companiesFailed = false;
-  List<CompanySummary> companies = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCompanies();
-  }
-
-  Future<void> _loadCompanies() async {
-    if (mounted) {
-      setState(() {
-        companiesLoading = true;
-        companiesFailed = false;
-      });
-    }
-    ApiService.fetchCompanies(
-      onSuccess: (items) {
-        if (mounted) {
-          setState(() {
-            companies = items;
-            companiesLoading = false;
-          });
-        }
-      },
-      onFailure: (_, _) {
-        if (mounted) {
-          setState(() {
-            companiesLoading = false;
-            companiesFailed = true;
-          });
-        }
-      },
-    );
-  }
+  bool _obscureRegisterPassword = true;
+  bool _obscureLoginPassword = true;
 
   @override
   void dispose() {
     for (final field in [
-      phone,
-      password,
-      companyId,
-      companyName,
+      loginPhone,
+      loginPassword,
+      name,
       tin,
       owner,
+      phone,
+      password,
       email,
       website,
     ]) {
@@ -78,14 +50,23 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
     super.dispose();
   }
 
-  InputDecoration _decoration(String label, {IconData? icon}) {
+  InputDecoration _decoration(
+    String label, {
+    IconData? icon,
+    String? helperText,
+    Widget? suffixIcon,
+  }) {
     final theme = Theme.of(context);
     return InputDecoration(
       labelText: label,
+      helperText: helperText,
+      helperStyle: const TextStyle(fontSize: 11, color: Colors.grey),
       prefixIcon: icon == null ? null : Icon(icon, size: 20),
+      suffixIcon: suffixIcon,
       filled: true,
       fillColor: theme.inputDecorationTheme.fillColor,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      counterText: '',
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
@@ -106,7 +87,11 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
     String label, {
     IconData? icon,
     bool obscure = false,
+    VoidCallback? onToggleObscure,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
+    int? maxLength,
+    String? helperText,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -114,25 +99,156 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
         controller: controller,
         obscureText: obscure,
         keyboardType: keyboardType,
-        decoration: _decoration(label, icon: icon),
+        inputFormatters: inputFormatters,
+        maxLength: maxLength,
+        decoration: _decoration(
+          label,
+          icon: icon,
+          helperText: helperText,
+          suffixIcon: onToggleObscure != null
+              ? IconButton(
+                  icon: Icon(
+                    obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                    size: 20,
+                    color: Colors.grey,
+                  ),
+                  onPressed: onToggleObscure,
+                )
+              : null,
+        ),
       ),
     );
   }
 
   Future<void> _submit() async {
     if (register) {
-      await controller.registerCompany(
-        companyName.text,
-        tin.text,
-        owner.text,
-        phone.text,
-        password.text,
-        email.text,
-        website.text,
+      if (name.text.trim().isEmpty) {
+        Get.snackbar('Missing details', 'Please enter company name.');
+        return;
+      }
+      if (tin.text.trim().isEmpty) {
+        Get.snackbar('Missing details', 'Please enter TIN number.');
+        return;
+      }
+      if (owner.text.trim().isEmpty) {
+        Get.snackbar('Missing details', 'Please enter owner name.');
+        return;
+      }
+      if (phone.text.trim().isEmpty) {
+        Get.snackbar('Missing details', 'Please enter phone number.');
+        return;
+      }
+      if (password.text.trim().isEmpty) {
+        Get.snackbar('Missing details', 'Please enter a password.');
+        return;
+      }
+      if (email.text.trim().isNotEmpty &&
+          !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email.text.trim())) {
+        Get.snackbar('Invalid Email', 'Please enter a valid email address.');
+        return;
+      }
+
+      final success = await controller.registerCompany(
+        name.text.trim(),
+        tin.text.trim(),
+        owner.text.trim(),
+        phone.text.trim(),
+        password.text.trim(),
+        email.text.trim(),
+        website.text.trim(),
       );
+
+      if (success) {
+        _showPostRegistrationDialog();
+      }
     } else {
-      await controller.loginCompany(phone.text, password.text, companyId.text);
+      if (loginPhone.text.trim().isEmpty) {
+        Get.snackbar('Missing details', 'Please enter phone number.');
+        return;
+      }
+      if (loginPassword.text.trim().isEmpty) {
+        Get.snackbar('Missing details', 'Please enter password.');
+        return;
+      }
+
+      await controller.performBranchLogin(
+        loginPhone.text.trim(),
+        loginPassword.text.trim(),
+      );
     }
+  }
+
+  void _showPostRegistrationDialog() {
+    Get.dialog(
+      Dialog(
+        backgroundColor: Get.theme.colorScheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.check_circle_outline_rounded,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Account Created!',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Get.theme.textTheme.bodyLarge?.color,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Your account has been created successfully. Would you like to set up your branch now or sign in?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Get.theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Get.back();
+                        setState(() => register = false);
+                      },
+                      child: const Text('Go to Sign In'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Get.back();
+                        Get.to(() => const BranchSetupScreen());
+                      },
+                      child: const Text('Set Up Branch'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -160,8 +276,12 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
                     ),
                   ],
                 ),
-                child: Obx(
-                  () => Column(
+                child: Obx(() {
+                  final isLoading = register
+                      ? controller.isCompanyLoading.value
+                      : controller.isLoggingIn.value;
+
+                  return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Container(
@@ -173,14 +293,14 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
-                          Icons.business_rounded,
+                          Icons.account_circle_outlined,
                           color: theme.colorScheme.primary,
-                          size: 30,
+                          size: 32,
                         ),
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        register ? 'Register your company' : 'Welcome back',
+                        register ? 'Create an account' : 'Welcome back',
                         style: theme.textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -188,8 +308,8 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
                       const SizedBox(height: 6),
                       Text(
                         register
-                            ? 'Create a company account to get started.'
-                            : 'Sign in as a company owner to continue.',
+                            ? 'Sign up to get started.'
+                            : 'Sign in to continue.',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.textTheme.bodySmall?.color,
                         ),
@@ -203,34 +323,45 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
                         ),
                         child: Row(
                           children: [
-                            _modeButton('Log in', !register, theme),
-                            _modeButton('Register', register, theme),
+                            _modeButton('Sign In', !register, theme, isLoading),
+                            _modeButton('Sign Up', register, theme, isLoading),
                           ],
                         ),
                       ),
                       const SizedBox(height: 24),
                       if (register) ...[
                         _field(
-                          companyName,
-                          'Company name',
-                          icon: Icons.business_outlined,
+                          name,
+                          'Name',
+                          icon: Icons.person_outline,
                         ),
-                        _field(tin, 'TIN number', icon: Icons.badge_outlined),
+                        _field(
+                          tin,
+                          'TIN number',
+                          icon: Icons.badge_outlined,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(10),
+                          ],
+                          maxLength: 10,
+                        ),
                         _field(owner, 'Owner name', icon: Icons.person_outline),
-                      ],
-                      _field(
-                        phone,
-                        'Phone number',
-                        icon: Icons.phone_outlined,
-                        keyboardType: TextInputType.phone,
-                      ),
-                      _field(
-                        password,
-                        'Password',
-                        icon: Icons.lock_outline,
-                        obscure: true,
-                      ),
-                      if (register) ...[
+                        _field(
+                          phone,
+                          'Phone number',
+                          icon: Icons.phone_outlined,
+                          keyboardType: TextInputType.phone,
+                        ),
+                        _field(
+                          password,
+                          'Password',
+                          icon: Icons.lock_outline,
+                          obscure: _obscureRegisterPassword,
+                          onToggleObscure: () => setState(
+                            () => _obscureRegisterPassword = !_obscureRegisterPassword,
+                          ),
+                        ),
                         _field(
                           email,
                           'Email',
@@ -243,45 +374,58 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
                           icon: Icons.language_outlined,
                         ),
                       ] else ...[
-                        _buildCompanySelector(theme),
+                        _field(
+                          loginPhone,
+                          'Phone number',
+                          icon: Icons.phone_outlined,
+                          keyboardType: TextInputType.phone,
+                        ),
+                        _field(
+                          loginPassword,
+                          'Password',
+                          icon: Icons.lock_outline,
+                          obscure: _obscureLoginPassword,
+                          onToggleObscure: () => setState(
+                            () => _obscureLoginPassword = !_obscureLoginPassword,
+                          ),
+                        ),
                       ],
                       const SizedBox(height: 4),
                       SizedBox(
                         height: 52,
                         child: ElevatedButton.icon(
-                          onPressed: controller.isCompanyLoading.value
-                              ? null
-                              : _submit,
-                          icon: controller.isCompanyLoading.value
+                          onPressed: isLoading ? null : _submit,
+                          icon: isLoading
                               ? const SizedBox.shrink()
                               : Icon(
                                   register ? Icons.arrow_forward : Icons.login,
                                 ),
-                          label: controller.isCompanyLoading.value
-                              ? const SizedBox(
+                          label: isLoading
+                              ? SizedBox(
                                   width: 22,
                                   height: 22,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
+                                    color: theme.colorScheme.onPrimary,
                                   ),
                                 )
-                              : Text(register ? 'Create company' : 'Continue'),
+                              : Text(register ? 'Sign Up' : 'Sign In'),
                         ),
                       ),
                       const SizedBox(height: 10),
                       TextButton(
-                        onPressed: controller.isCompanyLoading.value
+                        onPressed: isLoading
                             ? null
                             : () => setState(() => register = !register),
                         child: Text(
                           register
-                              ? 'Already have an account? Log in'
-                              : 'Need an account? Register',
+                              ? 'Already have an account? Sign In'
+                              : 'Don\'t have an account? Sign Up',
                         ),
                       ),
                     ],
-                  ),
-                ),
+                  );
+                }),
               ),
             ),
           ),
@@ -290,70 +434,16 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
     );
   }
 
-  Widget _buildCompanySelector(ThemeData theme) {
-    if (companiesLoading) {
-      return Container(
-        height: 56,
-        margin: const EdgeInsets.only(bottom: 14),
-        decoration: BoxDecoration(
-          color: theme.inputDecorationTheme.fillColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor.withOpacity(.35)),
-        ),
-        child: const Center(
-          child: SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
-      );
-    }
-
-    if (companiesFailed) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: OutlinedButton.icon(
-          onPressed: _loadCompanies,
-          icon: const Icon(Icons.refresh),
-          label: const Text('Could not load companies. Retry'),
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: DropdownButtonFormField<String>(
-        decoration: _decoration(
-          'Choose company',
-          icon: Icons.apartment_outlined,
-        ),
-        initialValue: companies.any((item) => item.id == companyId.text)
-            ? companyId.text
-            : null,
-        hint: const Text('Select a company'),
-        items: companies
-            .map(
-              (item) => DropdownMenuItem(
-                value: item.id,
-                child: Text('${item.name} (${item.id})'),
-              ),
-            )
-            .toList(),
-        onChanged: companies.isEmpty
-            ? null
-            : (value) {
-                if (value != null) companyId.text = value;
-              },
-      ),
-    );
-  }
-
-  Widget _modeButton(String label, bool selected, ThemeData theme) {
+  Widget _modeButton(
+    String label,
+    bool selected,
+    ThemeData theme,
+    bool isLoading,
+  ) {
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          if (!selected && !controller.isCompanyLoading.value) {
+          if (!selected && !isLoading) {
             setState(() => register = !register);
           }
         },

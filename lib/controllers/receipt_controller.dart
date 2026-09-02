@@ -4,6 +4,7 @@ import '../config/app_settings.dart';
 import '../config/config_preference.dart';
 import '../models/receipt_models.dart';
 import '../services/api_service.dart';
+import 'auth_controller.dart';
 import 'invoice_controller.dart';
 
 class ReceiptController extends GetxController {
@@ -20,6 +21,22 @@ class ReceiptController extends GetxController {
     String? paymentServiceProvider,
     bool showSnackbar = true,
   }) async {
+    final authController = Get.isRegistered<AuthController>()
+        ? Get.find<AuthController>()
+        : Get.put(AuthController());
+    final hasMorAuth = await authController.ensureMorAuth();
+    if (!hasMorAuth) {
+      if (showSnackbar) {
+        authController.showMorCredentialsRequiredDialog(action: 'register a receipt');
+        Get.snackbar(
+          'MoR Credentials Required',
+          'Please contact support to set up your MoR credentials.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+      return null;
+    }
+
     Get.log(
       "Registering Receipt for IRN: $invoiceIrn, DocNum: $documentNumber, Total: $invoiceTotal, Mode: $modeOfPayment",
     );
@@ -104,6 +121,20 @@ class ReceiptController extends GetxController {
     String buyerTin,
     double pretaxAmount,
   ) async {
+    final authController = Get.isRegistered<AuthController>()
+        ? Get.find<AuthController>()
+        : Get.put(AuthController());
+    final hasMorAuth = await authController.ensureMorAuth();
+    if (!hasMorAuth) {
+      authController.showMorCredentialsRequiredDialog(action: 'register withholding');
+      Get.snackbar(
+        'MoR Credentials Required',
+        'Please contact support to set up your MoR credentials.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
     isSubmittingWithholding.value = true;
     final systemNumber = await AppSettings.getSystemNumber();
 

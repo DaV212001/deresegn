@@ -27,11 +27,7 @@ class AuthInterceptor extends Interceptor {
 
   Future<void> _redirectToLogin() async {
     await ConfigPreference.clearMorTokens();
-    Get.offAllNamed(
-      ConfigPreference.getCompanyAccessToken() == null
-          ? '/company-auth'
-          : '/branch-setup',
-    );
+    Get.offAllNamed('/company-auth');
   }
 
   @override
@@ -98,10 +94,9 @@ class AuthInterceptor extends Interceptor {
             return handler.next(err);
           }
         } else {
-          await _redirectToLogin();
-          return handler.reject(
-            _sessionExpiredException(err.requestOptions, response: err.response),
-          );
+          Logger().w('MoR Token refresh failed. Clearing MoR token...');
+          await ConfigPreference.clearMorTokens();
+          return handler.next(err);
         }
       } else {
         Logger().d('Branch 401 Unauthorized detected. Logging out...');

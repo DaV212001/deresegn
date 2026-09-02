@@ -88,6 +88,50 @@ class InvoicePdfService {
     return words;
   }
 
+  static Future<pw.ThemeData> loadPdfTheme() async {
+    pw.Font? baseFont;
+    pw.Font? boldFont;
+    pw.Font? ethiopicRegular;
+    pw.Font? ethiopicBold;
+
+    try {
+      final baseData = await rootBundle.load('assets/fonts/AppFont-Regular.ttf');
+      baseFont = pw.Font.ttf(baseData);
+    } catch (e) {
+      debugPrint('Base font load error: $e');
+    }
+
+    try {
+      final boldData = await rootBundle.load('assets/fonts/AppFont-Bold.ttf');
+      boldFont = pw.Font.ttf(boldData);
+    } catch (e) {
+      debugPrint('Bold font load error: $e');
+    }
+
+    try {
+      final regData = await rootBundle.load('assets/fonts/NotoSansEthiopic-Regular.ttf');
+      ethiopicRegular = pw.Font.ttf(regData);
+    } catch (e) {
+      debugPrint('Ethiopic regular font load error: $e');
+    }
+
+    try {
+      final boldData = await rootBundle.load('assets/fonts/NotoSansEthiopic-Bold.ttf');
+      ethiopicBold = pw.Font.ttf(boldData);
+    } catch (e) {
+      debugPrint('Ethiopic bold font load error: $e');
+    }
+
+    return pw.ThemeData.withFont(
+      base: baseFont,
+      bold: boldFont,
+      fontFallback: [
+        if (ethiopicRegular != null) ethiopicRegular,
+        if (ethiopicBold != null) ethiopicBold,
+      ],
+    );
+  }
+
   static Future<Uint8List> generate(
     InvoiceSummary invoice, {
     bool isPaymentReceipt = false,
@@ -97,21 +141,8 @@ class InvoicePdfService {
     String? overrideQr,
     String? overrideReferenceIrn,
   }) async {
-    pw.Font? ethiopicRegular;
-    try {
-      final regData = await rootBundle.load(
-        'assets/fonts/NotoSansEthiopic-Regular.ttf',
-      );
-      ethiopicRegular = pw.Font.ttf(regData);
-    } catch (e) {
-      debugPrint('Ethiopic font load error: $e');
-    }
-
-    final pdf = pw.Document(
-      theme: pw.ThemeData.withFont(
-        fontFallback: [if (ethiopicRegular != null) ethiopicRegular],
-      ),
-    );
+    final pdfTheme = await loadPdfTheme();
+    final pdf = pw.Document(theme: pdfTheme);
 
     await generateIntoDocument(
       pdf,
@@ -183,6 +214,15 @@ class InvoicePdfService {
         ) ??
         0.0;
 
+    // ── Letterhead Background ────────────────────────────────────
+    pw.MemoryImage? letterheadImage;
+    try {
+      final imgBytes = await rootBundle.load('assets/deresegn_letterhead.png');
+      letterheadImage = pw.MemoryImage(imgBytes.buffer.asUint8List());
+    } catch (e) {
+      debugPrint('Letterhead load error: $e');
+    }
+
     // ── QR image ─────────────────────────────────────────────────
     pw.MemoryImage? qrImage;
     try {
@@ -195,10 +235,10 @@ class InvoicePdfService {
     }
 
     // ── Colors & styles ───────────────────────────────────────────
-    const headerBg = PdfColor.fromInt(0xFF1A3A5C);
+    const headerBg = PdfColor.fromInt(0xFF0D253A);
     const accentBg = PdfColor.fromInt(0xFFE8F0F8);
     const irnBg = PdfColor.fromInt(0xFFF5F5F5);
-    const tableHead = PdfColor.fromInt(0xFF2C5282);
+    const tableHead = PdfColor.fromInt(0xFF0D253A);
     const divider = PdfColor.fromInt(0xFFCCCCCC);
     const bodyText = PdfColor.fromInt(0xFF222222);
     const white = PdfColors.white;
@@ -253,8 +293,19 @@ class InvoicePdfService {
     // ── Build page ────────────────────────────────────────────────
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(28),
+        pageTheme: pw.PageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.fromLTRB(26, 46, 26, 50),
+          buildBackground: (context) {
+            if (letterheadImage != null) {
+              return pw.FullPage(
+                ignoreMargins: true,
+                child: pw.Image(letterheadImage, fit: pw.BoxFit.cover),
+              );
+            }
+            return pw.SizedBox();
+          },
+        ),
         header: (_) => _buildHeader(
           seller: seller,
           txType: txType,
@@ -610,106 +661,122 @@ class InvoicePdfService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        // Top banner
-        pw.Container(
-          width: double.infinity,
-          padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          color: headerBg,
-          child: pw.Row(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              // Company info
-              pw.Expanded(
-                flex: 3,
-                child: pw.Column(
+        // Top banner: Left space reserved for letterhead logo, right space contains branded banner
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.SizedBox(width: 90, height: 70),
+            pw.SizedBox(width: 10),
+            pw.Expanded(
+              child: pw.Container(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: pw.BoxDecoration(
+                  color: headerBg,
+                  borderRadius: pw.BorderRadius.circular(6),
+                ),
+                child: pw.Row(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text(
-                      _n(
-                        // seller['LegalName'] ?? seller['TradeName'], 'Micro Sun & Solution PLC'
-                        'Deresegn',
-                      ),
-                      style: pw.TextStyle(
-                        fontSize: 13,
-                        fontWeight: pw.FontWeight.bold,
-                        color: white,
+                    // Company info
+                    pw.Expanded(
+                      flex: 3,
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            _n(seller['LegalName'] ?? seller['TradeName'], 'Deresegn / ደረሰኝ'),
+                            style: pw.TextStyle(
+                              fontSize: 12,
+                              fontWeight: pw.FontWeight.bold,
+                              color: white,
+                            ),
+                          ),
+                          pw.SizedBox(height: 2),
+                          pw.Text(
+                            '${_n(seller['City'], 'Addis Ababa')} ${_n(seller['Wereda'], '')}'.trim(),
+                            style: pw.TextStyle(fontSize: 7, color: white),
+                          ),
+                          pw.Text(
+                            'Tel: ${_n(seller['Phone'], '+251 91 105 8179')}  |  Email: ${_n(seller['Email'], 'contact@deresegn.com')}',
+                            style: pw.TextStyle(fontSize: 7, color: white),
+                          ),
+                        ],
                       ),
                     ),
-                    pw.SizedBox(height: 3),
-                    pw.Text(
-                      '${_n(seller['City'], 'Addis Ababa')} ${_n(seller['Wereda'], '')}'
-                          .trim(),
-                      style: pw.TextStyle(fontSize: 7, color: white),
-                    ),
-                    pw.Text(
-                      'Tel: ${_n(seller['Phone'], '+251947990585')}  |  Email: ${_n(seller['Email'], 'amanuielt@mssmea.com')}',
-                      style: pw.TextStyle(fontSize: 7, color: white),
+                    pw.SizedBox(width: 8),
+                    // Doc title
+                    pw.Expanded(
+                      flex: 3,
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.end,
+                        children: [
+                          pw.Text(
+                            isPaymentReceipt
+                                ? 'የክፍያ ደረሰኝ\nPAYMENT RECEIPT'
+                                : docType == 'CN'
+                                ? 'የታክስ ክሬዲት ሰነድ\nTax Credit Note'
+                                : docType == 'DN'
+                                ? 'የታክስ ዴቢት ሰነድ\nTax Debit Note'
+                                : docType == 'TWTH'
+                                ? 'ከተከፋይ ሒሳብ ላይ ለተቀነሰ ግብር የተሰጠ ደረሰኝ\nWithholding tax on payment'
+                                : payTerm == 'CREDIT'
+                                ? 'ዱቤ የሽያጭ ደረሰኝ\nCREDIT SALES VAT/EXCISE TAX Invoice'
+                                : 'እጅ በጅ የሽያጭ ደረሰኝ\nCASH SALES VAT/EXCISE TAX Invoice',
+                            textAlign: pw.TextAlign.right,
+                            style: pw.TextStyle(
+                              fontSize: 8.5,
+                              fontWeight: pw.FontWeight.bold,
+                              color: white,
+                            ),
+                          ),
+                          pw.SizedBox(height: 3),
+                          pw.Container(
+                            padding: const pw.EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: pw.BoxDecoration(
+                              color: const PdfColor.fromInt(0xFFFAA61A),
+                              borderRadius: pw.BorderRadius.circular(3),
+                            ),
+                            child: pw.Text(
+                              'Sale Type: $txType',
+                              style: pw.TextStyle(
+                                fontSize: 7,
+                                color: PdfColors.black,
+                                fontWeight: pw.FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-              pw.SizedBox(width: 12),
-              // Doc title
-              pw.Expanded(
-                flex: 3,
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
-                  children: [
-                    pw.Text(
-                      isPaymentReceipt
-                          ? 'የክፍያ ደረሰኝ\nPAYMENT RECEIPT'
-                          : docType == 'CN'
-                          ? 'የታክስ ክሬዲት ሰነድ\nTax Credit Note'
-                          : docType == 'DN'
-                          ? 'የታክስ ዴቢት ሰነድ\nTax Debit Note'
-                          : docType == 'TWTH'
-                          ? 'ከተከፋይ ሒሳብ ላይ ለተቀነሰ ግብር የተሰጠ ደረሰኝ\nWithholding tax on payment'
-                          : payTerm == 'CREDIT'
-                          ? 'ዱቤ የሽያጭ ደረሰኝ\nCREDIT SALES VAT/EXCISE TAX Invoice'
-                          : 'እጅ በጅ የሽያጭ ደረሰኝ\nCASH SALES VAT/EXCISE TAX Invoice',
-                      textAlign: pw.TextAlign.right,
-                      style: pw.TextStyle(
-                        fontSize: 9,
-                        fontWeight: pw.FontWeight.bold,
-                        color: white,
-                      ),
-                    ),
-                    pw.SizedBox(height: 4),
-                    pw.Container(
-                      padding: const pw.EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: pw.BoxDecoration(
-                        color: PdfColor.fromInt(0xFF2A6DB5),
-                        borderRadius: pw.BorderRadius.circular(3),
-                      ),
-                      child: pw.Text(
-                        'Sale Type: $txType',
-                        style: pw.TextStyle(fontSize: 8, color: white),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
+        pw.SizedBox(height: 6),
 
         // Metadata bar
         pw.Container(
           width: double.infinity,
-          padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          color: accentBg,
+          padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          decoration: pw.BoxDecoration(
+            color: accentBg,
+            borderRadius: pw.BorderRadius.circular(4),
+            border: pw.Border.all(color: divider, width: 0.5),
+          ),
           child: pw.Row(
             children: [
               _metaCell('Doc. No. / ቁጥር', docNumber, styleBold, styleSmall),
-              pw.SizedBox(width: 16),
+              pw.SizedBox(width: 14),
               _metaCell('ቀን / Date', docDate, styleBold, styleSmall),
-              pw.SizedBox(width: 16),
+              pw.SizedBox(width: 14),
               _metaCell('System No.', sysNumber, styleBold, styleSmall),
               if (docType == 'CN' || docType == 'DN') ...[
-                pw.SizedBox(width: 16),
+                pw.SizedBox(width: 14),
                 _metaCell(
                   'Ref IRN',
                   previousIrn.length > 10
@@ -723,7 +790,7 @@ class InvoicePdfService {
               pw.Container(
                 padding: const pw.EdgeInsets.symmetric(
                   horizontal: 8,
-                  vertical: 4,
+                  vertical: 3,
                 ),
                 decoration: pw.BoxDecoration(
                   color: irnBg,

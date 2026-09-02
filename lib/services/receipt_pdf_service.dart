@@ -14,28 +14,12 @@ class ReceiptPdfService {
   static String _n(dynamic v, [String fallback = 'N/A']) =>
       (v == null || v.toString().isEmpty) ? fallback : v.toString();
 
-  static String _fmt(dynamic v) {
-    final d = double.tryParse(v?.toString() ?? '');
-    return d != null ? _numFmt.format(d) : _n(v, '0.00');
-  }
-
   static Future<Uint8List> generate(
     ReceiptSummary receipt,
     InvoiceSummary invoice,
   ) async {
-    pw.Font? ethiopicRegular;
-    try {
-      final regData = await rootBundle.load('assets/fonts/NotoSansEthiopic-Regular.ttf');
-      ethiopicRegular = pw.Font.ttf(regData);
-    } catch (e) {
-      debugPrint('Ethiopic font load error: $e');
-    }
-
-    final pdf = pw.Document(
-      theme: pw.ThemeData.withFont(
-        fontFallback: [if (ethiopicRegular != null) ethiopicRegular],
-      ),
-    );
+    final pdfTheme = await InvoicePdfService.loadPdfTheme();
+    final pdf = pw.Document(theme: pdfTheme);
 
     await generateIntoDocument(pdf, receipt, invoice);
     return pdf.save();
@@ -121,6 +105,15 @@ class ReceiptPdfService {
       color: bodyText,
     );
     final styleSmall = pw.TextStyle(fontSize: 7, color: bodyText);
+
+    // ── Letterhead Background ────────────────────────────────────
+    pw.MemoryImage? letterheadImage;
+    try {
+      final imgBytes = await rootBundle.load('assets/deresegn_letterhead.png');
+      letterheadImage = pw.MemoryImage(imgBytes.buffer.asUint8List());
+    } catch (e) {
+      debugPrint('Letterhead load error: $e');
+    }
 
     // ── Address Block Widget ──────────────────────────────────────
     pw.Widget _buildPartyBlock(
@@ -215,36 +208,82 @@ class ReceiptPdfService {
     // ── Build page ────────────────────────────────────────────────
     pdf.addPage(
       pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
+        pageTheme: pw.PageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.fromLTRB(26, 46, 26, 50),
+          buildBackground: (context) {
+            if (letterheadImage != null) {
+              return pw.FullPage(
+                ignoreMargins: true,
+                child: pw.Image(letterheadImage, fit: pw.BoxFit.cover),
+              );
+            }
+            return pw.SizedBox();
+          },
+        ),
         build: (ctx) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            // Company Header (Standard ERCA text format)
-            pw.Text(
-              _n(seller['Name'], 'WISCOM System Technology PLC'),
-              style: styleBold.copyWith(fontSize: 10),
+            // Top banner: Logo space on left, company + title on right
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.SizedBox(width: 90, height: 70),
+                pw.SizedBox(width: 10),
+                pw.Expanded(
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: pw.BoxDecoration(
+                      color: const PdfColor.fromInt(0xFF0D253A),
+                      borderRadius: pw.BorderRadius.circular(6),
+                    ),
+                    child: pw.Row(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Expanded(
+                          flex: 3,
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Text(
+                                _n(seller['Name'], 'Deresegn / ደረሰኝ'),
+                                style: styleBold.copyWith(fontSize: 12, color: white),
+                              ),
+                              pw.SizedBox(height: 2),
+                              pw.Text(
+                                'Address: ${_n(seller['Address'])}',
+                                style: styleBody.copyWith(fontSize: 7, color: white),
+                              ),
+                              pw.Text(
+                                'Tel: ${_n(seller['PhoneNo'], '+251 91 105 8179')}  |  Email: contact@deresegn.com',
+                                style: styleBody.copyWith(fontSize: 7, color: white),
+                              ),
+                            ],
+                          ),
+                        ),
+                        pw.SizedBox(width: 8),
+                        pw.Expanded(
+                          flex: 3,
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.end,
+                            children: [
+                              pw.Text(
+                                isWithholding
+                                    ? 'ከተከፋይ ሒሳብ ላይ ለተቀነሰ ግብር የተሰጠ ደረሰኝ\nWithholding tax on payment'
+                                    : 'የክፍያ ደረሰኝ\nPAYMENT RECEIPT',
+                                textAlign: pw.TextAlign.right,
+                                style: styleBold.copyWith(fontSize: 8.5, color: white),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-            pw.Text('Address: ${_n(seller['Address'])}', style: styleBody),
-            pw.Text('Tel: ${_n(seller['PhoneNo'])}', style: styleBody),
-            pw.SizedBox(height: 10),
-
-            if (isWithholding) ...[
-              pw.Text(
-                'ከተከፋይ ሒሳብ ላይ ለተቀነሰ ግብር የተሰጠ ደረሰኝ',
-                style: styleBold.copyWith(fontSize: 11),
-              ),
-              pw.Text(
-                'Withholding tax on payment',
-                style: styleBold.copyWith(fontSize: 10),
-              ),
-            ] else ...[
-              pw.Text('የክፍያ ደረሰኝ', style: styleBold.copyWith(fontSize: 11)),
-              pw.Text(
-                'PAYMENT RECEIPT',
-                style: styleBold.copyWith(fontSize: 10),
-              ),
-            ],
+            pw.SizedBox(height: 6),
 
             pw.SizedBox(height: 6),
             pw.Text('Receipt #: $receiptNumber', style: styleBody),

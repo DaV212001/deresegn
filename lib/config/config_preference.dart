@@ -152,4 +152,15 @@ class ConfigPreference {
   static Future<void> setDarkMode(bool isDark) async {
     await _storage.write(key: keyIsDarkMode, value: isDark.toString());
   }
+
+
+  static Future<void> clearAll() async {
+  await _storage.deleteAll();
+  _accessToken = null;
+  _refreshToken = null;
+  _companyAccessToken = null;
+  _morToken = null;
+  _companyId = null;
+  _branchId = null;
+}
 }

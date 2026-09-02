@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
 
 import '../controllers/invoice_history_controller.dart';
+import '../services/invoice_history_export_service.dart';
 import '../services/offline_queue_service.dart';
 import 'invoice_detail_screen.dart';
 import 'invoice_generator_screen.dart';
@@ -79,6 +80,151 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
     }
   }
 
+  void _showExportOptions(BuildContext context) {
+    if (_controller.invoices.isEmpty) {
+      Get.snackbar(
+        'export'.tr,
+        'no_invoices_found'.tr,
+        backgroundColor: Colors.amber.withOpacity(0.15),
+        colorText: Colors.amber.shade900,
+      );
+      return;
+    }
+
+    final theme = Theme.of(context);
+    final count = _controller.invoices.length;
+    final isFiltered = _controller.startDate.value != null && _controller.endDate.value != null;
+    final df = DateFormat('MMM dd, yyyy');
+    final dateRangeLabel = isFiltered
+        ? '${df.format(_controller.startDate.value!)} - ${df.format(_controller.endDate.value!)}'
+        : 'all_invoices'.tr;
+
+    Get.bottomSheet(
+      Material(
+        color: theme.cardColor,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: theme.primaryColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.file_download_outlined,
+                      color: theme.colorScheme.primary,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'export_history'.tr,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: theme.textTheme.bodyLarge?.color,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$count invoices ($dateRangeLabel)',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: theme.textTheme.bodySmall?.color ?? Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.picture_as_pdf_rounded, color: Colors.red, size: 22),
+                ),
+                title: Text(
+                  'export_as_pdf'.tr,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                ),
+                subtitle: const Text(
+                  'Summary report with letterhead, print & share',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                onTap: () {
+                  Get.back();
+                  InvoiceHistoryExportService.previewHistoryReport(
+                    _controller.invoices,
+                    startDate: _controller.startDate.value,
+                    endDate: _controller.endDate.value,
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.table_chart_rounded, color: Colors.green, size: 22),
+                ),
+                title: Text(
+                  'export_as_csv'.tr,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                ),
+                subtitle: const Text(
+                  'Full details spreadsheet file for Microsoft Excel',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                onTap: () async {
+                  Get.back();
+                  try {
+                    Get.snackbar(
+                      'export'.tr,
+                      'exporting'.tr,
+                      snackPosition: SnackPosition.BOTTOM,
+                      duration: const Duration(seconds: 1),
+                    );
+                    await InvoiceHistoryExportService.exportAndShareCsv(_controller.invoices);
+                  } catch (e) {
+                    Get.snackbar('Error', '${'export_failed'.tr}: $e');
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatusBadge(String? status, ThemeData theme) {
     Color bgColor;
     Color textColor;
@@ -138,6 +284,14 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
           backgroundColor: theme.appBarTheme.backgroundColor,
           elevation: 0,
           actions: [
+            IconButton(
+              icon: Icon(
+                Icons.file_download_outlined,
+                color: theme.appBarTheme.foregroundColor,
+              ),
+              tooltip: 'export'.tr,
+              onPressed: () => _showExportOptions(context),
+            ),
             IconButton(
               icon: Icon(
                 CupertinoIcons.calendar,
@@ -247,28 +401,53 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
             }
 
             if (_controller.hasError.value) {
+              final isMorError = _controller.errorMessage.value.toLowerCase().contains('mor') ||
+                  _controller.errorMessage.value.toLowerCase().contains('support');
               return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      CupertinoIcons.exclamationmark_triangle,
-                      color: theme.colorScheme.secondary,
-                      size: 48,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      _controller.errorMessage.value,
-                      style: TextStyle(
-                        color: theme.textTheme.bodyLarge?.color,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: (isMorError ? Colors.amber : theme.colorScheme.secondary).withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isMorError ? Icons.support_agent_rounded : CupertinoIcons.exclamationmark_triangle,
+                          color: isMorError ? Colors.amber.shade800 : theme.colorScheme.secondary,
+                          size: 48,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => _controller.fetchInvoices(refresh: true),
-                      child: Text('retry'.tr),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      Text(
+                        isMorError ? 'MoR Setup Required' : 'Error Loading History',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: theme.textTheme.bodyLarge?.color,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _controller.errorMessage.value,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        onPressed: () => _controller.fetchInvoices(refresh: true),
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: Text('retry'.tr),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }

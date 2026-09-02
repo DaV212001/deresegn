@@ -36,7 +36,7 @@ class CompanyLoginRequest {
   Map<String, dynamic> toJson() => {
     'phone': phone,
     'password': password,
-    'company_id': int.tryParse(companyId) ?? companyId,
+    // 'company_id': int.tryParse(companyId) ?? companyId,
   };
 }
 
