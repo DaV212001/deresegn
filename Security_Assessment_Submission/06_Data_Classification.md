@@ -1,8 +1,8 @@
 # Deresegn POS — Data Classification
 
-**Document Version:** 1.0  
-**Application Version:** 1.0.3+4  
-**Date:** August 5, 2026  
+**Document Version:** 1.1  
+**Application Version:** 1.0.6+7  
+**Date:** September 2026  
 **Classification:** Confidential  
 **Prepared by:** Micro Sun & Solution PLC  
 
@@ -43,6 +43,7 @@
 | MoR Client ID | Mobile App (flutter_secure_storage), Backend DB (company_branches) | API credential | High |
 | MoR Client Secret | Mobile App (flutter_secure_storage), Backend DB (encrypted) | API credential | Critical |
 | MoR API Key | Mobile App (flutter_secure_storage), Backend DB (encrypted) | API credential | Critical |
+| Lockout Expiry & Message | Mobile App (flutter_secure_storage) | Security cooldown timer timestamp & UI message | Low (Operational) |
 | Private Keys (.key files) | Backend filesystem (storage/app/) | RSA private keys for payload signing | Critical |
 | Certificates (.pem files) | Backend filesystem (storage/app/) | X.509 certificates | High |
 | HTTP Cookies | Mobile App (file system) | Session cookies | Medium |
@@ -105,6 +106,7 @@
 │  │  • MoR Credentials (ID, Secret, Key) │    iOS Keychain     │
 │  │  • TIN Number                        │                     │
 │  │  • Branch/Company IDs                │                     │
+│  │  • Lockout Expiry & Message          │                     │
 │  └──────────────────────────────────────┘                     │
 │                                                                │
 │  ┌──────────────────────────────────────┐                     │
@@ -159,5 +161,6 @@
 | Audit Logs | Retained indefinitely |
 | JWT Tokens | Cleared on logout or session expiry |
 | MoR Tokens | Cleared on logout or refresh failure |
+| Lockout Expiry | Cleared automatically after cooldown expires or upon reset |
 | Offline Queue | Cleared after successful sync |
 | Product Catalog | Retained until explicitly deleted by user |

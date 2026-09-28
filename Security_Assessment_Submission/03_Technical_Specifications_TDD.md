@@ -1,8 +1,8 @@
 # Deresegn POS — Technical Specifications (TDD / LLD)
 
-**Document Version:** 1.0  
-**Application Version:** 1.0.3+4  
-**Date:** August 5, 2026  
+**Document Version:** 1.1  
+**Application Version:** 1.0.6+7  
+**Date:** September 2026  
 **Classification:** Confidential  
 **Prepared by:** Micro Sun & Solution PLC  
 
@@ -15,7 +15,7 @@ The mobile application follows a **Model-Controller-Service** pattern using the 
 
 - **Models:** Pure Dart classes representing data structures. Handle JSON serialization/deserialization with `toJson()` and `fromJson()` factory constructors.
 - **Controllers:** `GetxController` subclasses managing reactive state (`.obs` variables) and business logic. Bound to the widget tree via `Get.put()` or `Get.lazyPut()`.
-- **Services:** Stateless utility classes for API communication, PDF generation, and local storage.
+- **Services:** Stateless utility classes for API communication, PDF generation, device integrity, and local storage.
 - **Screens:** Flutter `StatelessWidget` or `StatefulWidget` classes composing the UI. They read state from controllers and delegate actions.
 
 ### 1.2 Project Structure
@@ -28,7 +28,7 @@ lib/
 │   ├── config_preference.dart         # Secure credential storage wrapper
 │   └── dio_config.dart                # HTTP client configuration, interceptors
 ├── controllers/
-│   ├── auth_controller.dart           # Company/Branch/MoR authentication
+│   ├── auth_controller.dart           # Company/Branch/MoR authentication & lockout timer
 │   ├── invoice_controller.dart        # Invoice creation, submission, PDF logic
 │   ├── invoice_history_controller.dart# Invoice listing with pagination
 │   ├── receipt_controller.dart        # Receipt registration
@@ -41,12 +41,13 @@ lib/
 │   └── receipt_models.dart            # ReceiptRegisterRequest, WithholdingReceiptRequest
 ├── screens/
 │   ├── branch_setup_screen.dart       # Branch creation + cert upload UI
-│   ├── company_auth_screen.dart       # Company registration/login UI
+│   ├── company_auth_screen.dart       # Company registration/login UI & lockout timer banner
 │   ├── dashboard_screen.dart          # Bottom tab navigation host
 │   ├── invoice_detail_screen.dart     # Single invoice detail view
 │   ├── invoice_generator_screen.dart  # Invoice creation form
 │   ├── invoice_history_screen.dart    # Paginated invoice list
 │   ├── pdf_preview_screen.dart        # PDF preview and sharing
+│   ├── security_alert_screen.dart     # Non-dismissible device compromise alert
 │   ├── settings_screen.dart           # App settings UI
 │   ├── setup_terminal_screen.dart     # MoR terminal setup / splash
 │   └── supplies_screen.dart           # Product catalog CRUD
@@ -55,7 +56,9 @@ lib/
 │   ├── dio_service.dart               # Low-level HTTP methods (GET, POST, DELETE)
 │   ├── invoice_pdf_service.dart       # Invoice PDF generation
 │   ├── offline_queue_service.dart     # Offline queuing + auto-sync
-│   └── receipt_pdf_service.dart       # Receipt PDF generation
+│   ├── receipt_pdf_service.dart       # Receipt PDF generation
+│   ├── security_service.dart          # Root, Jailbreak & Frida detection
+│   └── ssl_pinning_service.dart       # Dual-layer SHA-256 certificate pinning
 ├── theme/
 │   ├── app_theme.dart                 # Light/Dark ThemeData definitions
 │   └── theme_service.dart             # Theme mode toggle logic
@@ -69,7 +72,7 @@ lib/
 ## 2. Local Storage Usage
 
 ### 2.1 flutter_secure_storage (Encrypted)
-Used for all sensitive credentials. On Android, data is encrypted using AES-256 backed by the Android Keystore. On iOS, data is stored in the Keychain.
+Used for all sensitive credentials and security state. On Android, data is encrypted using AES-256 backed by the Android Keystore. On iOS, data is stored in the Keychain.
 
 | Key | Data Stored | Sensitivity |
 |---|---|---|
@@ -83,6 +86,8 @@ Used for all sensitive credentials. On Android, data is encrypted using AES-256 
 | `tin` | Branch TIN number | Medium |
 | `company_id` | Company identifier | Low |
 | `branch_id` | Branch identifier | Low |
+| `auth_lockout_expiry` | Account lockout expiration timestamp (ISO 8601) | Low (Security Cooldown) |
+| `auth_lockout_message` | Lockout banner explanation message | Low (Security Cooldown) |
 | `is_dark_mode` | Theme preference | Low |
 
 ### 2.2 shared_preferences (Unencrypted)
@@ -108,7 +113,10 @@ All authentication tokens and MoR API credentials are stored exclusively via `fl
 
 - Tokens are loaded into static memory variables at app startup (`ConfigPreference.init()`).
 - Tokens are never logged in their raw form.
-- When clearing sessions, all token keys are explicitly deleted from secure storage.
+- **Session cleanup is tiered:**
+  - `ConfigPreference.clearMorTokens()` — removes MoR access + refresh tokens; used on login redirect.
+  - `ConfigPreference.clearTokens()` — additionally removes the company access token. The branch JWT (`access_token`) is **not** deleted by this call.
+  - `ConfigPreference.clearAll()` — calls `FlutterSecureStorage.deleteAll()`, wiping all keys; used only by `SecurityService` on device-compromise detection.
 - Default fallback values for MoR credentials exist in the source code for development purposes (see Section 3.3).
 
 ### 3.2 Credentials on Backend
@@ -159,10 +167,10 @@ The `ConfigPreference` class contains fallback default values for development/te
 | GET | `/api/invoices` | Branch JWT | List invoices (paginated) |
 | GET | `/api/invoices/{id}` | Branch JWT | Get single invoice |
 | GET | `/api/receipts/{type}/{value}` | Branch JWT | Get receipt by RRN/MOR/IRN |
-| GET | `/api/supplies` | Branch JWT | List product catalog |
-| POST | `/api/supplies` | Branch JWT | Create product |
-| POST | `/api/supplies/{id}` | Branch JWT | Update product |
-| DELETE | `/api/supplies/{id}` | Branch JWT | Delete product |
+| GET | `/api/branches/{branch_id}/supplies` | Branch JWT | List branch product catalog (e.g. `/api/branches/29/supplies`) |
+| POST | `/api/branches/{branch_id}/supplies` | Branch JWT | Create product |
+| POST | `/api/branches/{branch_id}/supplies/{id}` | Branch JWT | Update product |
+| DELETE | `/api/branches/{branch_id}/supplies/{id}` | Branch JWT | Delete product |
 
 ### 4.3 Request Headers
 
@@ -185,8 +193,9 @@ The `DioService` implements retry logic for GET requests:
 ## 5. Certificate Handling
 
 ### 5.1 TLS Configuration
-- The mobile app relies on the platform's default TLS implementation for HTTPS connections.
-- No custom certificate pinning is currently implemented in the Dio configuration.
+- The mobile app enforces SSL/TLS Certificate Pinning for all HTTPS connections to `api.deresegn.com`.
+- **Android Network Security Config:** Configured in `network_security_config.xml` with system-only trust anchors (blocking user-installed CAs like Burp Suite) and SHA-256 certificate pins.
+- **Dio Client Pinning:** Configured in `DioConfig` via `SslPinningService` and `IOHttpClientAdapter`, validating SHA-256 fingerprints of presented certificates (`validateCertificate` and `badCertificateCallback`).
 - The backend validates standard TLS certificates for connections to the MoR API.
 
 ### 5.2 MoR Digital Certificates
@@ -203,23 +212,32 @@ Each branch maintains its own PKI credentials:
 ## 6. Authentication Mechanisms
 
 ### 6.1 Company Owner Authentication
-- **Method:** Phone number + password + company ID
+- **Method:** Phone number + password (`phone`, `password` only — `company_id` is **not** sent in the request body; the server resolves company context from the authenticated JWT)
 - **Token:** JWT issued by `tymon/jwt-auth` from the `CompanyUser` model
 - **Guard:** `auth:api` (default Laravel JWT guard)
-- **Validation:** Laravel `Validator` with required phone, password (min:6), nullable company_id
+- **Validation:** Laravel `Validator` with required phone, password (min:6)
 
 ### 6.2 Branch Authentication
-- **Method:** TIN number + password
+- **Method:** Branch phone number + password, sent as `{ "phone_number": "<phone_number>", "password": "<password>" }` (test credentials: `{ "phone_number": "0949384998", "password": "Maru@123" }`) to `POST /api/branch/login`
 - **Token:** JWT issued by `tymon/jwt-auth` from the `CompanyBranch` model (implements `JWTSubject`)
 - **Guard:** `branch` (custom guard)
+- **Response shape:** `{ "token": "<branch_jwt>", "branch": { "id", "company_id", "branch_name", "tin_number", "client_id", "status", ... } }`
 - **Validation:** The backend iterates over all branches with the given TIN and checks bcrypt password hash against each candidate (TIN is not unique across branches of the same company)
 - **Status Check:** Branch must have `status === 'active'`
 
 ### 6.3 MoR Authentication
-- **Method:** Client ID, client secret, API key, and TIN
+- **Method:** `POST /api/login` with an **empty request body** — the backend reads the branch's stored MoR credentials (client ID, client secret, API key, TIN) using the authenticated `Authorization: Bearer <branch_jwt>` + `Branch-Id` headers. The `LoginRequest` model exists in the mobile codebase but is not used in this endpoint call.
 - **Token:** MoR-issued access token + refresh token (with expiration)
 - **Refresh:** Automatic on 401 (code `4503` or message `GATEWAY ERROR`) via `AuthInterceptor.onError()`
 - **Refresh Lock:** A static `Future<String?>? _refreshFuture` prevents duplicate concurrent refresh requests
+
+### 6.4 Account Lockout & Rate-Limit Protection (CWE-307)
+- **Detection:** Backend returns HTTP 403 Forbidden or HTTP 429 Too Many Requests when excessive failed attempts occur (e.g. `"Too many login attempts. Please try again in 29 minutes."`).
+- **Duration Parsing:** `AuthController.handleLockoutIfPresent()` uses regex `(\d+)\s*(minute|min|second|sec|hour|hr)s?` (case-insensitive) to extract duration values. If no match is found, defaults to 1800 seconds (30 minutes).
+- **Persistent Timestamp:** Stores the calculated expiry epoch (milliseconds) in secure storage via `ConfigPreference.saveLockout(expiryMs, message)` under keys `auth_lockout_expiry` and `auth_lockout_message`.
+- **Interactive UI Feedback:** A prominent red warning banner is rendered in `CompanyAuthScreen` with an active ticking timer (`Locked: MM:SS`, or `HH:MM:SS` for durations ≥ 1 hour). The state is restored across app restarts via `AuthController._restoreLockoutIfActive()` called in `onInit()`.
+- **Button Lockdown:** The login button is disabled with text `Locked (MM:SS)` while the cooldown is active.
+- **Auto-unlock:** When the countdown timer reaches zero, the banner clears and the button is re-enabled.
 
 ---
 
@@ -232,7 +250,9 @@ App Start → ConfigPreference.init() → Load tokens from secure storage
     │
     ▼
 AuthInterceptor.onRequest()
-    ├── Is public endpoint? → Skip auth headers
+    ├── Is public/auth endpoint? → Skip auth headers
+    │   (public: /company/register, /company/login, /api/companies,
+    │            /api/branch/login, /verify, /resend-otp)
     ├── Is branch token expired? (JwtDecoder.isExpired) → Redirect to login
     ├── Inject Authorization: Bearer {branch_token}
     └── Inject Mor-Token: Bearer {mor_token} (if not /api/login)
@@ -240,16 +260,18 @@ AuthInterceptor.onRequest()
     ▼
 Response Received
     ├── 200-299 → Success
-    ├── 401 (MoR error) → Attempt token refresh → Retry original request
-    ├── 401 (Branch error) → Clear tokens → Redirect to login
+    ├── 401 (MoR error, code 4503 / GATEWAY ERROR) → Attempt token refresh → Retry original request
+    ├── 401 (Auth/Public Endpoint) → Preserve inputs, return error (No logout)
+    ├── 401 (Branch error on protected route) → clearMorTokens() → Redirect to login
     └── Other → Pass to error handler
 ```
 
-### 7.2 Session Expiry Handling
+### 7.2 Session Expiry & Error Handling
 - **Branch JWT Expiry:** Detected by `JwtDecoder.isExpired()` before each request. If expired, user is redirected to login.
 - **MoR Token Expiry:** Detected reactively when the MoR returns HTTP 401 with code `4503` or `GATEWAY ERROR`. The interceptor attempts automatic refresh.
 - **Refresh Failure:** If refresh fails, user is redirected to login.
-- **Logout:** `ConfigPreference.clearTokens()` removes all stored tokens and redirects to the company auth screen.
+- **Auth Endpoint 401 Exemption:** `AuthInterceptor._isAuthOrPublicEndpoint()` exempts the following paths from triggering token deletion or redirect: `/company/register`, `/company/login`, `/branch/login`, `/verify`, `/resend-otp`, `/refresh/token`, `/api/companies`, `/api/login`. This preserves cashier-entered credentials in text fields on failed password attempts.
+- **Logout:** `ConfigPreference.clearMorTokens()` removes MoR tokens and redirects to the company auth screen. The branch JWT is not cleared and can be re-validated on next login. For a full wipe (device compromise), `ConfigPreference.clearAll()` is used.
 
 ---
 
@@ -259,10 +281,10 @@ Response Received
 
 | Model | Fields | Purpose |
 |---|---|---|
-| `LoginRequest` | clientId, clientSecret, apikey, tin | MoR login credentials |
-| `BranchLoginRequest` | tinNumber, password | Branch authentication |
-| `CompanyRegisterRequest` | companyName, tinNumber, ownerName, phone, password, email, website | Company registration |
-| `CompanyLoginRequest` | phone, password, companyId | Company owner login |
+| `LoginRequest` | clientId, clientSecret, apikey, tin | MoR login credentials model (exists in codebase; **not** used by `ApiService.login()` which sends an empty body — credentials are read server-side from Branch JWT context) |
+| `BranchLoginRequest` | tinNumber, password → serialized as `{"phone_number": "<tin>", "password": "<password>"}` | Branch authentication |
+| `CompanyRegisterRequest` | companyName, tinNumber, ownerName, phone, password, email, website → serialized as `{company_name, tin_number, owner_name, phone, password, email, website}` | Company registration |
+| `CompanyLoginRequest` | phone, password (companyId field exists but is commented out of `toJson()`) → serialized as `{phone, password}` | Company owner login |
 | `InvoiceRegisterRequest` | documentDetails, transactionType, sourceSystem, sellerDetails, buyerDetails, itemList, valueDetails, paymentDetails, referenceDetails, version | Invoice registration payload |
 | `InvoiceCancelRequest` | irn, reasonCode | Invoice cancellation |
 | `InvoiceVerificationRequest` | irn | Invoice verification |
@@ -388,13 +410,23 @@ The `DioConfig` class translates `DioException` types to user-friendly messages:
 
 ---
 
-## 12. Root/Jailbreak Detection
-No root/jailbreak detection is currently implemented in the application.
+## 12. Root/Jailbreak & Anti-Tampering Detection
+The application implements multi-tier device integrity verification and dynamic analysis defenses via `SecurityService`:
+- **Android Root Detection:** Utilizes `flutter_jailbreak_detection` (leveraging native RootBeer checks for su binaries, test-keys, Magisk, Superuser.apk, and busybox) combined with direct filesystem scans of `/system/bin/su`, `/system/xbin/su`, and other known paths.
+- **iOS Jailbreak Detection:** Checks for Cydia, MobileSubstrate, jailbreak file paths, and sandbox compromise.
+- **Frida & Dynamic Instrumentation Detection:** Probes default Frida server ports (27042/27043), inspects filesystem for Frida binaries, and inspects `/proc/self/maps` for injected hook agents (`frida-agent`, `xposed`, `substrate`).
+- **Automated Incident Response:** Upon detection of compromise, all stored tokens and credentials (`ConfigPreference.clearAll()`) and HTTP client sessions (`DioConfig.resetDio()`) are immediately purged.
+- **Execution Blocking UI:** Renders a non-dismissible `SecurityAlertScreen` that prevents back navigation (`PopScope(canPop: false)`) and restricts the user to exiting the application.
+- **Lifecycle Monitoring:** Re-checks integrity on app resume (`AppLifecycleState.resumed`) to prevent background runtime attachment.
 
 ---
 
-## 13. Code Obfuscation
-Flutter's default release build configuration applies tree-shaking and Dart AOT compilation. No additional code obfuscation (e.g., `--obfuscate` flag) is documented as enabled in the current build configuration.
+## 13. Compilation & Build Configuration
+- **Application ID / Namespace:** `com.eims.deresegn`
+- **Android Gradle Plugin (AGP):** Compatible with Gradle 8.x and modern AGP 8.x/9.x pipelines using Kotlin DSL (`android/app/build.gradle.kts`).
+- **Java Virtual Machine Target:** Java 17 (`sourceCompatibility = JavaVersion.VERSION_17`, `targetCompatibility = JavaVersion.VERSION_17`, `jvmTarget = JVM_17`).
+- **Target & Compile SDK:** `compileSdkVersion = 35`, `targetSdkVersion = 35`, `minSdkVersion = 21` (Android 5.0 Lollipop to Android 15).
+- **Code Generation & Obfuscation:** Flutter's release pipeline applies Dart AOT ahead-of-time compilation, compiling directly to native ARM machine instructions (`libapp.so`), which strips debug symbols and significantly hinders static decompilation.
 
 ---
 

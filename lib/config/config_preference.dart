@@ -27,6 +27,10 @@ class ConfigPreference {
   // Theme Keys
   static const String keyIsDarkMode = 'is_dark_mode';
 
+  // Auth Lockout Keys
+  static const String keyLockoutExpiry = 'auth_lockout_expiry';
+  static const String keyLockoutMessage = 'auth_lockout_message';
+
   static Future<void> init() async {
     _accessToken = await _storage.read(key: keyAccessToken);
     _refreshToken = await _storage.read(key: keyRefreshToken);
@@ -151,6 +155,25 @@ class ConfigPreference {
 
   static Future<void> setDarkMode(bool isDark) async {
     await _storage.write(key: keyIsDarkMode, value: isDark.toString());
+  }
+
+  static Future<void> saveLockout(int expiryTimestamp, String message) async {
+    await _storage.write(key: keyLockoutExpiry, value: expiryTimestamp.toString());
+    await _storage.write(key: keyLockoutMessage, value: message);
+  }
+
+  static Future<int?> getLockoutExpiry() async {
+    final value = await _storage.read(key: keyLockoutExpiry);
+    return value != null ? int.tryParse(value) : null;
+  }
+
+  static Future<String?> getLockoutMessage() async {
+    return await _storage.read(key: keyLockoutMessage);
+  }
+
+  static Future<void> clearLockout() async {
+    await _storage.delete(key: keyLockoutExpiry);
+    await _storage.delete(key: keyLockoutMessage);
   }
 
 

@@ -1,8 +1,8 @@
 # Deresegn POS — User Guide
 
-**Document Version:** 1.0  
-**Application Version:** 1.0.3+4  
-**Date:** August 5, 2026  
+**Document Version:** 1.1  
+**Application Version:** 1.0.6+7  
+**Date:** September 2026  
 **Classification:** Confidential  
 **Prepared by:** Micro Sun & Solution PLC  
 
@@ -20,6 +20,7 @@ Deresegn POS is a mobile Point of Sale application designed for Ethiopian busine
 - **PDF Export:** Generate and share professional PDF invoices and receipts.
 - **Multi-Language:** Switch between English and Amharic.
 - **Dark/Light Theme:** Choose your preferred visual mode.
+- **Enterprise Security:** Root/jailbreak prevention, Frida hooking defense, SSL certificate pinning, and account lockout rate-limiting.
 
 ---
 
@@ -28,7 +29,7 @@ Deresegn POS is a mobile Point of Sale application designed for Ethiopian busine
 ### 2.1 Getting Started
 
 #### Prerequisites
-- Android 5.0+ or iOS device
+- Android 5.0+ (API 21 to 35) or iOS device
 - Internet connection for initial setup
 - Company owner account credentials (for first-time setup)
 - MoR-issued private key and certificate files (for branch registration)
@@ -75,10 +76,24 @@ Deresegn POS is a mobile Point of Sale application designed for Ethiopian busine
 
 ### 2.5 Branch Login (Daily Operation)
 1. Open the app.
-2. Enter your **TIN Number** and **Branch Password**.
-3. Tap **"Login"**.
+2. Enter your branch **Phone Number** and **Password** (e.g., test credentials: `0949384998` / `Maru@123`).
+3. Tap **"Sign In"**.
 4. The app will automatically authenticate with the MoR system.
 5. On success, you'll be navigated to the **Dashboard**.
+
+### 2.6 Security Alert Screen (Device Integrity Compromise)
+If the application detects that the device has been rooted, jailbroken, or tampered with via dynamic instrumentation tools (such as Frida or Xposed):
+1. The app immediately purges all locally stored credentials and cryptographic keys to prevent unauthorized access.
+2. A non-dismissible red **"Security Alert: Compromised Device"** screen appears.
+3. Back navigation is disabled for safety.
+4. Users must run the application on a non-rooted, tamper-free device to proceed.
+
+### 2.7 Account Lockout & Rate-Limit Cooldown
+To protect merchant accounts from brute-force attacks:
+1. Entering incorrect credentials repeatedly triggers a temporary security cooldown (e.g. 15 to 30 minutes).
+2. A red warning banner displays on the login screen with an interactive live countdown timer (`Locked: MM:SS`).
+3. The login submit button is locked until the timer reaches `00:00`.
+4. Your entered phone number or TIN is preserved on screen so you do not need to re-type it once unlocked.
 
 ---
 
@@ -229,6 +244,8 @@ Configure application preferences:
 | Offline invoices not syncing | Connectivity not detected | Restart the app while connected to trigger sync. |
 | PDF generation fails | Font loading error | Ensure the app is updated to the latest version. |
 | Login screen keeps appearing | Tokens cleared or expired | Log in again. If persistent, clear app data and re-setup. |
+| "Security Alert: Device Compromised" | Device is rooted, jailbroken, or running Frida | The app cannot run on compromised environments. Use an unrooted, secure device. |
+| "Too many login attempts / Locked: MM:SS" | Account locked due to repeated failed logins | Wait for the live countdown timer to reach 00:00. The submit button will automatically re-enable. |
 
 ---
 
@@ -259,4 +276,4 @@ A: All credentials are stored in encrypted device storage (Android Keystore / iO
 **Developer:** Micro Sun & Solution PLC  
 **Email:** amanuielt@mssethiopia.com  
 **Phone:** +251 911 058 179 
-**Application:** Deresegn POS v1.0.3+4
+**Application:** Deresegn POS v1.0.6+7

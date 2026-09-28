@@ -1,8 +1,8 @@
 # Deresegn POS — Application Binary Submission Instructions
 
-**Document Version:** 1.0  
-**Application Version:** 1.0.3+4  
-**Date:** August 5, 2026  
+**Document Version:** 1.1  
+**Application Version:** 1.0.6+7  
+**Date:** September 2026  
 **Classification:** Confidential  
 **Prepared by:** Micro Sun & Solution PLC  
 
@@ -13,9 +13,10 @@
 | Property | Value |
 |---|---|
 | Application Name | Deresegn POS |
-| Package Identifier | com.example.deresegn |
-| Version | 1.0.3+4 |
-| Framework | Flutter (Dart SDK ^3.12.2) |
+| Package Identifier / Application ID | `com.eims.deresegn` |
+| Version | 1.0.6+7 |
+| Framework | Flutter (Dart SDK ^3.12.2, language >=3.0.0) |
+| Android Target / Compile SDK | API 35 (Android 15), Java 17 bytecode |
 | Target Platforms | Android (APK), iOS (IPA) |
 | Build Type | Release |
 
@@ -102,12 +103,12 @@ Test credentials must be provisioned separately by the application administrator
 
 | Component | Version |
 |---|---|
-| Mobile Application | 1.0.3+4 |
+| Mobile Application | 1.0.6+7 |
 | Backend API | Laravel 8 (production) |
-| SRS Document | 1.0 |
-| SDD Document | 1.0 |
-| TDD Document | 1.0 |
-| User Guide | 1.0 |
+| SRS Document | 1.1 |
+| SDD Document | 1.1 |
+| TDD Document | 1.1 |
+| User Guide | 1.1 |
 
 The submitted binary corresponds directly to the application version documented in all accompanying submission documents.
 
@@ -121,6 +122,9 @@ The submitted binary:
 - [x] Development fallback values exist in `ConfigPreference` for MoR credentials but are overridden by values provisioned during branch setup
 - [x] Does NOT contain private keys
 - [x] Does NOT embed secrets in the APK/IPA bundle
+- [x] Implements Root & Jailbreak Detection (RootBeer, su paths, Frida probes, memory mapping inspection) (CWE-693)
+- [x] Implements Dual-Layer SSL/TLS Certificate Pinning (network_security_config.xml + Dio IOHttpClientAdapter) (CWE-295)
+- [x] Implements Account Lockout Rate-Limiting with UI countdown timer (CWE-307)
 - [ ] The following development defaults are present as fallbacks (documented in TDD Section 3.3):
   - Default Client ID: `127ae9ad-8de2-4856-ba88-4e6a49ad10d0`
   - Default Client Secret: `d3ddb848-9daa-44ab-8d96-374fcc8c9e6b`
@@ -132,12 +136,14 @@ The submitted binary:
 ## 7. Minimum Device Requirements
 
 ### Android
-- **OS:** Android 5.0 (API 21) or higher
+- **OS:** Android 5.0 (API 21) or higher (compiled for API 35 / Android 15, Java 17)
 - **RAM:** 2 GB minimum
 - **Storage:** 100 MB free space
 - **Permissions:** Internet access, file system access (for PDF export)
+- **Integrity Requirement:** Non-rooted, tamper-free device (rooted devices and Frida environments are blocked)
 
 ### iOS
 - **OS:** iOS 12.0 or higher
 - **RAM:** 2 GB minimum
 - **Storage:** 100 MB free space
+- **Integrity Requirement:** Non-jailbroken device

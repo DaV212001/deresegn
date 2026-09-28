@@ -390,15 +390,87 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
                           ),
                         ),
                       ],
+                      if (!register && controller.isLockedOut.value) ...[
+                        Container(
+                          margin: const EdgeInsets.only(top: 6, bottom: 16),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade900.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.red.shade400.withValues(alpha: 0.5),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade100,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.lock_clock_rounded,
+                                  color: Colors.red.shade800,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Account Temporarily Locked',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: theme.textTheme.bodyLarge?.color,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Too many failed attempts. Try again in:',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: theme.textTheme.bodyMedium?.color
+                                            ?.withValues(alpha: 0.7),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      controller.formattedLockoutTime,
+                                      style: TextStyle(
+                                        fontFamily: 'monospace',
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.red.shade700,
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 4),
                       SizedBox(
                         height: 52,
                         child: ElevatedButton.icon(
-                          onPressed: isLoading ? null : _submit,
+                          onPressed: (isLoading || controller.isLockedOut.value)
+                              ? null
+                              : _submit,
                           icon: isLoading
                               ? const SizedBox.shrink()
                               : Icon(
-                                  register ? Icons.arrow_forward : Icons.login,
+                                  controller.isLockedOut.value
+                                      ? Icons.lock_clock_outlined
+                                      : (register ? Icons.arrow_forward : Icons.login),
                                 ),
                           label: isLoading
                               ? SizedBox(
@@ -409,7 +481,11 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
                                     color: theme.colorScheme.onPrimary,
                                   ),
                                 )
-                              : Text(register ? 'Sign Up' : 'Sign In'),
+                              : Text(
+                                  controller.isLockedOut.value
+                                      ? 'Locked (${controller.formattedLockoutTime})'
+                                      : (register ? 'Sign Up' : 'Sign In'),
+                                ),
                         ),
                       ),
                       const SizedBox(height: 10),

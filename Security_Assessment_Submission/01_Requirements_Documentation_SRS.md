@@ -1,8 +1,8 @@
 # Deresegn POS — Software Requirements Specification (SRS)
 
-**Document Version:** 1.0  
-**Application Version:** 1.0.3+4  
-**Date:** August 5, 2026  
+**Document Version:** 1.1  
+**Application Version:** 1.0.6+7  
+**Date:** September 2026  
 **Classification:** Confidential  
 **Prepared by:** Micro Sun & Solution PLC  
 
@@ -20,6 +20,7 @@ Deresegn POS is a comprehensive mobile Point of Sale (POS) and SaaS application 
 - Support multi-tenant architecture allowing multiple companies and branches to operate independently.
 - Generate MoR-compliant PDF invoices and receipts with signed QR codes.
 - Manage product/supply catalogs for streamlined invoicing.
+- Enforce strict device integrity, anti-tampering (Root/Jailbreak/Frida), dual-layer SSL certificate pinning, and brute-force lockout defenses.
 
 ---
 
@@ -30,6 +31,9 @@ Deresegn POS is a comprehensive mobile Point of Sale (POS) and SaaS application 
 - Branch creation with MoR credential provisioning (TIN, client certificates, API keys)
 - Branch-level authentication with JWT token management
 - MoR API authentication (login, token refresh)
+- Device integrity verification & anti-tampering (Root, Jailbreak, Frida detection, memory maps inspection)
+- Dual-layer SSL/TLS certificate pinning (native Android Network Security Config + Dio SHA-256 fingerprint verification)
+- Account lockout handling and rate-limit cooldown interactive countdown timer (CWE-307 mitigation)
 - Invoice creation (B2B, B2C, Credit Note, Debit Note) with multi-line item support
 - Invoice registration with the MoR e-invoicing gateway
 - Invoice cancellation
@@ -73,13 +77,16 @@ Deresegn POS is a comprehensive mobile Point of Sale (POS) and SaaS application 
 
 | ID | Requirement | Description |
 |---|---|---|
-| FR-AUTH-01 | Company Registration | Owners register a company with name, TIN, phone, email, and password. System returns a JWT access token. |
-| FR-AUTH-02 | Company Login | Owners log in with phone, password, and company ID. System authenticates against the `company_users` table and returns a JWT. |
+| FR-AUTH-01 | Company Registration | Owners register a company by submitting: `company_name`, `tin_number`, `owner_name`, `phone`, `password`, `email`, `website`. System creates the company record and returns a JWT access token. |
+| FR-AUTH-02 | Company Login | Owners log in with `phone` and `password` only (company context is resolved server-side from the JWT). System authenticates against the `company_users` table and returns a JWT. |
 | FR-AUTH-03 | Branch Creation | Authenticated owners create branches by uploading MoR private keys and certificates, along with TIN, client ID, client secret, and API key. |
-| FR-AUTH-04 | Branch Login | Branch operators log in with TIN and password. System matches against `company_branches` and returns a branch-scoped JWT. |
-| FR-AUTH-05 | MoR Login | After branch authentication, the system automatically performs MoR API login using stored credentials, receiving an MoR access token and refresh token. |
-| FR-AUTH-06 | Token Refresh | When the MoR token expires (detected via 401 responses), the system automatically refreshes the token using the stored refresh token. |
-| FR-AUTH-07 | Session Expiry Handling | Expired branch tokens redirect users to the login screen. MoR token failures trigger automatic refresh with request retry. |
+| FR-AUTH-04 | Branch Login | Branch operators submit `phone_number` (e.g., `0949384998`) and `password` to `POST /api/branch/login`. Backend matches against `company_branches` and returns a branch-scoped JWT (`token`) alongside the `branch` object. |
+| FR-AUTH-05 | MoR Login | After branch authentication, `AuthController.ensureMorAuth()` posts to `POST /api/login` with an **empty body** — the server identifies the branch from the `Authorization: Bearer <branch_jwt>` + `Branch-Id` headers and uses the stored MoR credentials (client ID, secret, API key, TIN) server-side to authenticate with MoR, returning an access token and refresh token. |
+| FR-AUTH-06 | Token Refresh | When the MoR token expires (detected via 401 responses with code `4503` or message `GATEWAY ERROR`), the system automatically refreshes the token using the stored refresh token via `POST /api/refresh/token`. |
+| FR-AUTH-07 | Session Expiry Handling | Expired branch tokens redirect users to the login screen. MoR token failures trigger automatic refresh with request retry. Auth endpoints (`/company/login`, `/branch/login`, `/company/register`, `/verify`, `/resend-otp`, `/api/login`) are exempt from the token-wipe-on-401 behaviour. |
+| FR-AUTH-08 | Device Integrity & Anti-Tampering | System inspects device state on launch and resume using RootBeer checks, su paths, Frida port probes, and `/proc/self/maps` scanning. If compromised, it immediately wipes secure storage and displays a non-dismissible `SecurityAlertScreen` (CWE-693). |
+| FR-AUTH-09 | Dual-Layer Certificate Pinning | System enforces SSL/TLS pinning via Android `network_security_config.xml` (blocking proxy CAs) and Flutter Dio `IOHttpClientAdapter` with SHA-256 fingerprint verification (CWE-295). |
+| FR-AUTH-10 | Account Lockout & Live Countdown Timer | On receiving HTTP 403/429 lockout responses, `AuthController.handleLockoutIfPresent()` uses regex `(\d+)\s*(minute\|min\|second\|sec\|hour\|hr)s?` to parse the cooldown duration, persists the expiry timestamp in secure storage (`auth_lockout_expiry`), renders an interactive countdown banner (`Locked: MM:SS` or `HH:MM:SS`), and disables the login button until the timer elapses (CWE-307). |
 
 ### 4.2 Invoice Management
 
@@ -128,14 +135,14 @@ Deresegn POS is a comprehensive mobile Point of Sale (POS) and SaaS application 
 
 ### 5.1 First-Time Setup
 1. Owner opens the app → redirected to Company Auth screen.
-2. Owner registers a new company (name, TIN, phone, email, password).
+2. Owner registers a new company via the **Sign Up** tab (fields: `company_name`, `tin_number`, `owner_name`, `phone`, `password`, `email`, `website`).
 3. System creates the company and returns a JWT → owner is navigated to Branch Setup.
 4. Owner creates a branch by entering branch details and uploading MoR private key and certificate files.
-5. Branch is created → owner can now log in as a branch operator.
+5. Branch is created → cashiers can now log in as branch operators.
 
 ### 5.2 Daily Operations (Cashier)
-1. Cashier opens the app → Login with branch TIN and password.
-2. System authenticates branch → performs MoR login automatically.
+1. Cashier opens the app → uses **Sign In** tab with registered phone number (e.g., `0949384998`) and password.
+2. System authenticates branch → performs MoR login automatically (empty-body POST with Branch JWT — no credential entry required).
 3. Cashier navigates to the "Register" tab.
 4. Cashier enters buyer name/TIN, adds line items (or selects from product catalog).
 5. Cashier selects payment mode and document type, then taps "Register Invoice."
@@ -156,7 +163,7 @@ Deresegn POS is a comprehensive mobile Point of Sale (POS) and SaaS application 
 | ID | Criteria | Expected Outcome |
 |---|---|---|
 | AC-01 | Company registration with valid inputs | Company created, JWT returned, user navigated to Branch Setup. |
-| AC-02 | Branch login with valid TIN/password | Branch JWT issued, MoR login performed automatically, user navigated to Dashboard. |
+| AC-02 | Branch login with valid phone_number/password (e.g., `0949384998` / `Maru@123`) | Branch JWT issued, MoR login performed automatically (empty body), user navigated to Dashboard. |
 | AC-03 | Invoice registration with valid items | MoR returns IRN and signed QR code, invoice saved to history, receipt auto-registered. |
 | AC-04 | Invoice registration while offline | Invoice queued locally, synced when network is restored. |
 | AC-05 | Token expiry during operation | MoR token refreshed automatically, original request retried. |
@@ -175,18 +182,21 @@ Deresegn POS is a comprehensive mobile Point of Sale (POS) and SaaS application 
 | Offline queue sync | Automatic within 5 seconds of network restoration |
 | PDF generation time | < 2 seconds for combined invoice + receipt |
 | Minimum supported Android version | Android 5.0 (API 21) |
+| Target & Compile SDK | Android 15 (API 35), Java 17 Bytecode (`JavaVersion.VERSION_17`) |
 
 ### 7.2 Security Requirements
 | Requirement | Description |
 |---|---|
 | Token Storage | JWT tokens and MoR credentials stored via `flutter_secure_storage` (AES-256 encrypted on Android Keystore / iOS Keychain). |
-| TLS Communication | All API calls over HTTPS (TLS 1.2+) to `https://api.deresegn.com`. |
+| TLS Communication & Pinning | All API calls over HTTPS (TLS 1.2+) with dual-layer SSL certificate pinning (Android `network_security_config.xml` + Dio SHA-256 fingerprint verification). |
+| Device Integrity Verification | Multi-tier RootBeer, su binary scan, Frida TCP port (27042/27043) probing, and memory map hook detection with auto-session wipe and execution blocking. |
+| Brute Force & Rate Limit Protection | Automated cooldown duration parsing (regex `(\d+)\s*(minute\|min\|second\|sec\|hour\|hr)s?`), persistent lockout timestamp, live countdown timer banner (`Locked: MM:SS`), and submit button lockdown. |
 | Digital Signing | Invoice payloads signed with branch-specific RSA private keys using SHA-512 before submission to MoR. |
 | Certificate Validation | Branch certificates uploaded during setup, stored with restricted permissions (0600). |
 | Password Hashing | Passwords hashed using bcrypt on the backend. |
 | Credential Encryption | `client_secret` and `api_key` encrypted at rest in the database using Laravel's `encrypted` cast. |
 | Audit Logging | All MoR interactions (login, registration, cancellation) audited with request/response payloads (sensitive data masked). |
-| Session Management | Automatic session expiry detection with redirect to login. |
+| Session Management | Automatic session expiry detection with redirect to login, while retaining user credentials on login validation failures. Auth endpoints exempt from 401-triggered token wipe. |
 
 ---
 
@@ -222,13 +232,14 @@ Deresegn POS is a comprehensive mobile Point of Sale (POS) and SaaS application 
 
 ### 9.2 Authentication Flow
 ```
-[User] → Enter Branch TIN + Password
-    → [Mobile App] → POST /api/branch/login
-    → [Backend] → Validate → Issue Branch JWT
-    → [Mobile App] → Store Branch Token → POST /api/login (MoR credentials)
-    → [Backend] → Load Branch cert/key → Sign MoR login payload
-    → Forward to MoR Login URL
+[User] → Enter phone_number (e.g., 0949384998) + Password (e.g., Maru@123)
+    → [Mobile App] → POST /api/branch/login {phone_number, password}
+    → [Backend] → Validate against company_branches → Issue Branch JWT
+    → [Mobile App] → Store Branch JWT + Branch ID + Branch details
+    → POST /api/login (empty body, Authorization: Bearer <branch_jwt> + Branch-Id header)
+    → [Backend] → Read stored MoR credentials (client_id, client_secret, api_key, tin)
+    → Forward to MoR Login URL (server-side)
     → [MoR] → Return accessToken + refreshToken
-    → [Backend] → Return tokens
+    → [Backend] → Return {data: {accessToken, refreshToken, expiresIn}}
     → [Mobile App] → Store MoR Tokens → Navigate to Dashboard
 ```

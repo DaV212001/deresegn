@@ -1,8 +1,8 @@
 # Deresegn POS — Mobile API User Documentation (API Guide)
 
 **Document Version:** 1.0  
-**Application Version:** 1.0.3+4  
-**Date:** August 5, 2026  
+**Application Version:** 1.0.6+7  
+**Date:** September 2026  
 **Classification:** Confidential  
 **Prepared by:** Micro Sun & Solution PLC  
 
@@ -43,13 +43,14 @@ The API endpoints, encryption parameters, payload schemas, and fiscal verificati
 
 ## 2. Authentication & Authorization Flow
 
-The API utilizes a dual-tier JWT authentication model:
-1. **Company Owner Auth:** Access company setup and branch creation endpoints.
-2. **Branch Auth:** Access daily point-of-sale operational endpoints (invoicing, receipts, catalog).
+The API utilises a dual-tier JWT authentication model:
+1. **Branch Operator Auth (`POST /api/branch/login`):** The primary login flow. The `CompanyAuthScreen` Sign In tab collects `phone_number` (the branch TIN) and `password` and authenticates the branch operator. This is the entry point for daily POS operations.
+2. **Company Owner Registration (`POST /api/company/register`):** The `CompanyAuthScreen` Sign Up tab allows a company owner to register a new organisation. Company owner login (`POST /api/company/login`) is a separate administrative flow not exposed on the main screen.
+3. **MoR Auth (`POST /api/login`):** After branch authentication, the app calls this endpoint with an **empty body** — the server identifies the branch from the `Authorization: Bearer <branch_jwt>` + `Branch-Id` headers, then uses the branch's stored MoR credentials (client ID, secret, API key, TIN) server-side to obtain a temporary MoR access token + refresh token.
 
 ```
-[Mobile App] --(1. Branch Login)--> [Backend API] (Returns Branch JWT)
-[Mobile App] --(2. MoR Login with Branch JWT)--> [Backend API] (Signs RSA & calls MoR) --> (Returns MoR Access Token)
+[Mobile App] --(1. Branch Login: {phone_number, password})--> [Backend API] (Returns {token, branch})
+[Mobile App] --(2. MoR Login: empty body + Branch JWT header)--> [Backend API] (Reads stored creds → calls MoR) --> (Returns MoR Access Token)
 [Mobile App] --(3. Invoicing / Receipts with Branch JWT + Mor-Token)--> [Backend API] --> [MoR Gateway]
 ```
 
@@ -65,11 +66,13 @@ The API utilizes a dual-tier JWT authentication model:
 - **Request Body:**
 ```json
 {
-  "name": "Acme Trading PLC",
-  "tin": "0000037187",
+  "company_name": "Acme Trading PLC",
+  "tin_number": "0000037187",
+  "owner_name": "Selam Bekele",
   "phone": "+251911058179",
+  "password": "SecurePassword123!",
   "email": "owner@acmetrading.et",
-  "password": "SecurePassword123!"
+  "website": "https://acmetrading.et"
 }
 ```
 - **Response (201 Created):**
@@ -86,23 +89,57 @@ The API utilizes a dual-tier JWT authentication model:
 #### 3.1.2 Company Owner Login
 - **Endpoint:** `POST /api/company/login`
 - **Auth:** Public
+- **Note:** `company_id` is **not** sent in the request body; the server resolves company context from the authenticated user session.
 - **Request Body:**
 ```json
 {
   "phone": "+251911058179",
-  "password": "SecurePassword123!",
-  "company_id": 1
+  "password": "SecurePassword123!"
 }
 ```
 
 #### 3.1.3 Branch Operator Login
 - **Endpoint:** `POST /api/branch/login`
 - **Auth:** Public
+- **Note:** The body key is `phone_number`. Test credentials are phone number `0949384998` and password `Maru@123`.
 - **Request Body:**
 ```json
 {
-  "tin": "0000037187",
-  "password": "BranchPassword123"
+  "phone_number": "0949384998",
+  "password": "Maru@123"
+}
+```
+- **Response (200 OK):**
+```json
+{
+  "token": "<branch_jwt>",
+  "branch": {
+    "id": 16,
+    "company_id": 4,
+    "branch_name": "Megenagna branch",
+    "tin_number": "0032037187",
+    "client_id": "127ae9ad-8de2-4856-ba88-4e6a49ad10d0",
+    "status": "active",
+    "location": "Mexico",
+    "phone_number": "0949384998",
+    "email": "samuelasamnew13@gmail.com"
+  }
+}
+```
+
+#### 3.1.4 MoR Login (Automatic — No Body Required)
+- **Endpoint:** `POST /api/login`
+- **Auth:** Branch JWT (`Authorization: Bearer <branch_jwt>`) + `Branch-Id` header
+- **Request Body:** *(empty — no body is sent)*
+- **Note:** The backend identifies the authenticated branch from the JWT headers and reads the stored MoR credentials (client ID, client secret, API key, TIN) server-side to authenticate with the MoR gateway.
+- **Response (200 OK):**
+```json
+{
+  "data": {
+    "accessToken": "<mor_access_token>",
+    "refreshToken": "<mor_refresh_token>",
+    "expiresIn": 3600
+  }
 }
 ```
 
@@ -334,9 +371,35 @@ The API utilizes a dual-tier JWT authentication model:
 
 ---
 
-### 3.5 Supply / Product Catalog Management (`/api/supplies`)
+### 3.5 Supply / Product Catalog Management (`/api/branches/{branch_id}/supplies`)
 
-- **Add Supply (`POST /api/supplies`):**
+The product catalog endpoints are scoped to each branch via the URL pattern `https://api.deresegn.com/api/branches/{branch_id}/supplies` (for example, branch ID `29` uses `https://api.deresegn.com/api/branches/29/supplies`).
+
+#### 3.5.1 Fetch Supplies (`GET /api/branches/{branch_id}/supplies`)
+- **Endpoint:** `GET /api/branches/{branch_id}/supplies` (e.g., `GET /api/branches/29/supplies`)
+- **Auth:** Required (`Authorization: Bearer <Branch_JWT>`)
+- **Response (200 OK):**
+```json
+[
+  {
+    "id": 1,
+    "item_code": "ITEM-101",
+    "product_description": "Barcoded Scanner Unit",
+    "nature_of_supplies": "goods",
+    "unit_price": "2500.00",
+    "unit": "PCS",
+    "tax_code": "VAT15",
+    "discount": "0.00",
+    "excise_tax_rate": "0.00",
+    "is_excise_taxable": false
+  }
+]
+```
+
+#### 3.5.2 Add Supply (`POST /api/branches/{branch_id}/supplies`)
+- **Endpoint:** `POST /api/branches/{branch_id}/supplies` (e.g., `POST /api/branches/29/supplies`)
+- **Auth:** Required (`Authorization: Bearer <Branch_JWT>`)
+- **Request Body:**
 ```json
 {
   "item_code": "ITEM-101",
@@ -350,6 +413,21 @@ The API utilizes a dual-tier JWT authentication model:
   "is_excise_taxable": false
 }
 ```
+- **Response (201 Created):**
+```json
+{
+  "status": "success",
+  "message": "Supply item created successfully"
+}
+```
+
+#### 3.5.3 Update Supply (`POST /api/branches/{branch_id}/supplies/{id}`)
+- **Endpoint:** `POST /api/branches/{branch_id}/supplies/{id}`
+- **Auth:** Required (`Authorization: Bearer <Branch_JWT>`)
+
+#### 3.5.4 Delete Supply (`DELETE /api/branches/{branch_id}/supplies/{id}`)
+- **Endpoint:** `DELETE /api/branches/{branch_id}/supplies/{id}`
+- **Auth:** Required (`Authorization: Bearer <Branch_JWT>`)
 
 ---
 
@@ -363,9 +441,10 @@ The API utilizes a dual-tier JWT authentication model:
 | `201 Created` | Resource created | Store newly created resource data |
 | `400 Bad Request` | Invalid payload or missing parameters | Check request body format |
 | `401 Unauthorized` | Expired/invalid JWT or MoR token | If MoR error: refresh token; if Branch error: redirect to login |
-| `403 Forbidden` | Access denied for requested branch | Verify branch ownership |
+| `403 Forbidden` | Account temporarily locked due to repeated failed login attempts | Parse cooldown duration from response body; display countdown timer; disable submit button |
 | `406 Not Acceptable` | Document number mismatch | Auto-retry with expected document number returned by MoR |
 | `422 Unprocessable` | Validation rules failed | Display error messages to user |
+| `429 Too Many Requests` | Rate-limit triggered on authentication endpoint | Same as 403: parse cooldown, show `Locked: MM:SS` banner |
 | `500 Server Error` | Backend or MoR Gateway error | Queue request locally (if offline-capable) and retry |
 
 ---
@@ -376,3 +455,38 @@ When registering invoices, if out-of-sync document sequence numbers occur:
 1. MoR Gateway returns `HTTP 406 Not Acceptable` with payload containing `expectedDocumentNumber`.
 2. Mobile API Client intercepts response.
 3. Client automatically updates payload with `expectedDocumentNumber` and retries submission (max 1 retry attempt).
+
+---
+
+## 6. Account Lockout & Rate-Limit Handling (CWE-307)
+
+The backend enforces brute-force protection on authentication endpoints (`/api/branch/login`, `/api/login`). After a configurable number of consecutive failed attempts the server returns `HTTP 403` or `HTTP 429` with a plain-text message containing the remaining cooldown duration.
+
+### 6.1 Lockout Response Format
+
+```json
+{
+  "code": "4403",
+  "message": "Too many attempts. Try again in 29 minutes.",
+  "statusCode": 403
+}
+```
+
+The `message` field carries a human-readable duration string matching one of these patterns:
+- `"Try again in X minutes."`
+- `"Try again in X hours."`
+- `"Try again in X seconds."`
+
+### 6.2 Mobile Client Lockout Behaviour
+
+Upon receiving HTTP `403` or `429` from an auth endpoint the mobile application:
+
+1. **Parses** the cooldown duration from the error message using regex `(\d+)\s*(hour|minute|sec)`.
+2. **Persists** the lockout expiry timestamp (`DateTime.now().add(duration)`) to `flutter_secure_storage` under key `auth_lockout_expiry`, and the original message under `auth_lockout_message`.
+3. **Displays** a live countdown banner — `Locked: MM:SS` — on `CompanyAuthScreen` and `BranchLoginScreen`.
+4. **Disables** the submit button for the duration of the lockout.
+5. **Clears** the lockout state automatically when the countdown reaches zero.
+
+### 6.3 Auth Endpoint 401 Exemption
+
+The `AuthInterceptor` normally wipes the locally stored JWT token on receiving HTTP `401`. Authentication endpoints (`/api/branch/login`, `/api/login`, `/api/company/login`) are **exempted** from this behaviour so that form fields are preserved for the user to correct credentials without being logged out mid-flow.

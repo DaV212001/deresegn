@@ -116,18 +116,29 @@ The application does not currently enforce password expiration or rotation. Pass
 #### 3.3.8 Password History
 Password history is not tracked in the database. Users are permitted to reuse old passwords if they choose to change them.
 
-#### 3.3.9 Invalid Login Attempt
-If a user submits an incorrect password, the API returns a standard `401 Unauthorized` response. The application currently relies on the hosting provider's infrastructure to handle mass brute-force attacks, as API-level rate limiting (`ThrottlesLogins`) is not explicitly implemented on the authentication endpoints.
+#### 3.3.9 Invalid Login Attempt (CWE-307 Mitigation)
+If a user submits an incorrect password, the API returns a standard `401 Unauthorized` response. The mobile app's `AuthInterceptor._isAuthOrPublicEndpoint()` exempts the following paths from auto-logout token clearing routines: `/api/company/login`, `/api/branch/login`, `/api/company/register`, `/api/login`, `/api/companies`, any path containing `/verify`, and any path containing `/resend-otp`. This ensures that user-entered credentials in input fields are preserved for convenient correction rather than forcefully flushed.
 
-#### 3.3.10 Lockout Duration
-Because invalid login attempts are not systematically counted in the database, there is no automatic lockout duration enforced on user accounts.
+#### 3.3.10 Lockout Duration & Live Countdown Timer (CWE-307 Mitigation)
+When consecutive invalid authentication attempts trigger server-side rate limits (returning HTTP 403 Forbidden or HTTP 429 Too Many Requests with messages such as `"Try again in 29 minutes."`), the mobile application's `AuthController.handleLockoutIfPresent()` dynamically parses the remaining cooldown duration. 
+1. **Duration Parsing**: Uses regular expression `(\d+)\s*(minute|min|second|sec|hour|hr)s?` (case-insensitive). If no match, defaults to 1800 seconds (30 minutes).
+2. **Timestamp Persistence**: Persists the cooldown expiry epoch (ms) in `flutter_secure_storage` via `ConfigPreference.saveLockout()` under keys `auth_lockout_expiry` and `auth_lockout_message`. Countdown is **restored across app restarts** in `AuthController.onInit()`.
+3. **Interactive UI Countdown**: Displays a real-time countdown timer (`Locked: MM:SS` or `HH:MM:SS` for durations ≥ 1 hour).
 
 #### 3.3.11 Session Idle Time
 The JWT Time-To-Live (TTL) is configured to expire after 60 minutes. Once the 60 minutes elapse, the token is invalidated and the user must re-authenticate.
 
-#### 3.3.12 Encryption & Secure Communication
-- **Data in Transit**: The application relies on standard TLS encryption provided by the hosting environment for all API communications.
-- **Data at Rest**: Passwords are never stored in plaintext (hashed using Bcrypt). Sensitive MoR credentials (`client_secret`, `api_key`) in the `company_branches` table are encrypted at rest using Laravel's model casting mechanism (`encrypted`).
+#### 3.3.12 Dual-Layer SSL/TLS Certificate Pinning (CWE-295 Mitigation)
+- **Data in Transit**: All API communications occur exclusively over HTTPS (TLS 1.2+). The application enforces dual-layer SSL/TLS certificate pinning against `api.deresegn.com`:
+  1. **Native Android Layer**: Configured via `network_security_config.xml` with system-only trust anchors (blocking user-installed CAs such as Burp Suite) and SHA-256 pin-sets.
+  2. **Application Network Layer**: The Flutter Dio HTTP client uses `IOHttpClientAdapter` and `SslPinningService` to validate the SHA-256 fingerprints of certificates presented during TLS handshakes.
+- **Data at Rest**: Passwords are never stored in plaintext (hashed using Bcrypt). Sensitive MoR credentials (`client_secret`, `api_key`) in the `company_branches` table are encrypted at rest using Laravel's model casting mechanism (`encrypted`). On the mobile client, all tokens and keys are encrypted via `flutter_secure_storage` (AES-256 backed by Android Keystore).
+
+#### 3.3.13 Device Integrity & Anti-Tampering (CWE-693 Mitigation)
+The mobile application embeds a proactive multi-tier security inspection engine via `SecurityService`:
+1. **Root & Jailbreak Detection**: Integrates `flutter_jailbreak_detection` (RootBeer on Android; sandbox integrity on iOS) combined with direct filesystem scans (`/system/bin/su`, etc.).
+2. **Frida Dynamic Hooking Detection**: Probes default Frida server TCP ports (27042/27043) and scans `/proc/self/maps` for injected hook agents.
+3. **Automated Incident Response**: Upon compromise detection, the app immediately purges all secure storage items (`ConfigPreference.clearAll()`), resets HTTP clients, and displays a non-dismissible `SecurityAlertScreen` (`PopScope(canPop: false)`).
 
 ### 3.4 Secure Coding Standard Documentation
 

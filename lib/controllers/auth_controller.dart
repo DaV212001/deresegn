@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:deresegn/config/dio_config.dart';
 import 'package:dio/dio.dart' as dio_lib;
@@ -14,10 +15,118 @@ class AuthController extends GetxController {
   var isLoggingIn = false.obs;
   var isCompanyLoading = false.obs;
 
+  // Lockout countdown timer
+  var lockoutSeconds = 0.obs;
+  var isLockedOut = false.obs;
+  var lockoutMessage = ''.obs;
+  Timer? _lockoutTimer;
+
+  String get formattedLockoutTime {
+    final s = lockoutSeconds.value;
+    if (s <= 0) return '00:00';
+    final hours = s ~/ 3600;
+    final minutes = (s % 3600) ~/ 60;
+    final seconds = s % 60;
+    if (hours > 0) {
+      return '${hours}h ${minutes.toString().padLeft(2, '0')}m ${seconds.toString().padLeft(2, '0')}s';
+    }
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  void startLockout(int seconds, String message) {
+    _lockoutTimer?.cancel();
+    lockoutSeconds.value = seconds;
+    isLockedOut.value = true;
+    lockoutMessage.value = message;
+
+    final expiryMs =
+        DateTime.now().add(Duration(seconds: seconds)).millisecondsSinceEpoch;
+    ConfigPreference.saveLockout(expiryMs, message);
+
+    _lockoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (lockoutSeconds.value <= 1) {
+        timer.cancel();
+        lockoutSeconds.value = 0;
+        isLockedOut.value = false;
+        lockoutMessage.value = '';
+        ConfigPreference.clearLockout();
+      } else {
+        lockoutSeconds.value--;
+      }
+    });
+  }
+
+  Future<void> _restoreLockoutIfActive() async {
+    final expiryMs = await ConfigPreference.getLockoutExpiry();
+    if (expiryMs != null) {
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      if (expiryMs > nowMs) {
+        final remainingSeconds = ((expiryMs - nowMs) / 1000).ceil();
+        final message = await ConfigPreference.getLockoutMessage() ?? '';
+        startLockout(remainingSeconds, message);
+      } else {
+        await ConfigPreference.clearLockout();
+      }
+    }
+  }
+
+  bool handleLockoutIfPresent(dynamic error, dynamic response) {
+    int? statusCode;
+    dynamic data;
+
+    if (error is dio_lib.DioException) {
+      statusCode = error.response?.statusCode;
+      data = error.response?.data;
+    } else if (response is dio_lib.Response) {
+      statusCode = response.statusCode;
+      data = response.data;
+    }
+
+    if (statusCode == 403 || statusCode == 429) {
+      final msg = _parseMessage(data) ?? '';
+      final lower = msg.toLowerCase();
+      if (lower.contains('locked') ||
+          lower.contains('too many') ||
+          lower.contains('try again in') ||
+          lower.contains('rate limit')) {
+        int seconds = 1800; // default 30 minutes fallback
+
+        // Parse: "29 minutes", "300 seconds", "1 hour", etc.
+        final match = RegExp(
+          r'(\d+)\s*(minute|min|second|sec|hour|hr)s?',
+          caseSensitive: false,
+        ).firstMatch(msg);
+
+        if (match != null) {
+          final count = int.tryParse(match.group(1) ?? '') ?? 0;
+          final unit = (match.group(2) ?? '').toLowerCase();
+          if (unit.startsWith('hour') || unit.startsWith('hr')) {
+            seconds = count * 3600;
+          } else if (unit.startsWith('min')) {
+            seconds = count * 60;
+          } else if (unit.startsWith('sec')) {
+            seconds = count;
+          }
+        }
+
+        startLockout(seconds, msg);
+        return true;
+      }
+    }
+    return false;
+  }
+
   @override
   void onInit() {
     super.onInit();
     isLinked.value = ConfigPreference.getCompanyAccessToken() != null;
+    _restoreLockoutIfActive();
+  }
+
+  @override
+  void onClose() {
+    _lockoutTimer?.cancel();
+    super.onClose();
   }
 
   Future<void> checkDeviceLink() async {
@@ -99,7 +208,11 @@ class AuthController extends GetxController {
         );
         success = true;
       },
-      onFailure: (e, r) => _handleError(e, r),
+      onFailure: (e, r) {
+        if (!handleLockoutIfPresent(e, r)) {
+          _handleError(e, r);
+        }
+      },
     );
     isCompanyLoading.value = false;
     return success;
@@ -120,6 +233,12 @@ class AuthController extends GetxController {
         if (token != null && branchDetails != null) {
           await ConfigPreference.updateBranchToken(token);
           await ConfigPreference.saveBranchId('${branchDetails['id']}');
+          if (branchDetails['company_id'] != null) {
+            await ConfigPreference.saveCompanyContext(
+              companyId: '${branchDetails['company_id']}',
+              branchId: '${branchDetails['id']}',
+            );
+          }
           await ConfigPreference.saveDeviceCredentials(
             clientId: branchDetails['client_id'] ?? '',
             clientSecret: '',
@@ -135,7 +254,22 @@ class AuthController extends GetxController {
       },
       onFailure: (error, response) {
         Logger().e('Login failed: $error');
-        _handleError(error, response);
+        final isLockout = handleLockoutIfPresent(error, response);
+        if (isLockout) {
+          Get.snackbar(
+            'Account Locked',
+            lockoutMessage.value.isNotEmpty
+                ? lockoutMessage.value
+                : 'Account locked due to too many failed attempts.',
+            snackPosition: SnackPosition.BOTTOM,
+            duration: const Duration(seconds: 5),
+            backgroundColor: Colors.red.shade900.withValues(alpha: 0.9),
+            colorText: Colors.white,
+            icon: const Icon(Icons.lock_clock_rounded, color: Colors.white),
+          );
+        } else {
+          _handleError(error, response);
+        }
         isLoggingIn.value = false;
       },
     );

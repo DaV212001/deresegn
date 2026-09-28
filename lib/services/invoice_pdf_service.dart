@@ -194,18 +194,70 @@ class InvoicePdfService {
     final cashier = _n(srcSys['CashierName']);
     final payMode = _n(payDet['Mode']);
 
-    final docType = _n(docDet['Type'], 'INV');
-    final payTerm = _n(payDet['PaymentTerm'], 'CASH');
+    final docType = _n(docDet['Type'], 'INV').toUpperCase();
+    final payTerm = _n(payDet['PaymentTerm'], 'CASH').toUpperCase();
     final previousIrn = overrideReferenceIrn ?? _n(refDet['PreviousIrn'], '');
 
+    // ── Detailed item calculations across items ───────────────────
+    double calcGross = 0.0;
+    double calcDiscount = 0.0;
+    double calcExcise = 0.0;
+    double calcTaxableBase = 0.0;
+    double calcVat15 = 0.0;
+    double calcNonTaxable = 0.0;
+
+    for (final it in items) {
+      final item = it is Map<String, dynamic> ? it : <String, dynamic>{};
+      final q = double.tryParse(item['Quantity']?.toString() ?? '1') ?? 1.0;
+      final p = double.tryParse(item['UnitPrice']?.toString() ?? '0') ?? 0.0;
+      final disc = double.tryParse(item['Discount']?.toString() ?? '0') ?? 0.0;
+      final ext = double.tryParse(item['ExciseTaxValue']?.toString() ?? '0') ?? 0.0;
+      final code = (item['TaxCode'] ?? '').toString().toUpperCase();
+
+      final gross = q * p;
+      calcGross += gross;
+      calcDiscount += disc;
+      calcExcise += ext;
+
+      final afterDisc = gross - disc;
+      final isZeroOrExempt = code.contains('0') ||
+          code.contains('EX') ||
+          code.contains('ZERO') ||
+          code.contains('EXMT');
+
+      if (!isZeroOrExempt) {
+        final base = afterDisc + ext;
+        calcTaxableBase += base;
+        final taxAmt = double.tryParse(item['TaxAmount']?.toString() ?? '') ??
+            (base * 0.15);
+        calcVat15 += taxAmt;
+      } else {
+        calcNonTaxable += afterDisc;
+      }
+    }
+
+    final totalGrossVal = valDet['TotalAmount'] != null
+        ? _fmt(valDet['TotalAmount'])
+        : (calcGross > 0 ? _fmt(calcGross) : _fmt(valDet['TotalValue'] ?? invoice.totals.totalValue));
+    final taxableBaseVal = valDet['TaxableAmount'] != null
+        ? _fmt(valDet['TaxableAmount'])
+        : (calcTaxableBase > 0 ? _fmt(calcTaxableBase) : _fmt(valDet['TotalValue'] ?? invoice.totals.totalValue));
+    final nonTaxableVal = valDet['NonTaxableAmount'] != null
+        ? _fmt(valDet['NonTaxableAmount'])
+        : (calcNonTaxable > 0 ? _fmt(calcNonTaxable) : '0.00');
+
+    final dNonTaxable = double.tryParse(nonTaxableVal.replaceAll(',', '')) ?? 0.0;
     final totalValue = _fmt(valDet['TotalValue'] ?? invoice.totals.totalValue);
-    final taxValue = _fmt(valDet['TaxValue'] ?? invoice.totals.taxValue);
+    final taxValue = _fmt(valDet['TaxValue'] ?? (calcVat15 > 0 ? calcVat15 : invoice.totals.taxValue));
     final discountValue = _fmt(
-      valDet['Discount'] ?? invoice.totals.discount ?? '0.00',
+      valDet['Discount'] ?? (calcDiscount > 0 ? calcDiscount : invoice.totals.discount ?? '0.00'),
     );
     final exciseValue = _fmt(
-      valDet['ExciseValue'] ?? invoice.totals.exciseValue ?? '0.00',
+      valDet['ExciseValue'] ?? (calcExcise > 0 ? calcExcise : invoice.totals.exciseValue ?? '0.00'),
     );
+    final dExcise = double.tryParse(exciseValue.replaceAll(',', '')) ?? 0.0;
+    final dDiscount = double.tryParse(discountValue.replaceAll(',', '')) ?? 0.0;
+
     final incomeWithholdValue = valDet['IncomeWithholdValue'] ?? '0.00';
     final txnWithholdValue = valDet['TransactionWithholdValue'] ?? '0.00';
     final grandTotal =
@@ -509,27 +561,32 @@ class InvoicePdfService {
                     ),
                     child: pw.Column(
                       children: [
-                        summaryRow('ድምር / Total ETB', '$totalValue ETB'),
-                        summaryRow('ኤክሳይዝ / Excise Tax', '$exciseValue ETB'),
-                        summaryRow('የቅናሽ መጠን / Discount', '$discountValue ETB'),
-                        summaryRow('ተ.ኢ.ታ / VAT 15%', '$taxValue ETB'),
+                        summaryRow('ጠቅላላ የደረሰኝ መጠን ETB / Total Amount', '$totalGrossVal ETB'),
+                        if (dExcise > 0)
+                          summaryRow('ኤክሳይስ / EXT', '$exciseValue ETB'),
+                        if (dDiscount > 0)
+                          summaryRow('የቅናሽ መጠን / Discount Amount', '$discountValue ETB'),
+                        summaryRow('ተ.እ.ታክስ የሚከፈልበት ድምር / Taxable Total', '$taxableBaseVal ETB'),
+                        summaryRow('ተ.እ.ታ / VAT 15%', '$taxValue ETB'),
+                        if (dNonTaxable > 0)
+                          summaryRow('ተ.እ.ታ የማይከፈልበት ድምር / VAT 0, VAT EX', '$nonTaxableVal ETB'),
                         if (double.tryParse(incomeWithholdValue.toString()) !=
                                 null &&
                             double.parse(incomeWithholdValue.toString()) > 0)
                           summaryRow(
-                            'የገቢ ግብር ቅናሽ / Income Withhold',
+                            'ጠቅላላ የተያዘ መጠን / Total Withheld Amount',
                             '${_fmt(incomeWithholdValue)} ETB',
                           ),
                         if (double.tryParse(txnWithholdValue.toString()) !=
                                 null &&
                             double.parse(txnWithholdValue.toString()) > 0)
                           summaryRow(
-                            'የግብይት ግብር ቅናሽ / Txn Withhold',
+                            'ጠቅላላ የተያዘ መጠን ተ.እ / Total VAT Withheld',
                             '${_fmt(txnWithholdValue)} ETB',
                           ),
                         pw.Divider(color: divider, thickness: 0.5),
                         summaryRow(
-                          'ጠቅላላ ዋጋ ከታክስ ጋር / Grand Total',
+                          'ጠቅላላ ዋጋ ከታክስ ጋር / Total including Tax',
                           '${_numFmt.format(grandTotal)} ETB',
                           bold: true,
                         ),
@@ -542,10 +599,9 @@ class InvoicePdfService {
                             borderRadius: pw.BorderRadius.circular(3),
                           ),
                           child: pw.Text(
-                            'ጠቅላላ ዋጋ ከታክስ ጋር (በፈደል):\n${_amountInWords(grandTotal)}',
+                            'ጠቅላላ ዋጋ ከታክስ ጋር (በፊደል):\n${_amountInWords(grandTotal)}',
                             style: pw.TextStyle(
                               fontSize: 7,
-                              fontStyle: pw.FontStyle.italic,
                               color: bodyText,
                             ),
                           ),
@@ -713,15 +769,15 @@ class InvoicePdfService {
                           pw.Text(
                             isPaymentReceipt
                                 ? 'የክፍያ ደረሰኝ\nPAYMENT RECEIPT'
-                                : docType == 'CN'
+                                : (docType == 'CN' || docType == 'CRE')
                                 ? 'የታክስ ክሬዲት ሰነድ\nTax Credit Note'
-                                : docType == 'DN'
+                                : (docType == 'DN' || docType == 'DEB')
                                 ? 'የታክስ ዴቢት ሰነድ\nTax Debit Note'
                                 : docType == 'TWTH'
                                 ? 'ከተከፋይ ሒሳብ ላይ ለተቀነሰ ግብር የተሰጠ ደረሰኝ\nWithholding tax on payment'
                                 : payTerm == 'CREDIT'
-                                ? 'ዱቤ የሽያጭ ደረሰኝ\nCREDIT SALES VAT/EXCISE TAX Invoice'
-                                : 'እጅ በጅ የሽያጭ ደረሰኝ\nCASH SALES VAT/EXCISE TAX Invoice',
+                                ? 'ዱቤ የሽያጭ ደረሰኝ-ተእታ/ኤክሳይዝ ታክስ ደረሰኝ\nCREDIT SALES VAT/EXCISE TAX Invoice'
+                                : 'እጅ በጅ የሽያጭ ደረሰኝ-ተእታ/ኤክሳይዝ ታክስ ደረሰኝ\nCASH SALES VAT/EXCISE TAX Invoice',
                             textAlign: pw.TextAlign.right,
                             style: pw.TextStyle(
                               fontSize: 8.5,
@@ -775,13 +831,13 @@ class InvoicePdfService {
               _metaCell('ቀን / Date', docDate, styleBold, styleSmall),
               pw.SizedBox(width: 14),
               _metaCell('System No.', sysNumber, styleBold, styleSmall),
-              if (docType == 'CN' || docType == 'DN') ...[
+              if (docType == 'CN' || docType == 'CRE' || docType == 'DN' || docType == 'DEB') ...[
                 pw.SizedBox(width: 14),
                 _metaCell(
                   'Ref IRN',
-                  previousIrn.length > 10
-                      ? '${previousIrn.substring(0, 10)}...'
-                      : previousIrn,
+                  previousIrn.length > 16
+                      ? '${previousIrn.substring(0, 16)}...'
+                      : (previousIrn.isEmpty ? 'N/A' : previousIrn),
                   styleBold,
                   styleSmall,
                 ),

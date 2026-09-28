@@ -10,11 +10,19 @@ import 'screens/dashboard_screen.dart';
 import 'screens/setup_terminal_screen.dart';
 import 'screens/company_auth_screen.dart';
 import 'screens/branch_setup_screen.dart';
+import 'screens/delete_account_screen.dart';
+import 'screens/security_alert_screen.dart';
+import 'services/security_service.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Security Module before loading sensitive state
+  final securityService = Get.put(SecurityService(), permanent: true);
+  final securityResult = await securityService.checkDeviceIntegrity(enforceAction: true);
+
   await ConfigPreference.init();
   final themeService = Get.put(ThemeService());
 
@@ -22,13 +30,47 @@ void main() async {
   await Get.putAsync(() => OfflineQueueService().init());
   Get.put(AuthController(), permanent: true);
 
-  runApp(DeresegnApp(themeService: themeService));
+  runApp(DeresegnApp(
+    themeService: themeService,
+    isCompromised: securityResult.isCompromised,
+  ));
 }
 
-class DeresegnApp extends StatelessWidget {
+class DeresegnApp extends StatefulWidget {
   final ThemeService themeService;
+  final bool isCompromised;
 
-  const DeresegnApp({Key? key, required this.themeService}) : super(key: key);
+  const DeresegnApp({
+    super.key,
+    required this.themeService,
+    this.isCompromised = false,
+  });
+
+  @override
+  State<DeresegnApp> createState() => _DeresegnAppState();
+}
+
+class _DeresegnAppState extends State<DeresegnApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (Get.isRegistered<SecurityService>()) {
+        Get.find<SecurityService>().checkDeviceIntegrity(enforceAction: true);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,18 +79,19 @@ class DeresegnApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: themeService.themeMode,
+      themeMode: widget.themeService.themeMode,
       translations: AppTranslations(),
       locale: const Locale('en', 'US'),
       fallbackLocale: const Locale('en', 'US'),
-      initialRoute: '/dashboard',
+      initialRoute: widget.isCompromised ? '/security-alert' : '/dashboard',
       initialBinding: BindingsBuilder(() {
         if (!Get.isRegistered<AuthController>()) {
           Get.put(AuthController(), permanent: true);
         }
       }),
       getPages: [
-        GetPage(name: '/splash', page: () => SplashScreen()),
+        GetPage(name: '/splash', page: () => const SplashScreen()),
+        GetPage(name: '/security-alert', page: () => const SecurityAlertScreen()),
         GetPage(name: '/company-auth', page: () => const CompanyAuthScreen()),
         GetPage(name: '/branch-setup', page: () => const BranchSetupScreen()),
         GetPage(name: '/setup_unlinked', page: () => SetupTerminalScreen()),
@@ -57,13 +100,14 @@ class DeresegnApp extends StatelessWidget {
           page: () => DashboardScreen(),
           middlewares: [InitialNavigationMiddleware()],
         ),
+        GetPage(name: '/delete-account', page: () => const DeleteAccountScreen()),
       ],
     );
   }
 }
 
 class SplashScreen extends StatelessWidget {
-  SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

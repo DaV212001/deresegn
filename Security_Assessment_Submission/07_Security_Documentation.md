@@ -1,8 +1,8 @@
 # Deresegn POS — Security Documentation
 
-**Document Version:** 1.0  
-**Application Version:** 1.0.3+4  
-**Date:** August 5, 2026  
+**Document Version:** 1.1  
+**Application Version:** 1.0.6+7  
+**Date:** September 2026  
 **Classification:** Confidential  
 **Prepared by:** Micro Sun & Solution PLC  
 
@@ -49,7 +49,8 @@
 
 | Surface | Component | Exposure | Current Mitigation |
 |---|---|---|---|
-| Network | HTTPS to api.deresegn.com | All API traffic | TLS 1.2+, HTTPS-only |
+| Network | HTTPS to api.deresegn.com | All API traffic | TLS 1.2+, SSL/TLS Certificate Pinning (SHA-256 leaf, intermediate & root CA pins, Android Network Security Config, Dio pinned adapter) |
+| Device Integrity / Runtime | Root, Jailbreak & Frida | App execution & memory | flutter_jailbreak_detection (RootBeer), su binary detection, Frida port (27042/27043) probe, /proc/self/maps hook scan, automatic session wipe, non-dismissible SecurityAlertScreen |
 | Local Storage (Encrypted) | flutter_secure_storage | JWT tokens, MoR credentials | AES-256 (Keystore/Keychain) |
 | Local Storage (Unencrypted) | shared_preferences | Offline invoice queue | No encryption |
 | Local Storage (Unencrypted) | cookie_jar (file system) | HTTP session cookies | No encryption |
@@ -78,8 +79,8 @@
 | R-01 | Hardcoded fallback MoR credentials in source code | High (present in code) | Medium | **High** |
 | R-02 | Offline queue stores invoice data unencrypted | Medium | Medium | **Medium** |
 | R-03 | LoggingInterceptor logs Authorization headers and full payloads | Medium | Medium | **Medium** |
-| R-04 | No certificate pinning for API connections | Medium | High | **High** |
-| R-05 | No root/jailbreak detection | Medium | Medium | **Medium** |
+| R-04 | Certificate pinning for API connections | Low | High | **Low (Mitigated)** — Enforced via Android network_security_config.xml and Flutter Dio IOHttpClientAdapter with SHA-256 fingerprint verification |
+| R-05 | Root, jailbreak & dynamic instrumentation (Frida) detection | Low | Medium | **Low (Mitigated)** — Multi-layer detection via flutter_jailbreak_detection (RootBeer), Frida TCP socket probe, /proc/self/maps scanning, automated session purge, and blocking non-dismissible UI |
 | R-06 | No code obfuscation beyond default Flutter compilation | Medium | Low | **Low** |
 | R-07 | HTTP cookies stored unencrypted on filesystem | Low | Low | **Low** |
 | R-08 | Branch TIN not unique — password brute-force across branches | Low | Medium | **Medium** |
@@ -99,7 +100,11 @@
 | Branch JWT + Branch-Id cross-validation | `ResolveMorBranch` middleware | ✅ Implemented |
 | Token expiry detection | `JwtDecoder.isExpired()` (mobile), JWT expiry (backend) | ✅ Implemented |
 | Automatic token refresh | `AuthInterceptor.onError()` with refresh lock | ✅ Implemented |
-| Session cleanup on logout | `ConfigPreference.clearTokens()` | ✅ Implemented |
+| Session cleanup on logout | `ConfigPreference.clearMorTokens()` + redirect; `ConfigPreference.clearAll()` on security wipe | ✅ Implemented |
+| Lockout cooldown parsing | `AuthController.handleLockoutIfPresent()` uses regex `(\d+)\s*(minute\|min\|second\|sec\|hour\|hr)s?` on HTTP 403/429 responses; default fallback 1800 s if no match | ✅ Implemented |
+| Interactive countdown banner | Live countdown timer (`Locked: MM:SS` / `HH:MM:SS`) in `CompanyAuthScreen` | ✅ Implemented |
+| Button submission lockdown | Disables submit button during active lockout cooldown | ✅ Implemented |
+| Auth route 401 exemption | `AuthInterceptor._isAuthOrPublicEndpoint()` exempts `/company/register`, `/company/login`, `/branch/login`, `/verify`, `/resend-otp`, `/refresh/token`, `/api/companies`, `/api/login` from token flush | ✅ Implemented |
 
 ### 4.2 Data Protection Controls
 
@@ -111,6 +116,18 @@
 | Password hashing | bcrypt | ✅ Implemented |
 | TLS transport encryption | HTTPS for all API communication | ✅ Implemented |
 | Audit data masking | Tokens masked, secrets removed from audit records | ✅ Implemented |
+
+### 4.3 Mobile Application Hardening Controls
+
+| Control | Implementation | Status |
+|---|---|---|
+| SSL/TLS Certificate Pinning | Android `network_security_config.xml` + Flutter Dio `IOHttpClientAdapter` verifying leaf & CA SHA-256 fingerprints | ✅ Implemented |
+| Root Detection (Android) | `flutter_jailbreak_detection` (RootBeer: su binary, Magisk, test-keys, Superuser.apk, dangerous props) + direct `/system` filesystem scans | ✅ Implemented |
+| Jailbreak Detection (iOS) | `flutter_jailbreak_detection` (Cydia, substrate, suspicious jailbreak files, sandbox integrity) | ✅ Implemented |
+| Dynamic Instrumentation Detection | Frida TCP probe on ports 27042/27043, binary artifact discovery, and `/proc/self/maps` memory injection scan | ✅ Implemented |
+| Incident Response & Token Wipe | Automated purge (`ConfigPreference.clearAll()`, `DioConfig.resetDio()`) upon detecting device compromise | ✅ Implemented |
+| Execution Blocking UI | Non-dismissible `SecurityAlertScreen` preventing app interaction and back navigation (`PopScope(canPop: false)`) | ✅ Implemented |
+| Continuous Integrity Monitoring | Real-time re-verification on app lifecycle resume (`AppLifecycleState.resumed`) | ✅ Implemented |
 
 ---
 
@@ -145,11 +162,16 @@
 - **Token lifetime:** Configurable in backend (`config/jwt.php`)
 - **Refresh mechanism:** Dedicated `/api/refresh/token` endpoint
 - **Concurrent refresh prevention:** Static `_refreshFuture` variable prevents duplicate refresh calls
+- **Session cleanup semantics:**
+  - `ConfigPreference.clearTokens()` — removes MoR access token, MoR refresh token, and company access token. Branch JWT (`access_token`) is **not** removed by this call; it persists until the next login.
+  - `ConfigPreference.clearMorTokens()` — removes only the MoR access token and MoR refresh token; called when the user is redirected back to the login screen.
+  - `ConfigPreference.clearAll()` — calls `FlutterSecureStorage.deleteAll()` wiping every key from secure storage; used exclusively by `SecurityService` upon detecting device compromise (CWE-693).
 
 ### 6.3 Multi-Guard Architecture
 - `auth:api` guard — Company owner authentication (CompanyUser model)
 - `branch` guard — Branch operator authentication (CompanyBranch model)
 - Both guards use JWT tokens but with separate user providers
+- **Public / Exempt Endpoints (no token required, exempt from 401-logout):** `/api/company/register`, `/api/company/login`, `/api/branch/login`, `/api/companies`, `/api/login`, `/api/refresh/token`, and additionally any path containing `/verify` or `/resend-otp` (OTP verification and resend flows — present in backend routes, not yet surfaced in the mobile UI)
 
 ---
 
@@ -168,7 +190,7 @@
 
 | Connection | Protocol | Details |
 |---|---|---|
-| Mobile ↔ Backend | HTTPS (TLS 1.2+) | Standard TLS, no pinning |
+| Mobile ↔ Backend | HTTPS (TLS 1.2+) | Dual-layer SSL/TLS Certificate Pinning: Android Network Security Config (system-only trust anchors, SHA-256 pin-set) + Flutter Dio `IOHttpClientAdapter` with SHA-256 fingerprint validation (`AB:C7:DD:71:67:2F:9C:38:A2:B0:A7:EB:1D:44:51:08:02:ED:5F:46:34:25:AA:89:23:29:54:95:60:B3:B8:65`). Blocks Burp Suite and MITM proxies. |
 | Backend ↔ MoR Gateway | HTTPS (TLS 1.2+) | Via Guzzle HTTP client |
 
 ### 7.3 Digital Signatures

@@ -1,8 +1,8 @@
 # Deresegn POS — System & Architecture Design Document (SDD)
 
-**Document Version:** 1.0  
-**Application Version:** 1.0.3+4  
-**Date:** August 5, 2026  
+**Document Version:** 1.1  
+**Application Version:** 1.0.6+7  
+**Date:** September 2026  
 **Classification:** Confidential  
 **Prepared by:** Micro Sun & Solution PLC  
 
@@ -11,30 +11,34 @@
 ## 1. Mobile App Architecture Overview
 
 ### 1.1 High-Level Description
-Deresegn POS is a cross-platform mobile application built with **Flutter (Dart)** for Android and iOS. The app follows a **client-server architecture** where the mobile client handles user interaction, local caching, and offline queuing, while all fiscal operations (invoice signing, MoR API communication) are processed through a centralized **Laravel 8 (PHP) REST API backend**.
+Deresegn POS is a cross-platform mobile application built with **Flutter (Dart)** for Android and iOS. The app follows a **client-server architecture** where the mobile client handles user interaction, local caching, offline queuing, and comprehensive device hardening, while all fiscal operations (invoice signing, MoR API communication) are processed through a centralized **Laravel 8 (PHP) REST API backend**.
 
 ### 1.2 Architecture Pattern
 The mobile application implements a **layered architecture** organized into the following tiers:
 
 ```
-┌─────────────────────────────────────────────────┐
-│                 PRESENTATION LAYER               │
-│   Screens (UI) • Widgets • Theme • Translations  │
-├─────────────────────────────────────────────────┤
-│               STATE MANAGEMENT LAYER             │
-│          GetX Controllers (Reactive State)        │
-├─────────────────────────────────────────────────┤
-│                  SERVICE LAYER                   │
-│  ApiService • DioService • OfflineQueueService   │
-│  InvoicePdfService • ReceiptPdfService           │
-├─────────────────────────────────────────────────┤
-│                   DATA LAYER                     │
-│   Models • ConfigPreference (Secure Storage)     │
-│   SharedPreferences (Offline Queue)              │
-├─────────────────────────────────────────────────┤
-│                PLATFORM LAYER                    │
-│         Android (APK) • iOS (IPA)                │
-└─────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│                   PRESENTATION LAYER                   │
+│   Screens (UI) • Widgets • Theme • Translations        │
+│   SecurityAlertScreen (Non-dismissible blocking UI)    │
+├────────────────────────────────────────────────────────┤
+│                 STATE MANAGEMENT LAYER                 │
+│          GetX Controllers (Reactive State)             │
+│   AuthController (Lockout Timer & Form State)          │
+├────────────────────────────────────────────────────────┤
+│                    SERVICE LAYER                       │
+│  ApiService • DioService • OfflineQueueService         │
+│  InvoicePdfService • ReceiptPdfService                 │
+│  SecurityService (Root, Jailbreak & Frida Detection)   │
+│  SslPinningService (Dual-Layer SHA-256 TLS Pinning)    │
+├────────────────────────────────────────────────────────┤
+│                     DATA LAYER                         │
+│   Models • ConfigPreference (Secure Keystore Storage)  │
+│   SharedPreferences (Offline Queue)                    │
+├────────────────────────────────────────────────────────┤
+│                  PLATFORM LAYER                        │
+│   Android (APK - API 21 to 35, Java 17) • iOS (IPA)    │
+└────────────────────────────────────────────────────────┘
 ```
 
 ### 1.3 Backend Architecture
@@ -88,9 +92,11 @@ The mobile application implements a **layered architecture** organized into the 
 | Framework | Flutter | SDK ^3.12.2 |
 | Language | Dart | ^3.0.0 |
 | State Management | GetX | ^4.7.3 |
-| HTTP Client | Dio | ^5.10.0 |
+| HTTP Client | Dio (with SSL Pinning Adapter) | ^5.10.0 |
 | Secure Storage | flutter_secure_storage | ^10.3.1 |
 | Local Storage | shared_preferences | ^2.5.5 |
+| Device Integrity | flutter_jailbreak_detection | ^1.10.0 |
+| Cryptography & Hashes | crypto | ^3.0.6 |
 | JWT Handling | jwt_decoder | ^2.0.1 |
 | PDF Generation | pdf + printing | ^3.11.2, ^5.13.2 |
 | QR Code | qr_flutter | ^4.1.0 |
@@ -127,14 +133,15 @@ The mobile application implements a **layered architecture** organized into the 
 
 | Module | Files | Responsibility |
 |---|---|---|
-| **Authentication** | `auth_controller.dart`, `company_auth_screen.dart`, `branch_setup_screen.dart`, `setup_terminal_screen.dart` | Company registration/login, branch creation/login, MoR authentication |
+| **Authentication** | `auth_controller.dart`, `company_auth_screen.dart`, `branch_setup_screen.dart`, `setup_terminal_screen.dart` | Company registration/login, branch creation/login, MoR authentication, account lockout cooldown timer parsing, countdown banner display |
+| **Device Integrity & Security** | `security_service.dart`, `ssl_pinning_service.dart`, `security_alert_screen.dart` | Root/jailbreak detection (RootBeer), Frida socket & memory injection detection, dual-layer SSL certificate pinning, automated session wipe, non-dismissible security blocking screen |
 | **Invoice Management** | `invoice_controller.dart`, `invoice_generator_screen.dart`, `invoice_detail_screen.dart` | Invoice creation, tax calculation, submission, PDF generation |
 | **Invoice History** | `invoice_history_controller.dart`, `invoice_history_screen.dart` | Browsing and filtering past invoices |
 | **Receipt Management** | `receipt_controller.dart` | Sales and withholding receipt submission |
 | **Product Catalog** | `supplies_screen.dart` | CRUD operations on product catalog items |
 | **Offline Queue** | `offline_queue_service.dart` | Queue management, connectivity monitoring, auto-sync |
-| **Networking** | `dio_service.dart`, `dio_config.dart`, `api_service.dart` | HTTP communication, interceptors, retry logic, error handling |
-| **Configuration** | `config_preference.dart`, `app_settings.dart` | Secure credential storage, app settings |
+| **Networking** | `dio_service.dart`, `dio_config.dart`, `api_service.dart` | HTTP communication, interceptors, retry logic, error handling, login endpoint 401 exemption |
+| **Configuration** | `config_preference.dart`, `app_settings.dart` | Secure credential storage (tokens, keys, lockout expiry), app settings |
 | **PDF Services** | `invoice_pdf_service.dart`, `receipt_pdf_service.dart` | PDF document generation |
 | **Theme** | `app_theme.dart`, `theme_service.dart` | Light/Dark theme definitions |
 | **Localization** | `app_translations.dart` | English/Amharic string translations |
@@ -301,6 +308,23 @@ The mobile application implements a **layered architecture** organized into the 
 
 ### 8.5 Sensitive Data Masking
 - The `MorLoginService` explicitly unsets `clientSecret` from audit payloads and replaces `accessToken` and `refreshToken` with `'MASKED'` before persisting.
+
+### 8.6 Device Integrity & Anti-Tampering (CWE-693)
+- **Multi-layer Root Detection:** Employs `flutter_jailbreak_detection` (leveraging native RootBeer checks for su binaries, test-keys, Magisk, Superuser.apk, and busybox) combined with direct filesystem scans of `/system/bin/su`, `/system/xbin/su`, and other known paths.
+- **Dynamic Hooking / Frida Detection:** Probes default Frida server ports (27042/27043) and scans `/proc/self/maps` for injected hook agents (`frida-agent`, `xposed`, `substrate`).
+- **Session Wipe:** Detection immediately triggers `ConfigPreference.clearAll()` and `DioConfig.resetDio()`.
+- **Execution Blocking UI:** Renders a non-dismissible `SecurityAlertScreen` that locks navigation (`PopScope(canPop: false)`).
+- **Continuous Monitoring:** Re-checks integrity on app lifecycle resume (`AppLifecycleState.resumed`).
+
+### 8.7 Dual-Layer SSL/TLS Certificate Pinning (CWE-295)
+- **Native Android Layer:** Configured in `network_security_config.xml` with system-only trust anchors, blocking user-installed proxy CAs (e.g., Burp Suite, Charles Proxy).
+- **Application Network Layer:** `SslPinningService` configures Dio's `IOHttpClientAdapter` with SHA-256 fingerprint verification (`AB:C7:DD:71:67:2F:9C:38:A2:B0:A7:EB:1D:44:51:08:02:ED:5F:46:34:25:AA:89:23:29:54:95:60:B3:B8:65`), immediately terminating any connection with an unexpected certificate.
+
+### 8.8 Brute Force & Rate Limit Protection (CWE-307)
+- **Lockout Detection:** Automatically intercepts HTTP 403 / 429 rate limit responses containing cooldown information (e.g. `"Try again in 29 minutes"`).
+- **Persistent Expiry Tracking:** Computes and saves the lockout expiration timestamp into secure storage (`auth_lockout_expiry`).
+- **Interactive UI Countdown:** Renders a live ticking banner (`Locked: MM:SS`) in `company_auth_screen.dart` and disables the submit button until the cooldown period elapses.
+- **Auth Endpoint Session Protection:** Authentication endpoints (`/api/company/login`, `/api/branch/login`, `/api/company/register`) are exempted from automated 401 token invalidation, preserving user input during login errors.
 
 ---
 

@@ -1,4 +1,6 @@
+import 'dart:io' show Platform;
 import 'package:deresegn/config/config_preference.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -10,6 +12,7 @@ import '../services/api_service.dart';
 import '../services/invoice_pdf_service.dart';
 import '../theme/theme_service.dart';
 import 'branch_setup_screen.dart';
+import 'delete_account_screen.dart';
 import 'pdf_preview_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -163,6 +166,44 @@ class SettingsScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
+            if (!kIsWeb && Platform.isIOS) ...[
+              Divider(
+                height: 1,
+                indent: 56,
+                endIndent: 16,
+                color: theme.dividerColor.withOpacity(0.5),
+              ),
+              ListTile(
+                title: Text(
+                  'delete_account'.tr,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.red,
+                  ),
+                ),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.delete_forever,
+                    color: Colors.red,
+                    size: 20,
+                  ),
+                ),
+                trailing: const Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: Colors.grey,
+                ),
+                onTap: () => Get.to(() => const DeleteAccountScreen()),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ],
           ], theme),
           _buildSectionTitle('legal'.tr, theme),
           _buildSectionCard([

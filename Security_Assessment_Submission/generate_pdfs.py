@@ -133,8 +133,8 @@ class DocPDF(FPDF):
 
         meta = [
             ("Document Version:", "1.0"),
-            ("Application Version:", "1.0.3+4"),
-            ("Date:", "August 5, 2026"),
+            ("Application Version:", "1.0.6+7"),
+            ("Date:", "September 2026"),
             ("Classification:", "Confidential"),
             ("Prepared by:", "Micro Sun & Solution PLC"),
             ("Email:", CONTACT_EMAIL),

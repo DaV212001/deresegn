@@ -6,6 +6,7 @@ import 'package:get/get.dart' hide Response;
 import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../services/ssl_pinning_service.dart';
 import 'config_preference.dart';
 
 const String kApiBaseUrl = "https://api.deresegn.com";
@@ -35,18 +36,30 @@ class AuthInterceptor extends Interceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    final branchId = ConfigPreference.getBranchId();
-    if (branchId != null && branchId.isNotEmpty) {
-      options.headers['Branch-Id'] = branchId;
-    }
     final isPublicEndpoint =
         options.path.contains('/company/register') ||
         options.path.contains('/company/login') ||
         options.path == '/api/companies' ||
         options.path == '/api/branch/login';
-    final isCompanyEndpoint = options.path == '/api/branches';
+    final isCompanyEndpoint = options.path.startsWith('/api/branches');
     if (isPublicEndpoint || isCompanyEndpoint) {
+      // Ensure company endpoints have Authorization header if not already set
+      if (isCompanyEndpoint && !options.headers.containsKey('Authorization')) {
+        final compToken =
+            ConfigPreference.getCompanyAccessToken() ??
+            ConfigPreference.getAccessToken();
+        if (compToken != null) {
+          options.headers['Authorization'] = 'Bearer $compToken';
+        }
+      }
       return handler.next(options);
+    }
+
+    final branchId = ConfigPreference.getBranchId();
+    if (branchId != null &&
+        branchId.isNotEmpty &&
+        !options.path.contains('supplies')) {
+      options.headers['Branch-Id'] = branchId;
     }
     if (ConfigPreference.isAccessTokenExpired()) {
       Logger().d('Branch token expired. Logging out...');
@@ -54,10 +67,16 @@ class AuthInterceptor extends Interceptor {
       return handler.reject(_sessionExpiredException(options));
     }
 
-    final token = options.path == '/api/branches'
-        ? ConfigPreference.getCompanyAccessToken()
+    final isSuppliesOrCompany =
+        options.path.contains('supplies') ||
+        options.path.startsWith('/api/branches');
+
+    final token = isSuppliesOrCompany
+        ? (ConfigPreference.getCompanyAccessToken() ??
+              ConfigPreference.getAccessToken())
         : ConfigPreference.getAccessToken();
-    if (token != null) {
+
+    if (!options.headers.containsKey('Authorization') && token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }
 
@@ -71,16 +90,40 @@ class AuthInterceptor extends Interceptor {
     return handler.next(options);
   }
 
+  static bool _isAuthOrPublicEndpoint(String path) {
+    return path.contains('/company/register') ||
+        path.contains('/company/login') ||
+        path.contains('/branch/login') ||
+        path.contains('/verify') ||
+        path.contains('/resend-otp') ||
+        path.contains('/refresh/token') ||
+        path.startsWith('/api/branches') ||
+        path.contains('supplies') ||
+        path == '/api/companies' ||
+        path == '/api/login';
+  }
+
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    if (err.response?.statusCode == 401 &&
-        !err.requestOptions.path.contains('/auth/')) {
+    final path = err.requestOptions.path;
+
+    if (err.response?.statusCode == 401 && !_isAuthOrPublicEndpoint(path)) {
+      if (path.contains('supplies')) {
+        Logger().w(
+          '⚠️ [SUPPLIES] Received 401 Unauthorized for supplies endpoint ($path). Preserving branch session.',
+        );
+        return handler.next(err);
+      }
+
       final data = err.response?.data;
-      final isMorError = data is Map &&
+      final isMorError =
+          data is Map &&
           (data['code'] == '4503' || data['message'] == 'GATEWAY ERROR');
 
       if (isMorError) {
-        Logger().d('MoR 401 Unauthorized detected. Attempting reactive refresh...');
+        Logger().d(
+          'MoR 401 Unauthorized detected. Attempting reactive refresh...',
+        );
         final newToken = await _refreshAccessToken();
         if (newToken != null) {
           final req = err.requestOptions;
@@ -139,6 +182,7 @@ class AuthInterceptor extends Interceptor {
           connectTimeout: const Duration(seconds: 15),
         ),
       );
+      dio.httpClientAdapter = SslPinningService.createPinnedAdapter();
 
       final response = await dio.post(
         '/api/refresh/token',
@@ -242,9 +286,12 @@ class DioConfig {
         errorMessage = e.message ?? 'Other Dio error occurred';
         break;
       case DioExceptionType.badCertificate:
-        errorMessage = 'Bad certificate, try switching devices';
+        errorMessage =
+            'Security Alert: SSL/TLS certificate verification failed. Untrusted network connection detected.';
+        break;
       case DioExceptionType.connectionError:
         errorMessage = 'Connection error, check your internet';
+        break;
       case DioExceptionType.transformTimeout:
         // TODO: Handle this case.
         throw UnimplementedError();
@@ -269,6 +316,9 @@ class DioConfig {
         receiveTimeout: const Duration(seconds: 120),
       ),
     );
+
+    // Enforce SSL/TLS Certificate Pinning on all requests
+    _dioInstance!.httpClientAdapter = SslPinningService.createPinnedAdapter();
 
     if (!isTestMode) {
       _dioInstance!.interceptors.addAll([

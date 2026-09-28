@@ -1,8 +1,8 @@
 # Deresegn POS — Security Assessment Submission Index
 
 **Submitted by:** Micro Sun & Solution PLC  
-**Application:** Deresegn POS v1.0.3+4  
-**Date:** August 5, 2026  
+**Application:** Deresegn POS v1.0.6+7  
+**Date:** September 2026  
 **Classification:** Confidential  
 
 ---
@@ -57,12 +57,13 @@ build/app/outputs/flutter-apk/app-release.apk
 
 | Component | Version |
 |---|---|
-| Mobile Application | 1.0.3+4 |
+| Mobile Application | 1.0.6+7 |
 | Flutter SDK | ^3.12.2 |
 | Dart SDK | ^3.0.0 |
+| Android compileSdk | 35 (Java 17 bytecode) |
 | Backend Framework | Laravel ^8.75 |
 | PHP | ^7.3 / ^8.0 |
-| All Documents | v1.0 |
+| All Documents | v1.1 (Updated) |
 
 ---
 
