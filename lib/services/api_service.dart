@@ -1,12 +1,20 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:deresegn/config/config_preference.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 
 import '../models/auth_models.dart';
 import '../models/company_models.dart';
 import '../models/invoice_history_model.dart';
 import '../models/invoice_models.dart';
+import '../models/otp_models.dart';
+import '../models/payment_package_models.dart';
 import '../models/receipt_models.dart';
+import '../models/working_hours_model.dart';
 import 'dio_service.dart';
 
 class ApiService {
@@ -91,18 +99,44 @@ class ApiService {
     if (startDate != null) queryParameters['start_date'] = startDate;
     if (endDate != null) queryParameters['end_date'] = endDate;
 
+    final token = ConfigPreference.getAccessToken() ?? ConfigPreference.getCompanyAccessToken();
+
     await DioService.dioGet(
       path: '/api/invoices',
       queryParameters: queryParameters,
       options: Options(
         headers: {
-          'Authorization': "Bearer ${ConfigPreference.getAccessToken()}",
+          'Accept': 'application/json',
+          if (token != null && token.isNotEmpty)
+            'Authorization': "Bearer $token",
         },
       ),
       onSuccess: (response) {
         if (onSuccess != null && response.data != null) {
-          final data = InvoiceHistoryResponse.fromJson(response.data);
-          onSuccess(data);
+          if (response.data is Map<String, dynamic>) {
+            final data = InvoiceHistoryResponse.fromJson(response.data as Map<String, dynamic>);
+            onSuccess(data);
+          } else if (response.data is String) {
+            try {
+              final decoded = jsonDecode(response.data as String);
+              if (decoded is Map<String, dynamic>) {
+                final data = InvoiceHistoryResponse.fromJson(decoded);
+                onSuccess(data);
+                return;
+              }
+            } catch (_) {}
+            if (onFailure != null) {
+              onFailure(
+                DioException(
+                  requestOptions: response.requestOptions,
+                  response: response,
+                  type: DioExceptionType.badResponse,
+                  message: 'Unexpected server response format.',
+                ),
+                response,
+              );
+            }
+          }
         }
       },
       onFailure: onFailure,
@@ -153,8 +187,8 @@ class ApiService {
 
   static Future<void> cancelInvoice(
     InvoiceCancelRequest request, {
-    Function(Response)? onSuccess,
-    Function(Object, Response)? onFailure,
+    FutureOr<void> Function(Response)? onSuccess,
+    FutureOr<void> Function(Object, Response)? onFailure,
   }) async {
     await DioService.dioPost(
       path: '/api/cancel/invoice',
@@ -223,83 +257,35 @@ class ApiService {
     );
   }
 
-  /// Temporary test method to grab company owner token using test credentials
-  static Future<String?> ensureCompanyToken() async {
-    String? token = ConfigPreference.getCompanyAccessToken();
-    if (token != null && token.isNotEmpty) {
-      return token;
-    }
-
-    final candidates = [
-      {'phone': '0949384998', 'password': 'Maru@123'},
-      {'phone': '251949384998', 'password': 'Maru@123'},
-      {'phone': '0949384998', 'password': 'Maru@123', 'company_id': 4},
-      {'phone': '0949384998', 'password': 'Maru@123', 'company_id': 9},
-      {'phone': '25191134567', 'password': 'password123'},
-      {'phone': '251911234567', 'password': 'password123'},
-    ];
-
-    for (final cred in candidates) {
-      try {
-        Logger().i('🔑 [TEST] Attempting company login with ${cred['phone']} (payload: $cred)...');
-        final payload = <String, dynamic>{
-          'phone': cred['phone'],
-          'password': cred['password'],
-        };
-        if (cred.containsKey('company_id')) {
-          payload['company_id'] = cred['company_id'];
-        }
-
-        await DioService.dioPost(
-          path: '/api/company/login',
-          data: payload,
-          onSuccess: (response) async {
-            final body = response.data is Map ? response.data : <String, dynamic>{};
-            final data = body['data'] is Map ? body['data'] : body;
-            final grabbed = data['accessToken'] ?? data['access_token'] ?? data['token'];
-            if (grabbed != null) {
-              Logger().i('✅ [TEST] Successfully grabbed company token with ${cred['phone']}!');
-              await ConfigPreference.updateCompanyToken('$grabbed');
-              token = '$grabbed';
-            }
-          },
-          onFailure: (error, response) {
-            Logger().w('⚠️ [TEST] Company login failed for ${cred['phone']}: $error');
-          },
-        );
-        if (token != null && token!.isNotEmpty) {
-          return token;
-        }
-      } catch (e) {
-        Logger().w('⚠️ [TEST] Exception logging in company for ${cred['phone']}: $e');
-      }
-    }
-    return token;
-  }
-
   static String _suppliesPath({String? id}) {
-    final branchId = ConfigPreference.getBranchId();
+    final rawBranchId = ConfigPreference.getBranchId();
+    final branchId = rawBranchId?.trim().replaceAll(RegExp(r'^/+'), '');
     final base = (branchId != null && branchId.isNotEmpty)
         ? '/api/branches/$branchId/supplies'
         : '/api/supplies';
     return id != null ? '$base/$id' : base;
   }
 
+  static String? _effectiveSuppliesToken() {
+    return ConfigPreference.getAccessToken() ?? ConfigPreference.getCompanyAccessToken();
+  }
+
   static Future<void> fetchSupplies({
     Function(List<SupplyItem>)? onSuccess,
     Function(Object, Response)? onFailure,
   }) async {
-    final companyToken = await ensureCompanyToken();
-    final effectiveToken = companyToken ?? ConfigPreference.getAccessToken();
+    final effectiveToken = _effectiveSuppliesToken();
 
-    Logger().i('📦 [SUPPLIES] Fetching supplies using ${companyToken != null ? "COMPANY OWNER TOKEN" : "BRANCH TOKEN"} at ${_suppliesPath()}');
+    Logger().i('📦 [SUPPLIES] Fetching supplies at ${_suppliesPath()}');
 
     await DioService.dioGet(
       path: _suppliesPath(),
       options: Options(
         headers: {
-          'Authorization': "Bearer $effectiveToken",
-          'token': "Bearer $effectiveToken",
+          if (effectiveToken != null && effectiveToken.isNotEmpty) ...{
+            'Authorization': "Bearer $effectiveToken",
+            'token': "Bearer $effectiveToken",
+          },
         },
       ),
       onSuccess: (response) {
@@ -325,15 +311,16 @@ class ApiService {
     Function(Response)? onSuccess,
     Function(Object, Response)? onFailure,
   }) async {
-    final companyToken = await ensureCompanyToken();
-    final effectiveToken = companyToken ?? ConfigPreference.getAccessToken();
+    final effectiveToken = _effectiveSuppliesToken();
 
     await DioService.dioPost(
       path: _suppliesPath(),
       options: Options(
         headers: {
-          'Authorization': "Bearer $effectiveToken",
-          'token': "Bearer $effectiveToken",
+          if (effectiveToken != null && effectiveToken.isNotEmpty) ...{
+            'Authorization': "Bearer $effectiveToken",
+            'token': "Bearer $effectiveToken",
+          },
         },
       ),
       data: item.toJson(),
@@ -348,15 +335,16 @@ class ApiService {
     Function(Response)? onSuccess,
     Function(Object, Response)? onFailure,
   }) async {
-    final companyToken = await ensureCompanyToken();
-    final effectiveToken = companyToken ?? ConfigPreference.getAccessToken();
+    final effectiveToken = _effectiveSuppliesToken();
 
     await DioService.dioPost(
       path: _suppliesPath(id: id),
       options: Options(
         headers: {
-          'Authorization': "Bearer $effectiveToken",
-          'token': "Bearer $effectiveToken",
+          if (effectiveToken != null && effectiveToken.isNotEmpty) ...{
+            'Authorization': "Bearer $effectiveToken",
+            'token': "Bearer $effectiveToken",
+          },
         },
       ),
       data: item.toJson(),
@@ -370,15 +358,16 @@ class ApiService {
     Function(Response)? onSuccess,
     Function(Object, Response)? onFailure,
   }) async {
-    final companyToken = await ensureCompanyToken();
-    final effectiveToken = companyToken ?? ConfigPreference.getAccessToken();
+    final effectiveToken = _effectiveSuppliesToken();
 
     await DioService.dioDelete(
       path: _suppliesPath(id: id),
       options: Options(
         headers: {
-          'Authorization': "Bearer $effectiveToken",
-          'token': "Bearer $effectiveToken",
+          if (effectiveToken != null && effectiveToken.isNotEmpty) ...{
+            'Authorization': "Bearer $effectiveToken",
+            'token': "Bearer $effectiveToken",
+          },
         },
       ),
       onSuccess: onSuccess,
@@ -404,6 +393,226 @@ class ApiService {
           onSuccess(data);
         }
       },
+      onFailure: onFailure,
+    );
+  }
+
+  // --- OTP Verification & Resend Endpoints ---
+
+  static Future<void> verifyCompanyOtp({
+    required String phone,
+    required String code,
+    Function(Response)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    await DioService.dioPost(
+      path: '/api/company/register/verify',
+      data: CompanyOtpVerifyRequest(phone: phone, code: code).toJson(),
+      onSuccess: onSuccess,
+      onFailure: onFailure,
+    );
+  }
+
+  static Future<void> resendCompanyOtp({
+    required String phone,
+    Function(Response)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    await DioService.dioPost(
+      path: '/api/company/register/resend-otp',
+      data: ResendOtpRequest(phone: phone).toJson(),
+      onSuccess: onSuccess,
+      onFailure: onFailure,
+    );
+  }
+
+  static Future<void> resendBranchOtp({
+    required String phoneNumber,
+    Function(Response)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    await DioService.dioPost(
+      path: '/api/branch/resend-otp',
+      data: {'phone_number': phoneNumber},
+      onSuccess: onSuccess,
+      onFailure: onFailure,
+    );
+  }
+
+  static Future<void> verifyBranchOtp({
+    required String phoneNumber,
+    required String code,
+    Function(Response)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    await DioService.dioPost(
+      path: '/api/branch/verify-phone',
+      data: BranchOtpVerifyRequest(phoneNumber: phoneNumber, code: code).toJson(),
+      onSuccess: onSuccess,
+      onFailure: onFailure,
+    );
+  }
+
+  // --- Payment Packages Endpoints ---
+
+  static Future<void> fetchPackages({
+    Function(List<PaymentPackage>)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    await DioService.dioGet(
+      path: '/api/packages',
+      onSuccess: (response) {
+        if (onSuccess != null && response.data != null) {
+          final raw = response.data is Map
+              ? (response.data['data'] ?? response.data['packages'] ?? [])
+              : response.data;
+          if (raw is List) {
+            final packages = raw
+                .whereType<Map>()
+                .map((e) => PaymentPackage.fromJson(Map<String, dynamic>.from(e)))
+                .toList();
+            onSuccess(packages);
+          }
+        }
+      },
+      onFailure: onFailure,
+    );
+  }
+
+  static Future<void> initializePayment({
+    required PaymentInitializeRequest request,
+    String? token,
+    Function(PaymentInitializeResponse)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    final effectiveToken = token ??
+        ConfigPreference.getCompanyAccessToken() ??
+        ConfigPreference.getAccessToken();
+
+    await DioService.dioPost(
+      path: '/api/payment/initialize',
+      data: request.toJson(),
+      options: Options(
+        headers: {
+          if (effectiveToken != null && effectiveToken.isNotEmpty)
+            'Authorization': 'Bearer $effectiveToken',
+        },
+      ),
+      onSuccess: (response) {
+        if (onSuccess != null && response.data != null) {
+          onSuccess(PaymentInitializeResponse.fromJson(response.data));
+        }
+      },
+      onFailure: onFailure,
+    );
+  }
+
+  static Future<void> checkPaymentStatus({
+    required String txRef,
+    Function(PaymentStatusResponse)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    await DioService.dioGet(
+      path: '/api/payment/status/$txRef',
+      onSuccess: (response) {
+        if (onSuccess != null && response.data != null) {
+          if (response.data is Map) {
+            onSuccess(
+              PaymentStatusResponse.fromJson(Map<String, dynamic>.from(response.data)),
+            );
+          }
+        }
+      },
+      onFailure: onFailure,
+    );
+  }
+
+  // --- Branch Working Hours Endpoints ---
+
+  static Future<void> getBranchHours({
+    required String branchId,
+    Function(BranchWorkingHours)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    await DioService.dioGet(
+      path: '/api/branches/$branchId/hours',
+      onSuccess: (response) {
+        if (onSuccess != null && response.data != null) {
+          if (response.data is Map) {
+            onSuccess(
+              BranchWorkingHours.fromJson(
+                Map<String, dynamic>.from(response.data),
+              ),
+            );
+          }
+        }
+      },
+      onFailure: onFailure,
+    );
+  }
+
+  static Future<void> updateBranchHours({
+    required String branchId,
+    required List<WorkingDayHour> hours,
+    Function(Response)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    await DioService.dioPost(
+      path: '/api/branches/$branchId/hours',
+      data: {
+        'hours': hours.map((h) => h.toJson()).toList(),
+      },
+      onSuccess: onSuccess,
+      onFailure: onFailure,
+    );
+  }
+
+  static Future<void> registerFcmToken({
+    required String fcmToken,
+    String? platform,
+    String? branchToken,
+    Function(Response)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    final token = branchToken ?? ConfigPreference.getAccessToken();
+    if (token == null || token.isEmpty) {
+      Logger().w('⚠️ [FCM] Skipping device token registration: Branch bearer token is missing.');
+      return;
+    }
+
+    final platformName = platform ??
+        (kIsWeb
+            ? 'web'
+            : Platform.isAndroid
+                ? 'android'
+                : Platform.isIOS
+                    ? 'ios'
+                    : Platform.isWindows
+                        ? 'windows'
+                        : Platform.isMacOS
+                            ? 'macos'
+                            : Platform.isLinux
+                                ? 'linux'
+                                : 'unknown');
+
+    final request = FcmTokenRegistrationRequest(
+      fcmToken: fcmToken,
+      platform: platformName,
+    );
+
+    final headers = <String, dynamic>{
+      'Authorization': 'Bearer $token',
+    };
+    final branchId = ConfigPreference.getBranchId();
+    if (branchId != null && branchId.isNotEmpty) {
+      headers['Branch-Id'] = branchId;
+    }
+
+    await DioService.dioPost(
+      path: '/api/fcm/token',
+      data: request.toJson(),
+      options: Options(headers: headers),
+      onSuccess: onSuccess,
       onFailure: onFailure,
     );
   }

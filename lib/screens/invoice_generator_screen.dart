@@ -4,11 +4,24 @@ import 'package:get/get.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../config/config_preference.dart';
+import '../controllers/auth_controller.dart';
+import '../controllers/branch_hours_controller.dart';
 import '../controllers/invoice_controller.dart';
+import '../controllers/invoice_history_controller.dart';
+import '../models/invoice_history_model.dart';
 import '../models/invoice_models.dart';
 
 class InvoiceGeneratorScreen extends StatefulWidget {
-  const InvoiceGeneratorScreen({super.key});
+  final String? initialDocumentType;
+  final String? initialReferenceIrn;
+  final InvoiceSummary? referenceInvoice;
+
+  const InvoiceGeneratorScreen({
+    super.key,
+    this.initialDocumentType,
+    this.initialReferenceIrn,
+    this.referenceInvoice,
+  });
 
   @override
   _InvoiceGeneratorScreenState createState() => _InvoiceGeneratorScreenState();
@@ -18,6 +31,9 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _controller = Get.put(InvoiceController());
+  final _hoursController = Get.isRegistered<BranchHoursController>()
+      ? Get.find<BranchHoursController>()
+      : Get.put(BranchHoursController());
 
   // Input Controllers
   final _tinController = TextEditingController();
@@ -33,9 +49,44 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
   final _referenceIrnController = TextEditingController();
   final _reasonController = TextEditingController();
   final _exchangeRateController = TextEditingController(text: '1.00');
+  final _customPaymentTermController = TextEditingController();
 
-  final List<String> _natureOfSuppliesOptions = ['goods', 'service', 'other'];
-  final List<String> _unitOptions = ['PCS', 'KG', 'LTR', 'MTR', 'DAY', 'HR'];
+  final List<String> _unitOptions = [
+    'PCS',
+    'PKG',
+    'KLG',
+    'LTR',
+    'MTR',
+    'SET',
+    'ROL',
+    'MTS',
+    '101',
+  ];
+
+  String _unitLabel(String unit) {
+    switch (unit.toUpperCase()) {
+      case 'PCS':
+        return 'PCS (Pieces)';
+      case 'PKG':
+        return 'PKG (Package / Box)';
+      case 'KLG':
+        return 'KLG (Kilograms)';
+      case 'LTR':
+        return 'LTR (Liters)';
+      case 'MTR':
+        return 'MTR (Meters)';
+      case 'SET':
+        return 'SET (Sets)';
+      case 'ROL':
+        return 'ROL (Rolls)';
+      case 'MTS':
+        return 'MTS (Metric Tons)';
+      case '101':
+        return '101 (Standard Unit)';
+      default:
+        return unit;
+    }
+  }
 
   String _selectedNature = 'goods';
   String _selectedUnit = 'PCS';
@@ -44,11 +95,17 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
   bool _saveToCatalog = false;
   bool _isWalkIn = false;
   bool _isFromCatalog = false;
+  bool _applyWithholding = false;
+  bool _customWithholdingOverride = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: widget.referenceInvoice != null ? 2 : 0,
+    );
     _tinController.addListener(
       () => _controller.buyerTin.value = _tinController.text == '0000000000'
           ? ''
@@ -76,33 +133,46 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
     _exchangeRateController.addListener(
       () => _controller.exchangeRate.value = _exchangeRateController.text,
     );
+    _customPaymentTermController.addListener(
+      () => _controller.customPaymentTerm.value = _customPaymentTermController.text,
+    );
 
-    // Clear UI controllers when the controller's state is cleared
-    ever(_controller.generatedQrCode, (String qr) {
-      if (qr.isNotEmpty) {
-        // This is a sign that an invoice was just registered and then the form was cleared
-        // Note: generatedQrCode is cleared in _controller.clearForm()
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (widget.initialDocumentType != null) {
+        _controller.documentType.value = widget.initialDocumentType!;
+      }
+      if (widget.referenceInvoice != null) {
+        _controller.setReferenceInvoice(widget.referenceInvoice!);
+        _referenceIrnController.text = widget.referenceInvoice!.irn ?? '';
+        _tinController.text = _controller.buyerTin.value;
+        _nameController.text = _controller.buyerName.value;
+      } else if (widget.initialReferenceIrn != null) {
+        _referenceIrnController.text = widget.initialReferenceIrn!;
+        _controller.referenceIrn.value = widget.initialReferenceIrn!;
       }
     });
 
-    // Listen to items clearing to reset local UI state
-    ever(_controller.items, (list) {
-      if (list.isEmpty && _controller.buyerTin.value.isEmpty) {
-        _tinController.clear();
-        _nameController.clear();
-        _itemDescController.clear();
-        _itemPriceController.clear();
-        _itemQtyController.clear();
-        _itemDiscountController.clear();
-        _itemCodeController.clear();
-        _referenceIrnController.clear();
-        _reasonController.clear();
-        _exchangeRateController.text = '1.00';
-        setState(() {
-          _isWalkIn = false;
-          _tabController.animateTo(0);
-        });
-      }
+    // Reset local UI controllers ONLY when clearForm() is triggered after invoice submission
+    ever(_controller.formResetSignal, (_) {
+      if (!mounted) return;
+      _tinController.clear();
+      _nameController.clear();
+      _itemDescController.clear();
+      _itemPriceController.clear();
+      _itemQtyController.clear();
+      _itemDiscountController.clear();
+      _itemCodeController.clear();
+      _referenceIrnController.clear();
+      _reasonController.clear();
+      _exchangeRateController.text = '1.00';
+      _customPaymentTermController.clear();
+      _incomeWithholdController.text = '0.00';
+      _txnWithholdController.text = '0.00';
+      setState(() {
+        _isWalkIn = false;
+        _tabController.animateTo(0);
+      });
     });
   }
 
@@ -170,128 +240,185 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // CopyAccessTokenWidget(),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: theme.cardColor,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: theme.dividerColor),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: theme.primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
+          Obx(() {
+            final isRefLocked = _controller.selectedReferenceInvoice.value != null;
+            final refInv = _controller.selectedReferenceInvoice.value;
+
+            return Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: theme.dividerColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: theme.primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          isRefLocked ? Icons.lock_outline_rounded : Icons.person_search_rounded,
+                          color: theme.primaryColor,
+                          size: 20,
+                        ),
                       ),
-                      child: Icon(
-                        Icons.person_search_rounded,
-                        color: theme.primaryColor,
-                        size: 20,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'customer_info'.tr,
+                          style: TextStyle(
+                            color: theme.textTheme.bodyLarge?.color,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
+
+                    ],
+                  ),
+                  if (isRefLocked && refInv != null) ...[
+                    const SizedBox(height: 12),
                     Text(
-                      'customer_info'.tr,
+                      'Buyer details are locked to original invoice #${refInv.documentNumber ?? refInv.id}.',
                       style: TextStyle(
-                        color: theme.textTheme.bodyLarge?.color,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        color: theme.textTheme.bodySmall?.color ?? Colors.grey,
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 24),
-                _buildTextField(
-                  'buyer_tin'.tr,
-                  _tinController,
-                  icon: Icons.badge_outlined,
-                ),
-                const SizedBox(height: 16),
-                _buildTextField(
-                  'buyer_legal_name'.tr,
-                  _nameController,
-                  icon: Icons.business_outlined,
-                ),
-                const SizedBox(height: 16),
-                GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _isWalkIn = !_isWalkIn;
-                      if (_isWalkIn) {
-                        _tinController.text = '0000000000';
-                        _nameController.text = 'Walking';
-                      } else {
-                        _tinController.text = '';
-                        _nameController.text = '';
-                      }
-                    });
-                  },
-                  child: Row(
-                    children: [
-                      Icon(
-                        _isWalkIn
-                            ? Icons.check_box_rounded
-                            : Icons.check_box_outline_blank_rounded,
-                        color: _isWalkIn
-                            ? Theme.of(context).primaryColor
-                            : Colors.grey,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'walk_in_customer'.tr,
-                        style: TextStyle(
-                          color: theme.textTheme.bodyLarge?.color,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 24),
+                  _buildTextField(
+                    'buyer_tin'.tr,
+                    _tinController,
+                    icon: Icons.badge_outlined,
+                    readOnly: isRefLocked,
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton(
-            onPressed: () {
-              final txnType = _controller.transactionType.value;
-              if ((txnType == 'B2B' || txnType == 'B2G') && !_isWalkIn) {
-                if (_tinController.text.trim().length != 10) {
-                  Get.snackbar(
-                    'Validation Error',
-                    'B2B/B2G transactions require a valid 10-digit Buyer TIN.',
-                    backgroundColor: Colors.red.withOpacity(0.2),
-                    colorText: Colors.red,
-                  );
-                  return;
-                }
-              }
-              _tabController.animateTo(1);
-            },
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 56),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    'buyer_legal_name'.tr,
+                    _nameController,
+                    icon: Icons.business_outlined,
+                    readOnly: isRefLocked,
+                  ),
+                  if (!isRefLocked) ...[
+                    const SizedBox(height: 16),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _isWalkIn = !_isWalkIn;
+                          if (_isWalkIn) {
+                            _tinController.text = '0000000000';
+                            _nameController.text = 'Walking';
+                          } else {
+                            _tinController.text = '';
+                            _nameController.text = '';
+                          }
+                        });
+                      },
+                      child: Row(
+                        children: [
+                          Icon(
+                            _isWalkIn
+                                ? Icons.check_box_rounded
+                                : Icons.check_box_outline_blank_rounded,
+                            color: _isWalkIn
+                                ? Theme.of(context).primaryColor
+                                : Colors.grey,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'walk_in_customer'.tr,
+                            style: TextStyle(
+                              color: theme.textTheme.bodyLarge?.color,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'continue_to_items'.tr,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+            );
+          }),
+          const SizedBox(height: 32),
+          Obx(() {
+            final isRef = _controller.selectedReferenceInvoice.value != null;
+            if (isRef) {
+              return Column(
+                children: [
+                  ElevatedButton(
+                    onPressed: () => _tabController.animateTo(2),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 56),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'review_summary'.tr,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.arrow_forward_rounded, size: 18),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextButton.icon(
+                    onPressed: () => _tabController.animateTo(1),
+                    icon: const Icon(Icons.edit_note_rounded, size: 18),
+                    label: const Text('Adjust Line Items (Optional)'),
+                  ),
+                ],
+              );
+            }
+            return ElevatedButton(
+              onPressed: () {
+                final txnType = _controller.transactionType.value;
+                if ((txnType == 'B2B' || txnType == 'B2G') && !_isWalkIn) {
+                  if (_tinController.text.trim().length != 10) {
+                    Get.snackbar(
+                      'Validation Error',
+                      'B2B/B2G transactions require a valid 10-digit Buyer TIN.',
+                      backgroundColor: Colors.red.withOpacity(0.2),
+                      colorText: Colors.red,
+                    );
+                    return;
+                  }
+                }
+                _tabController.animateTo(1);
+              },
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 56),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                SizedBox(width: 8),
-                Icon(Icons.arrow_forward_rounded, size: 18),
-              ],
-            ),
-          ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'continue_to_items'.tr,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.arrow_forward_rounded, size: 18),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -321,8 +448,8 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                   _itemPriceController.text = selection.unitPrice.toString();
                   _itemCodeController.text = selection.itemCode;
                   setState(() {
-                    _selectedNature = selection.natureOfSupplies;
-                    _selectedUnit = selection.unit;
+                    _selectedNature = InvoiceController.sanitizeNatureOfSupplies(selection.natureOfSupplies);
+                    _selectedUnit = InvoiceController.sanitizeUnit(selection.unit);
                     _itemExciseRate = selection.exciseTaxRate;
                     _isExciseTaxable = selection.isExciseTaxable;
                     _isFromCatalog = true;
@@ -388,6 +515,30 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
               Row(
                 children: [
                   Expanded(
+                    child: ChoiceChip(
+                      label: const Text('ዕቃዎች / Goods'),
+                      selected: _selectedNature == 'goods',
+                      onSelected: (val) {
+                        if (val) setState(() => _selectedNature = 'goods');
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ChoiceChip(
+                      label: const Text('አገልግሎት / Service'),
+                      selected: _selectedNature == 'service',
+                      onSelected: (val) {
+                        if (val) setState(() => _selectedNature = 'service');
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
                     child: Obx(
                       () => _buildDropdownField<TaxCategory>(
                         'tax'.tr,
@@ -402,11 +553,10 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                   Expanded(
                     child: _buildDropdownField<String>(
                       'unit'.tr,
-                      _selectedUnit,
+                      InvoiceController.sanitizeUnit(_selectedUnit),
                       _unitOptions,
-                      _isFromCatalog
-                          ? null
-                          : (val) => setState(() => _selectedUnit = val!),
+                      (val) => setState(() => _selectedUnit = InvoiceController.sanitizeUnit(val)),
+                      itemBuilder: _unitLabel,
                     ),
                   ),
                 ],
@@ -459,8 +609,8 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                           quantity: qty,
                           discount: discount,
                           taxCategory: _controller.selectedTaxCategory.value,
-                          natureOfSupplies: _selectedNature,
-                          unit: _selectedUnit,
+                          natureOfSupplies: InvoiceController.sanitizeNatureOfSupplies(_selectedNature),
+                          unit: InvoiceController.sanitizeUnit(_selectedUnit),
                           itemCode: _itemCodeController.text,
                           exciseRate: _itemExciseRate,
                           isExciseTaxable: _isExciseTaxable,
@@ -753,27 +903,179 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                     () => _buildDropdownField<String>(
                       'Document Type',
                       _controller.documentType.value,
-                      ['CASH_SALE', 'CREDIT_SALE', 'CREDIT_NOTE', 'DEBIT_NOTE'],
+                      [
+                        'CASH_SALE',
+                        'CREDIT_SALE',
+                        'CREDIT_NOTE',
+                        'DEBIT_NOTE',
+                        'WITHHOLDING_RECEIPT',
+                      ],
                       (val) {
                         _controller.documentType.value = val!;
+                        if (val == 'CASH_SALE') {
+                          _controller.paymentMode.value = 'CASH';
+                          _controller.paymentTerm.value = 'IMMEDIATE';
+                        } else if (val == 'CREDIT_SALE') {
+                          _controller.paymentMode.value = 'CREDIT';
+                          _controller.paymentTerm.value = 'Net 30';
+                        }
+                      },
+                      itemBuilder: (type) {
+                        switch (type) {
+                          case 'CASH_SALE':
+                            return 'cash_sale'.tr;
+                          case 'CREDIT_SALE':
+                            return 'credit_sale'.tr;
+                          case 'CREDIT_NOTE':
+                            return 'credit_note'.tr;
+                          case 'DEBIT_NOTE':
+                            return 'debit_note'.tr;
+                          case 'WITHHOLDING_RECEIPT':
+                            return 'withholding_receipt'.tr;
+                          default:
+                            return type;
+                        }
                       },
                     ),
                   ),
                   const SizedBox(height: 12),
                   Obx(() {
                     if (_controller.documentType.value == 'CREDIT_NOTE' ||
-                        _controller.documentType.value == 'DEBIT_NOTE') {
+                        _controller.documentType.value == 'DEBIT_NOTE' ||
+                        _controller.documentType.value == 'WITHHOLDING_RECEIPT') {
+                      final selectedInv = _controller.selectedReferenceInvoice.value;
+
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12.0),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            _buildTextField(
-                              'Reference Invoice IRN',
-                              _referenceIrnController,
+                            TextField(
+                              controller: _referenceIrnController,
+                              readOnly: selectedInv != null,
+                              style: TextStyle(
+                                color: selectedInv != null
+                                    ? Theme.of(context).textTheme.bodyLarge?.color?.withValues(alpha: 0.6)
+                                    : Theme.of(context).textTheme.bodyLarge?.color,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                              decoration: InputDecoration(
+                                labelText: 'Reference Invoice IRN',
+                                labelStyle: const TextStyle(color: Colors.grey),
+                                filled: true,
+                                fillColor: selectedInv != null
+                                    ? Theme.of(context).disabledColor.withValues(alpha: 0.05)
+                                    : Theme.of(context).inputDecorationTheme.fillColor,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                prefixIcon: const Icon(Icons.link_rounded),
+                                suffixIcon: selectedInv != null
+                                    ? const Padding(
+                                        padding: EdgeInsets.only(right: 12),
+                                        child: Icon(Icons.lock_outline_rounded, size: 18, color: Colors.grey),
+                                      )
+                                    : Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(Icons.content_paste_rounded, size: 20),
+                                            tooltip: 'Paste IRN from clipboard',
+                                            onPressed: () async {
+                                              final data = await Clipboard.getData(Clipboard.kTextPlain);
+                                              if (data?.text != null && data!.text!.trim().isNotEmpty) {
+                                                _referenceIrnController.text = data.text!.trim();
+                                                _controller.referenceIrn.value = data.text!.trim();
+                                                Get.snackbar(
+                                                  'Pasted',
+                                                  'IRN pasted from clipboard',
+                                                  snackPosition: SnackPosition.BOTTOM,
+                                                  duration: const Duration(seconds: 2),
+                                                );
+                                              }
+                                            },
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.history_rounded, size: 20),
+                                            tooltip: 'Select from previous invoices',
+                                            onPressed: () => _showInvoiceSelectionModal(context),
+                                          ),
+                                        ],
+                                      ),
+                              ),
                             ),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              onPressed: () => _showInvoiceSelectionModal(context),
+                              icon: const Icon(Icons.receipt_long_rounded, size: 18),
+                              label: const Text('Select from Previous Invoices'),
+                              style: OutlinedButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
+                            if (selectedInv != null) ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).primaryColor.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Theme.of(context).primaryColor.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.check_circle_rounded,
+                                      color: Theme.of(context).primaryColor,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Referencing: Doc #${selectedInv.documentNumber ?? selectedInv.id}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: Theme.of(context).primaryColor,
+                                            ),
+                                          ),
+                                          Text(
+                                            '${selectedInv.buyer.legalName ?? 'Buyer'} • ${selectedInv.totals.totalValue ?? '0.00'} ETB',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.close_rounded, size: 18),
+                                      tooltip: 'Clear Reference',
+                                      onPressed: () {
+                                        _controller.clearReferenceInvoice();
+                                        _referenceIrnController.clear();
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 12),
                             _buildTextField(
-                              'adjustment_reason'.tr,
+                              _controller.documentType.value == 'WITHHOLDING_RECEIPT'
+                                  ? 'Withholding Reason / Description'
+                                  : 'adjustment_reason'.tr,
                               _reasonController,
                             ),
                           ],
@@ -806,18 +1108,237 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  _buildTextField(
-                    'income_withholding'.tr,
-                    _incomeWithholdController,
-                    isNumber: true,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTextField(
-                    'transaction_withholding'.tr,
-                    _txnWithholdController,
-                    isNumber: true,
-                  ),
+                  _buildPaymentDetailsCard(context),
+                  Obx(() {
+                    final theme = Theme.of(context);
+                    double goodsTotal = 0.0;
+                    double servicesTotal = 0.0;
+                    for (final item in _controller.items) {
+                      final preTax = item.afterDiscount;
+                      if (item.natureOfSupplies.toLowerCase().contains('serv')) {
+                        servicesTotal += preTax;
+                      } else {
+                        goodsTotal += preTax;
+                      }
+                    }
+
+                    final bool qualifiesGoods = goodsTotal >= 20000.0;
+                    final bool qualifiesServices = servicesTotal >= 10000.0;
+                    final bool qualifiesForWithholding =
+                        (qualifiesGoods || qualifiesServices) && !_isWalkIn;
+
+                    double qualifyingBase = 0.0;
+                    if (qualifiesGoods) qualifyingBase += goodsTotal;
+                    if (qualifiesServices) qualifyingBase += servicesTotal;
+
+                    final double auto3Percent =
+                        double.parse((qualifyingBase * 0.03).toStringAsFixed(2));
+
+                    if (!qualifiesForWithholding) {
+                      if (_incomeWithholdController.text != '0.00' &&
+                          !_customWithholdingOverride) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            _incomeWithholdController.text = '0.00';
+                            _txnWithholdController.text = '0.00';
+                          }
+                        });
+                      }
+                      return const SizedBox.shrink();
+                    }
+
+                    // Auto-sync 3% amount if withholding is active and not overridden
+                    if (_applyWithholding && !_customWithholdingOverride) {
+                      final currentText = _incomeWithholdController.text;
+                      final expectedText = auto3Percent.toStringAsFixed(2);
+                      if (currentText != expectedText) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted && _applyWithholding && !_customWithholdingOverride) {
+                            _incomeWithholdController.text = expectedText;
+                          }
+                        });
+                      }
+                    }
+
+                    final String thresholdReason = qualifiesGoods && qualifiesServices
+                        ? 'Goods (≥ 20,000 ETB) and Services (≥ 10,000 ETB) qualify for 3% withholding'
+                        : (qualifiesGoods
+                            ? 'Goods total (${goodsTotal.toStringAsFixed(2)} ETB) qualifies for 3% withholding (threshold ≥ 20,000 ETB)'
+                            : 'Services total (${servicesTotal.toStringAsFixed(2)} ETB) qualifies for 3% withholding (threshold ≥ 10,000 ETB)');
+
+                    return Container(
+                      margin: const EdgeInsets.only(top: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: theme.cardColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _applyWithholding
+                              ? theme.primaryColor.withOpacity(0.5)
+                              : theme.dividerColor,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.percent,
+                                            size: 18, color: theme.primaryColor),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Statutory Withholding (3%)',
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              color: theme.textTheme.bodyLarge?.color,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 15,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      thresholdReason,
+                                      style: const TextStyle(
+                                          color: Colors.grey, fontSize: 11),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Switch(
+                                value: _applyWithholding,
+                                activeColor: theme.primaryColor,
+                                onChanged: (val) {
+                                  setState(() {
+                                    _applyWithholding = val;
+                                    if (val) {
+                                      _incomeWithholdController.text =
+                                          auto3Percent.toStringAsFixed(2);
+                                    } else {
+                                      _incomeWithholdController.text = '0.00';
+                                      _txnWithholdController.text = '0.00';
+                                      _customWithholdingOverride = false;
+                                    }
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                          if (_applyWithholding) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: theme.primaryColor.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Taxable Base for Withholding:',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(fontSize: 12),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${qualifyingBase.toStringAsFixed(2)} ETB',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Withheld Tax (3% MoR Rate):',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${_incomeWithholdController.text} ETB',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: theme.primaryColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _customWithholdingOverride =
+                                          !_customWithholdingOverride;
+                                    });
+                                  },
+                                  child: Text(
+                                    _customWithholdingOverride
+                                        ? 'Use Auto 3% Calculation'
+                                        : 'Custom Withholding / VAT Withholding',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: theme.primaryColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (_customWithholdingOverride) ...[
+                              const SizedBox(height: 6),
+                              _buildTextField(
+                                'income_withholding'.tr,
+                                _incomeWithholdController,
+                                isNumber: true,
+                              ),
+                              const SizedBox(height: 10),
+                              _buildTextField(
+                                'transaction_withholding'.tr,
+                                _txnWithholdController,
+                                isNumber: true,
+                              ),
+                            ],
+                          ],
+                        ],
+                      ),
+                    );
+                  }),
                   const SizedBox(height: 32),
                   if (_controller.generatedQrCode.value.isNotEmpty)
                     Center(
@@ -849,54 +1370,143 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                         ],
                       ),
                     ),
-                  const SizedBox(height: 32),
-                  ElevatedButton(
-                    onPressed: _controller.isSubmitting.value
-                        ? null
-                        : () => _controller.registerFormInvoice(context),
-                    // style: ElevatedButton.styleFrom(
-                    //   backgroundColor: const Color(0xFF2F3283),
-                    //   foregroundColor: Colors.black,
-                    //   minimumSize: const Size(double.infinity, 60),
-                    //   shape: RoundedRectangleBorder(
-                    //     borderRadius: BorderRadius.circular(18),
-                    //   ),
-                    //   elevation: 8,
-                    //   shadowColor: const Color(0xFF2F3283).withOpacity(0.4),
-                    // ),
-                    child: _controller.isSubmitting.value
-                        ? SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(
-                              color: Theme.of(context).colorScheme.onPrimary,
-                              strokeWidth: 3,
-                            ),
-                          )
-                        : Text(
-                            'submit_invoice'.tr,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
+                  const SizedBox(height: 24),
+                  Obx(() {
+                    final status = _hoursController.currentStatus.value;
+                    if (status.isOpen) return const SizedBox.shrink();
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 20),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade900.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.amber.shade800.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.schedule_rounded,
+                            color: Colors.amber.shade800,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Outside Operating Hours',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.amber.shade900,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  status.message,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.color
+                                        ?.withValues(alpha: 0.8),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: _controller.isSubmitting.value
-                        ? null
-                        : () => _controller.registerSampleInvoice(context),
-                    child: Text(
-                      'Post Test Transaction',
-                      style: TextStyle(
-                        color: Theme.of(
-                          context,
-                        ).textTheme.bodyLarge?.color?.withOpacity(0.3),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                        ],
                       ),
-                    ),
-                  ),
+                    );
+                  }),
+                  Obx(() {
+                    final bool isSubmitting = _controller.isSubmitting.value;
+                    final bool isMorAuth = Get.isRegistered<AuthController>() &&
+                        Get.find<AuthController>().isMorAuthenticating.value;
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ElevatedButton(
+                          onPressed: isSubmitting
+                              ? null
+                              : () {
+                                  if (!_hoursController.isCurrentlyOpen()) {
+                                    _hoursController.showClosedDialog(context);
+                                    return;
+                                  }
+                                  _controller.registerFormInvoice(context);
+                                },
+                          child: isSubmitting
+                              ? Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Theme.of(context).colorScheme.onPrimary,
+                                        strokeWidth: 2.5,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      isMorAuth
+                                          ? 'Connecting to MoR...'
+                                          : 'Submitting...',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Text(
+                                  _controller.documentType.value == 'WITHHOLDING_RECEIPT'
+                                      ? 'Issue Withholding Receipt'
+                                      : (_controller.documentType.value == 'CREDIT_NOTE'
+                                          ? 'Issue Credit Note (CRE)'
+                                          : (_controller.documentType.value == 'DEBIT_NOTE'
+                                              ? 'Issue Debit Note (DEB)'
+                                              : 'submit_invoice'.tr)),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton(
+                          onPressed: isSubmitting
+                              ? null
+                              : () {
+                                  if (!_hoursController.isCurrentlyOpen()) {
+                                    _hoursController.showClosedDialog(context);
+                                    return;
+                                  }
+                                  _controller.registerSampleInvoice(context);
+                                },
+                          child: Text(
+                            'Post Test Transaction',
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyLarge?.color?.withValues(alpha: 0.3),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
                 ],
               ),
             ),
@@ -906,17 +1516,276 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
     );
   }
 
+  void _showInvoiceSelectionModal(BuildContext context) {
+    final historyController = Get.isRegistered<InvoiceHistoryController>()
+        ? Get.find<InvoiceHistoryController>()
+        : Get.put(InvoiceHistoryController());
+
+    if (historyController.invoices.isEmpty && !historyController.isLoading.value) {
+      historyController.fetchInvoices(refresh: true);
+    }
+
+    final searchController = TextEditingController();
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final query = searchController.text.trim().toLowerCase();
+
+            return DraggableScrollableSheet(
+              initialChildSize: 0.75,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              expand: false,
+              builder: (ctx, scrollController) {
+                return Obx(() {
+                  final allInvoices = historyController.invoices.where((inv) {
+                    return inv.irn != null && inv.irn!.isNotEmpty;
+                  }).toList();
+
+                  final filtered = query.isEmpty
+                      ? allInvoices
+                      : allInvoices.where((inv) {
+                          final docMatch = (inv.documentNumber ?? '').toLowerCase().contains(query);
+                          final nameMatch = (inv.buyer.legalName ?? '').toLowerCase().contains(query);
+                          final irnMatch = (inv.irn ?? '').toLowerCase().contains(query);
+                          return docMatch || nameMatch || irnMatch;
+                        }).toList();
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 40,
+                            height: 4,
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Select Reference Invoice',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: theme.textTheme.bodyLarge?.color,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded),
+                              onPressed: () => Navigator.pop(ctx),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          'Choose an existing sales invoice to reference for this adjustment note',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: searchController,
+                          onChanged: (_) => setSheetState(() {}),
+                          decoration: InputDecoration(
+                            hintText: 'Search by Doc #, Buyer Name, or IRN...',
+                            prefixIcon: const Icon(Icons.search_rounded),
+                            suffixIcon: searchController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear_rounded, size: 18),
+                                    onPressed: () {
+                                      searchController.clear();
+                                      setSheetState(() {});
+                                    },
+                                  )
+                                : null,
+                            filled: true,
+                            fillColor: theme.scaffoldBackgroundColor,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        if (historyController.isLoading.value)
+                          const Expanded(
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        else if (filtered.isEmpty)
+                          Expanded(
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.receipt_long_outlined, size: 48, color: Colors.grey.shade400),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    query.isEmpty ? 'No previous invoices available.' : 'No invoices match "$query"',
+                                    style: TextStyle(color: Colors.grey.shade600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          Expanded(
+                            child: ListView.separated(
+                              controller: scrollController,
+                              itemCount: filtered.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 8),
+                              itemBuilder: (context, index) {
+                                final inv = filtered[index];
+                                final isSelected = _controller.referenceIrn.value == inv.irn;
+
+                                return InkWell(
+                                  onTap: () {
+                                    _controller.setReferenceInvoice(inv);
+                                    _referenceIrnController.text = inv.irn ?? '';
+                                    _tinController.text = _controller.buyerTin.value;
+                                    _nameController.text = _controller.buyerName.value;
+                                    Navigator.pop(ctx);
+                                    Get.snackbar(
+                                      'Invoice Referenced',
+                                      'Referenced Doc #${inv.documentNumber ?? inv.id}. Buyer, items, and payment terms synchronized.',
+                                      snackPosition: SnackPosition.BOTTOM,
+                                      backgroundColor: theme.primaryColor.withOpacity(0.15),
+                                      colorText: theme.primaryColor,
+                                      duration: const Duration(seconds: 3),
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? theme.primaryColor.withOpacity(0.08)
+                                          : theme.scaffoldBackgroundColor,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: isSelected ? theme.primaryColor : theme.dividerColor,
+                                        width: isSelected ? 1.5 : 1,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                  decoration: BoxDecoration(
+                                                    color: theme.primaryColor.withOpacity(0.12),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                  ),
+                                                  child: Text(
+                                                    'Invoice #${inv.documentNumber ?? inv.id}',
+                                                    style: TextStyle(
+                                                      color: theme.primaryColor,
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  inv.transactionType ?? 'B2B',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: Colors.grey.shade600,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            Text(
+                                              '${inv.totals.totalValue ?? '0.00'} ETB',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                                color: theme.textTheme.bodyLarge?.color,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          inv.buyer.legalName ?? 'Walking Customer',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: theme.textTheme.bodyLarge?.color,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            Icon(Icons.fingerprint_rounded, size: 12, color: Colors.blue.shade700),
+                                            const SizedBox(width: 4),
+                                            Expanded(
+                                              child: Text(
+                                                'IRN: ${inv.irn ?? 'N/A'}',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontFamily: 'monospace',
+                                                  color: Colors.grey.shade700,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                });
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildTextField(
     String label,
     TextEditingController controller, {
     bool isNumber = false,
     IconData? icon,
+    bool readOnly = false,
   }) {
     return _buildTextFieldCustom(
       label,
       controller,
       isNumber: isNumber,
       icon: icon,
+      readOnly: readOnly,
     );
   }
 
@@ -926,15 +1795,19 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
     bool isNumber = false,
     FocusNode? focusNode,
     IconData? icon,
+    bool readOnly = false,
   }) {
     return TextField(
       controller: controller,
       focusNode: focusNode,
+      readOnly: readOnly,
       keyboardType: isNumber
           ? const TextInputType.numberWithOptions(decimal: true)
           : TextInputType.text,
       style: TextStyle(
-        color: Theme.of(context).textTheme.bodyLarge?.color,
+        color: readOnly
+            ? Theme.of(context).textTheme.bodyLarge?.color?.withValues(alpha: 0.6)
+            : Theme.of(context).textTheme.bodyLarge?.color,
         fontWeight: FontWeight.w600,
       ),
       decoration: InputDecoration(
@@ -946,8 +1819,16 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
         prefixIcon: icon != null
             ? Icon(icon, color: Theme.of(context).primaryColor, size: 20)
             : null,
+        suffixIcon: readOnly
+            ? const Padding(
+                padding: EdgeInsets.only(right: 12),
+                child: Icon(Icons.lock_outline_rounded, size: 18, color: Colors.grey),
+              )
+            : null,
         filled: true,
-        fillColor: Theme.of(context).inputDecorationTheme.fillColor,
+        fillColor: readOnly
+            ? Theme.of(context).disabledColor.withValues(alpha: 0.05)
+            : Theme.of(context).inputDecorationTheme.fillColor,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Theme.of(context).dividerColor),
@@ -974,8 +1855,10 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
     void Function(T?)? onChanged, {
     String Function(T)? itemBuilder,
   }) {
+    final effectiveItems = items.contains(value) ? items : [value, ...items];
     return DropdownButtonFormField<T>(
       value: value,
+      isExpanded: true,
       dropdownColor: Theme.of(context).cardColor,
       style: TextStyle(
         color: Theme.of(context).textTheme.bodyLarge?.color,
@@ -1005,11 +1888,13 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
           vertical: 16,
         ),
       ),
-      items: items.map((T item) {
+      items: effectiveItems.map((T item) {
         return DropdownMenuItem<T>(
           value: item,
           child: Text(
             itemBuilder != null ? itemBuilder(item) : item.toString(),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
           ),
         );
       }).toList(),
@@ -1043,6 +1928,317 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
       ),
     );
   }
+
+  @override
+  void dispose() {
+    _customPaymentTermController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildPaymentDetailsCard(BuildContext context) {
+    final theme = Theme.of(context);
+    return Obx(() {
+      if (_controller.documentType.value == 'WITHHOLDING_RECEIPT') {
+        return const SizedBox.shrink();
+      }
+
+      final isCreditSale = _controller.documentType.value == 'CREDIT_SALE';
+      final isNote = _controller.documentType.value == 'CREDIT_NOTE' ||
+          _controller.documentType.value == 'DEBIT_NOTE';
+      final currentMode = _controller.paymentMode.value;
+      final currentTerm = _controller.paymentTerm.value;
+
+      String termLabel(String term) {
+        switch (term) {
+          case 'IMMEDIATE':
+            return 'Immediate (ወዲያውኑ)';
+          case 'Cash on Delivery':
+            return 'Cash on Delivery (COD)';
+          case 'Payment in Advance':
+            return 'Payment in Advance';
+          case 'Net 30':
+            return 'Net 30 (30 Days from Invoice)';
+          case 'Net 15':
+            return 'Net 15 (15 Days from Invoice)';
+          case 'End of Month':
+            return 'End of Month';
+          case 'CREDIT':
+            return 'Standard Credit';
+          case 'Custom':
+            return 'Custom Agreed Terms...';
+          default:
+            return term;
+        }
+      }
+
+      if (isNote && _controller.selectedReferenceInvoice.value != null) {
+        final refDocNum = _controller.selectedReferenceInvoice.value?.documentNumber ??
+            _controller.selectedReferenceInvoice.value?.id.toString() ?? '';
+
+        String modeDisplay;
+        if (currentMode == 'CREDIT') {
+          modeDisplay = 'Credit (ዱቤ)';
+        } else if (currentMode == 'DIRECT_TRANSFER') {
+          modeDisplay = 'Direct Transfer (የባንክ ዝውውር)';
+        } else {
+          modeDisplay = 'Cash (እጅ በእጅ)';
+        }
+
+        return Container(
+          margin: const EdgeInsets.only(top: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: theme.dividerColor),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.payments_outlined,
+                    size: 20,
+                    color: theme.primaryColor,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'mode_of_payment'.tr,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: theme.inputDecorationTheme.fillColor ?? theme.scaffoldBackgroundColor,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: theme.dividerColor),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check_circle_rounded, size: 14, color: theme.primaryColor),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            modeDisplay,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: theme.textTheme.bodyMedium?.color,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (currentTerm.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: theme.inputDecorationTheme.fillColor ?? theme.scaffoldBackgroundColor,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: theme.dividerColor),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.schedule_rounded, size: 14, color: theme.primaryColor),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              termLabel(currentTerm),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: theme.textTheme.bodyMedium?.color,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Automatically matched with original invoice #$refDocNum.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.textTheme.bodySmall?.color ?? Colors.grey,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
+      final List<String> termOptions;
+      if (currentMode == 'CREDIT' || isCreditSale) {
+        termOptions = ['Net 30', 'Net 15', 'End of Month', 'CREDIT'];
+        if (currentTerm.isNotEmpty && !termOptions.contains(currentTerm) && currentTerm != 'Custom') {
+          termOptions.add(currentTerm);
+        }
+        termOptions.add('Custom');
+      } else {
+        termOptions = ['IMMEDIATE', 'Cash on Delivery', 'Payment in Advance'];
+        if (currentTerm.isNotEmpty && !termOptions.contains(currentTerm) && currentTerm != 'Custom') {
+          termOptions.add(currentTerm);
+        }
+        termOptions.add('Custom');
+      }
+
+      final selectedTermValue = termOptions.contains(currentTerm)
+          ? currentTerm
+          : (termOptions.contains('Custom') ? 'Custom' : termOptions.first);
+
+      return Container(
+        margin: const EdgeInsets.only(top: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.payments_outlined,
+                  size: 20,
+                  color: theme.primaryColor,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'mode_of_payment'.tr,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ChoiceChip(
+                  label: const Text('Cash (እጅ በእጅ)'),
+                  selected: currentMode == 'CASH',
+                  onSelected: (selected) {
+                    if (selected) {
+                      _controller.paymentMode.value = 'CASH';
+                      _controller.paymentTerm.value = 'IMMEDIATE';
+                      if (_controller.documentType.value == 'CREDIT_SALE') {
+                        _controller.documentType.value = 'CASH_SALE';
+                      }
+                    }
+                  },
+                ),
+                ChoiceChip(
+                  label: const Text('Credit (ዱቤ)'),
+                  selected: currentMode == 'CREDIT' || isCreditSale,
+                  onSelected: (selected) {
+                    if (selected) {
+                      _controller.paymentMode.value = 'CREDIT';
+                      _controller.paymentTerm.value = 'Net 30';
+                      _controller.documentType.value = 'CREDIT_SALE';
+                    }
+                  },
+                ),
+                ChoiceChip(
+                  label: const Text('Direct Transfer (የባንክ ዝውውር)'),
+                  selected: currentMode == 'DIRECT_TRANSFER',
+                  onSelected: (selected) {
+                    if (selected) {
+                      _controller.paymentMode.value = 'DIRECT_TRANSFER';
+                      _controller.paymentTerm.value = 'IMMEDIATE';
+                    }
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Agreed Payment Terms (የክፍያ ስምምነት)',
+              style: TextStyle(
+                color: theme.textTheme.bodySmall?.color ?? Colors.grey,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              value: selectedTermValue,
+              isExpanded: true,
+              dropdownColor: theme.cardColor,
+              style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontSize: 13),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: theme.inputDecorationTheme.fillColor,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              items: termOptions.map((t) {
+                return DropdownMenuItem<String>(
+                  value: t,
+                  child: Text(termLabel(t), overflow: TextOverflow.ellipsis),
+                );
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  _controller.paymentTerm.value = val;
+                }
+              },
+            ),
+            if (selectedTermValue == 'Custom') ...[
+              const SizedBox(height: 10),
+              TextField(
+                controller: _customPaymentTermController,
+                style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontSize: 13),
+                decoration: InputDecoration(
+                  labelText: 'Custom Terms (e.g. 10/15, N/30 or Cash on Delivery)',
+                  labelStyle: const TextStyle(color: Colors.grey, fontSize: 12),
+                  filled: true,
+                  fillColor: theme.inputDecorationTheme.fillColor,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ],
+            
+          ],
+        ),
+      );
+    });
+  }
+
 }
 
 class CopyAccessTokenWidget extends StatelessWidget {

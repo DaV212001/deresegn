@@ -38,3 +38,20 @@ class InvoiceVerificationRequest {
 
   Map<String, dynamic> toJson() => {"irn": irn};
 }
+
+class FcmTokenRegistrationRequest {
+  final String fcmToken;
+  final String platform;
+
+  FcmTokenRegistrationRequest({
+    required this.fcmToken,
+    required this.platform,
+  });
+
+  Map<String, dynamic> toJson() => {
+        "fcm_token": fcmToken,
+        "device_info": {
+          "platform": platform,
+        },
+      };
+}

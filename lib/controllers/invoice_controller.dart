@@ -19,10 +19,12 @@ import '../models/receipt_models.dart';
 import '../screens/invoice_detail_screen.dart';
 import '../screens/pdf_preview_screen.dart';
 import '../services/api_service.dart';
+import '../services/cancelled_invoices_storage.dart';
 import '../services/invoice_pdf_service.dart';
 import '../services/offline_queue_service.dart';
 import '../services/receipt_pdf_service.dart';
 import 'auth_controller.dart';
+import 'branch_hours_controller.dart';
 import 'invoice_history_controller.dart';
 import 'receipt_controller.dart';
 
@@ -40,10 +42,10 @@ class TaxCategory {
 
 const List<TaxCategory> taxCategories = [
   TaxCategory(code: 'VAT15', description: 'VAT (15%)', rate: 0.15),
+  TaxCategory(code: 'VAT0', description: 'Zero Rated (0%)', rate: 0.0),
+  TaxCategory(code: 'VATEX', description: 'Exempt (Non-taxable)', rate: 0.0),
   TaxCategory(code: 'TOT2', description: 'TOT (2%)', rate: 0.02),
   TaxCategory(code: 'TOT10', description: 'TOT (10%)', rate: 0.10),
-  TaxCategory(code: 'EXMT', description: 'Exempt', rate: 0.0),
-  TaxCategory(code: 'ZERO', description: 'Zero Rated', rate: 0.0),
 ];
 
 class InvoiceItem {
@@ -85,6 +87,72 @@ class InvoiceItem {
 }
 
 class InvoiceController extends GetxController {
+  static const Set<String> validMorUnits = {
+    'LTR',
+    'MTR',
+    '101',
+    'PCS',
+    'ROL',
+    'MTS',
+    'PKG',
+    'SET',
+    'KLG',
+  };
+
+  static String sanitizeNatureOfSupplies(String? nature) {
+    if (nature == null || nature.isEmpty) return 'goods';
+    final lower = nature.toLowerCase().trim();
+    if (lower.contains('serv') || lower == 's') {
+      return 'service';
+    }
+    return 'goods';
+  }
+
+  static String sanitizeUnit(String? unit) {
+    if (unit == null || unit.isEmpty) return 'PCS';
+    final upper = unit.toUpperCase().trim();
+    if (validMorUnits.contains(upper)) {
+      return upper;
+    }
+    switch (upper) {
+      case 'KG':
+      case 'KILOGRAM':
+      case 'KILO':
+        return 'KLG';
+      case 'BOX':
+      case 'CARTON':
+      case 'PKT':
+      case 'PACKET':
+      case 'PACK':
+      case 'BAG':
+      case 'BUNDLE':
+        return 'PKG';
+      case 'PIECE':
+      case 'PIECES':
+      case 'UNIT':
+      case 'UNITS':
+      case 'NOS':
+      case 'NO':
+        return 'PCS';
+      case 'METER':
+      case 'METERS':
+        return 'MTR';
+      case 'LITER':
+      case 'LITRE':
+      case 'LITERS':
+        return 'LTR';
+      case 'ROLL':
+      case 'ROLLS':
+        return 'ROL';
+      case 'TON':
+      case 'TONS':
+      case 'MT':
+        return 'MTS';
+      default:
+        return 'PCS';
+    }
+  }
+
   var isSubmitting = false.obs;
   var generatedQrCode = ''.obs;
 
@@ -93,9 +161,12 @@ class InvoiceController extends GetxController {
   var buyerName = ''.obs;
   var items = <InvoiceItem>[].obs;
   var paymentMode = 'CASH'.obs;
+  var paymentTerm = 'IMMEDIATE'.obs;
+  var customPaymentTerm = ''.obs;
   var transactionType = 'B2C'.obs;
   var documentType = 'CASH_SALE'.obs;
   var referenceIrn = ''.obs;
+  var selectedReferenceInvoice = Rxn<InvoiceSummary>();
   var adjustmentReason = ''.obs;
   var invoiceCurrency = 'ETB'.obs;
   var exchangeRate = '1.00'.obs;
@@ -104,11 +175,92 @@ class InvoiceController extends GetxController {
   var selectedTaxCategory = taxCategories.first.obs;
   var availableSupplies = <SupplyItem>[].obs;
   var isLoadingSupplies = false.obs;
+  var formResetSignal = 0.obs;
+
+  void setReferenceInvoice(InvoiceSummary parentInvoice) {
+    selectedReferenceInvoice.value = parentInvoice;
+    referenceIrn.value = parentInvoice.irn ?? '';
+
+    // Auto-populate buyer info from parent invoice
+    if (parentInvoice.buyer.tin != null && parentInvoice.buyer.tin!.isNotEmpty) {
+      buyerTin.value = parentInvoice.buyer.tin!;
+    } else {
+      buyerTin.value = '';
+    }
+    if (parentInvoice.buyer.legalName != null && parentInvoice.buyer.legalName!.isNotEmpty) {
+      buyerName.value = parentInvoice.buyer.legalName!;
+    } else {
+      buyerName.value = 'Walk-in Customer';
+    }
+
+    // Inherit PaymentTerm and Mode from parent invoice (Required for MoR Rule 7030 compliance)
+    final refPayload = parentInvoice.requestPayload;
+    String? term = refPayload?['PaymentDetails']?['PaymentTerm']?.toString() ??
+        refPayload?['paymentDetails']?['paymentTerm']?.toString();
+    String? mode = refPayload?['PaymentDetails']?['Mode']?.toString() ??
+        refPayload?['paymentDetails']?['mode']?.toString();
+
+    if (term == null || term.isEmpty) {
+      term = (parentInvoice.rawDocumentType == 'CREDIT_SALE') ? 'CREDIT' : 'IMMEDIATE';
+    }
+    if (mode == null || mode.isEmpty) {
+      mode = (parentInvoice.rawDocumentType == 'CREDIT_SALE') ? 'CREDIT' : 'CASH';
+    }
+
+    paymentTerm.value = term;
+    paymentMode.value = mode;
+
+    // Copy parent invoice items
+    items.clear();
+    final payload = parentInvoice.requestPayload;
+    if (payload != null && payload['ItemList'] is List) {
+      final parentItems = payload['ItemList'] as List<dynamic>;
+      for (final it in parentItems) {
+        if (it is Map) {
+          final taxCode = it['TaxCode']?.toString() ?? 'VAT15';
+          final matchedTax = taxCategories.firstWhere(
+            (c) => c.code == taxCode,
+            orElse: () => taxCategories.first,
+          );
+          final qty = double.tryParse(it['Quantity']?.toString() ?? '1') ?? 1.0;
+          final price = double.tryParse(it['UnitPrice']?.toString() ?? '0') ?? 0.0;
+          final disc = double.tryParse(it['Discount']?.toString() ?? '0') ?? 0.0;
+          final extVal = double.tryParse(it['ExciseTaxValue']?.toString() ?? '0') ?? 0.0;
+
+          items.add(
+            InvoiceItem(
+              description: it['ProductDescription']?.toString() ?? 'Item',
+              unitPrice: price,
+              quantity: qty,
+              taxCategory: matchedTax,
+              itemCode: it['ItemCode']?.toString() ?? '',
+              natureOfSupplies: it['NatureOfSupplies']?.toString() ?? 'goods',
+              unit: it['Unit']?.toString() ?? 'PCS',
+              discount: disc,
+              isExciseTaxable: extVal > 0,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void clearReferenceInvoice() {
+    selectedReferenceInvoice.value = null;
+    referenceIrn.value = '';
+  }
 
   @override
   void onInit() {
     super.onInit();
     fetchSupplies();
+    final authController = Get.isRegistered<AuthController>()
+        ? Get.find<AuthController>()
+        : Get.put(AuthController());
+    authController.ensureMorAuth().catchError((e) {
+      Logger().w('Background MoR auth in InvoiceController: $e');
+      return false;
+    });
   }
 
   Future<void> fetchSupplies() async {
@@ -239,9 +391,12 @@ class InvoiceController extends GetxController {
     buyerName.value = '';
     items.clear();
     paymentMode.value = 'CASH';
+    paymentTerm.value = 'IMMEDIATE';
+    customPaymentTerm.value = '';
     transactionType.value = 'B2C';
     documentType.value = 'CASH_SALE';
     referenceIrn.value = '';
+    selectedReferenceInvoice.value = null;
     adjustmentReason.value = '';
     invoiceCurrency.value = 'ETB';
     exchangeRate.value = '1.00';
@@ -249,19 +404,197 @@ class InvoiceController extends GetxController {
     txnWithholdValue.value = '0.00';
     selectedTaxCategory.value = taxCategories.first;
     generatedQrCode.value = '';
+    formResetSignal.value++;
   }
 
   String _formatInvoiceDate(DateTime dt) {
-    return DateFormat("dd-MM-yyyy'T'HH:mm:ss").format(dt);
+    // MoR validator strictly validates timestamps against its server UTC clock
+    // and rejects any timestamps in the future.
+    // Convert to UTC with a 1-minute safety offset to prevent client clock skew rejections.
+    final utc = dt.toUtc().subtract(const Duration(minutes: 1));
+    return DateFormat("dd-MM-yyyy'T'HH:mm:ss").format(utc);
+  }
+
+  Future<void> registerWithholdingFromForm(BuildContext context) async {
+    if (referenceIrn.value.trim().isEmpty) {
+      Get.snackbar(
+        'Reference Required',
+        'Please enter or select a Reference Invoice IRN for the withholding receipt.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    if (buyerTin.value.trim().isEmpty) {
+      Get.snackbar(
+        'TIN Required',
+        'Please enter Buyer / Withholding Agent TIN.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    isSubmitting.value = true;
+    try {
+      final authController = Get.isRegistered<AuthController>()
+          ? Get.find<AuthController>()
+          : Get.put(AuthController());
+      final hasMorAuth = await authController.ensureMorAuth();
+      if (!hasMorAuth) {
+        isSubmitting.value = false;
+        authController.showMorCredentialsRequiredDialog(action: 'register withholding');
+        Get.snackbar(
+          'MoR Credentials Required',
+          'Please contact support to set up your MoR credentials.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
+
+      double pretaxAmount = 0.0;
+      if (items.isNotEmpty) {
+        pretaxAmount = items.fold<double>(0.0, (sum, it) => sum + it.afterDiscount);
+      } else if (selectedReferenceInvoice.value != null) {
+        final valDet = selectedReferenceInvoice.value!.requestPayload?['ValueDetails'] as Map<String, dynamic>?;
+        final rawPretax = valDet?['TaxableAmount'] ?? selectedReferenceInvoice.value!.totals.totalValue;
+        pretaxAmount = double.tryParse(rawPretax?.toString() ?? '0') ?? 0.0;
+      }
+
+      if (pretaxAmount <= 0) {
+        isSubmitting.value = false;
+        Get.snackbar(
+          'Amount Required',
+          'Please add items or select an invoice to determine the pre-tax withholding base.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
+
+      final bool hasServices = items.any((i) => i.natureOfSupplies.toLowerCase().contains('serv'));
+      final String natureOfSupplies = hasServices ? 'services' : 'goods';
+      final systemNumber = await AppSettings.getSystemNumber();
+      const double rate = 0.03;
+      final withholdAmount = double.parse((pretaxAmount * rate).toStringAsFixed(2));
+      final String reason = adjustmentReason.value.trim().isNotEmpty
+          ? adjustmentReason.value.trim()
+          : (natureOfSupplies == 'services'
+              ? 'Withholding tax deduction on service payment.'
+              : 'Withholding tax deducted from the payment.');
+
+      final receiptNumber = "WHT-${DateTime.now().millisecondsSinceEpoch}";
+      final request = WithholdingReceiptRequest(
+        receiptNumber: receiptNumber,
+        reason: reason,
+        receiptCounter: "1",
+        manualReceiptNumber: (DateTime.now().millisecondsSinceEpoch % 100000).toString(),
+        sourceSystemType: "POS",
+        sourceSystemNumber: systemNumber,
+        buyerTIN: buyerTin.value.trim(),
+        invoiceDetail: {
+          "InvoiceIRN": referenceIrn.value.trim(),
+          "Currency": invoiceCurrency.value,
+        },
+        withholdDetail: {
+          "Type": "TWHT",
+          "NatureOfSupplies": sanitizeNatureOfSupplies(natureOfSupplies),
+          "PreTaxAmount": double.parse(pretaxAmount.toStringAsFixed(2)),
+          "WithholdingAmount": withholdAmount,
+        },
+      );
+
+      await ApiService.registerWithholdingReceipt(
+        request,
+        onSuccess: (response) async {
+          isSubmitting.value = false;
+          Get.snackbar(
+            'Success',
+            'Withholding Receipt registered successfully on MoR.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green.withOpacity(0.15),
+            colorText: Colors.green,
+            duration: const Duration(seconds: 4),
+          );
+
+          final parent = selectedReferenceInvoice.value ??
+              InvoiceSummary(
+                id: 0,
+                irn: referenceIrn.value.trim(),
+                documentNumber: 'WHT',
+                status: 'A',
+                buyer: BuyerInfo(legalName: buyerName.value, tin: buyerTin.value),
+                totals: TotalsInfo(totalValue: pretaxAmount.toStringAsFixed(2), currency: invoiceCurrency.value),
+              );
+
+          final receiptSummary = ReceiptSummary(
+            id: DateTime.now().millisecondsSinceEpoch,
+            morId: 'MOR-WHT-${DateTime.now().millisecondsSinceEpoch % 10000}',
+            status: 'A',
+            invoiceIrn: referenceIrn.value.trim(),
+            receiptNumber: receiptNumber,
+            isSuccess: true,
+            createdAt: DateTime.now().toIso8601String(),
+            requestPayload: {
+              'ReceiptNumber': receiptNumber,
+              'Reason': reason,
+              'NatureOfSupplies': natureOfSupplies,
+              'ReceiptCounter': '1',
+              'SourceSystemType': 'POS',
+              'SourceSystemNumber': systemNumber,
+              'BuyerTIN': buyerTin.value.trim(),
+              'InvoiceDetail': {
+                'InvoiceIRN': referenceIrn.value.trim(),
+                'Currency': invoiceCurrency.value,
+              },
+              'WithholdDetail': {
+                'Type': 'TWHT',
+                'NatureOfSupplies': natureOfSupplies,
+                'PreTaxAmount': pretaxAmount,
+                'WithholdingRate': rate,
+                'WithholdingAmount': withholdAmount,
+              },
+            },
+          );
+
+          clearForm();
+
+          try {
+            final pdfBytes = await ReceiptPdfService.generate(receiptSummary, parent, isWithholding: true);
+            Get.to(() => PdfPreviewScreen(pdfBytes: pdfBytes, title: 'Withholding Tax Receipt'));
+          } catch (e) {
+            Logger().w('Could not open preview for withholding receipt: $e');
+            Get.back();
+          }
+        },
+        onFailure: (error, response) {
+          isSubmitting.value = false;
+          final errorData = error is dio_lib.DioException ? error.response?.data : response.data;
+          final msg = (errorData is Map && errorData['message'] != null)
+              ? errorData['message'].toString()
+              : 'Failed to register Withholding Receipt. Please try again.';
+          Get.snackbar(
+            'Registration Failed',
+            msg,
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red.withOpacity(0.15),
+            colorText: Colors.red,
+            duration: const Duration(seconds: 5),
+          );
+        },
+      );
+    } catch (e) {
+      isSubmitting.value = false;
+      Logger().e('Error in registerWithholdingFromForm: $e');
+      Get.snackbar('Error', 'An error occurred: $e');
+    }
   }
 
   Future<int> _getNextDocumentNumber() async {
     try {
-      InvoiceHistoryController historyController;
-      if (Get.isRegistered<InvoiceHistoryController>()) {
-        historyController = Get.find<InvoiceHistoryController>();
-      } else {
-        historyController = Get.put(InvoiceHistoryController());
+      final historyController = Get.isRegistered<InvoiceHistoryController>()
+          ? Get.find<InvoiceHistoryController>()
+          : Get.put(InvoiceHistoryController());
+
+      if (historyController.invoices.isEmpty) {
         await historyController.fetchInvoices(refresh: true);
       }
 
@@ -278,11 +611,24 @@ class InvoiceController extends GetxController {
     } catch (e) {
       Logger().w('Error determining next document number: $e');
     }
-    // Fallback to timestamp-based number if history is unavailable
-    return DateTime.now().millisecondsSinceEpoch % 100000;
+    // Fallback starting from 174 (last verified live doc number was 173)
+    return 174;
   }
 
   Future<void> registerFormInvoice(BuildContext context) async {
+    final hoursController = Get.isRegistered<BranchHoursController>()
+        ? Get.find<BranchHoursController>()
+        : Get.put(BranchHoursController());
+    if (!hoursController.isCurrentlyOpen()) {
+      hoursController.showClosedDialog(context);
+      return;
+    }
+
+    if (documentType.value == 'WITHHOLDING_RECEIPT') {
+      await registerWithholdingFromForm(context);
+      return;
+    }
+
     if (items.isEmpty || buyerName.value.isEmpty) {
       Get.snackbar(
         'Error',
@@ -291,24 +637,27 @@ class InvoiceController extends GetxController {
       return;
     }
 
-    final authController = Get.isRegistered<AuthController>()
-        ? Get.find<AuthController>()
-        : Get.put(AuthController());
-    final hasMorAuth = await authController.ensureMorAuth();
-    if (!hasMorAuth) {
-      authController.showMorCredentialsRequiredDialog(action: 'create an invoice');
-      Get.snackbar(
-        'MoR Credentials Required',
-        'Please contact support to set up your MoR credentials.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return;
-    }
-
     isSubmitting.value = true;
-    final int nextDocNumber = await _getNextDocumentNumber();
+    try {
+      final authController = Get.isRegistered<AuthController>()
+          ? Get.find<AuthController>()
+          : Get.put(AuthController());
+      final hasMorAuth = await authController.ensureMorAuth();
+      if (!hasMorAuth) {
+        isSubmitting.value = false;
+        authController.showMorCredentialsRequiredDialog(action: 'create an invoice');
+        Get.snackbar(
+          'MoR Credentials Required',
+          'Please contact support to set up your MoR credentials.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
 
-    final tin = await ConfigPreference.getTin();
+      final int nextDocNumber = await _getNextDocumentNumber();
+
+    final rawTin = await ConfigPreference.getTin();
+    final tin = rawTin.isNotEmpty ? rawTin : "0000037187";
     final cashierName = await AppSettings.getCashierName();
     final systemNumber = await AppSettings.getSystemNumber();
     final tradeName = await AppSettings.getTradeName();
@@ -320,11 +669,11 @@ class InvoiceController extends GetxController {
       InvoiceItem item = entry.value;
       return {
         "LineNumber": idx + 1,
-        "NatureOfSupplies": item.natureOfSupplies,
+        "NatureOfSupplies": sanitizeNatureOfSupplies(item.natureOfSupplies),
         "UnitPrice": item.unitPrice.toStringAsFixed(2),
         "TotalLineAmount": item.totalLineAmount.toStringAsFixed(2),
         "PreTaxValue": item.afterDiscount.toStringAsFixed(2),
-        "Unit": item.unit,
+        "Unit": sanitizeUnit(item.unit),
         "TaxCode": item.taxCategory.code,
         "TaxAmount": item.vatAmount.toStringAsFixed(2),
         "Quantity": item.quantity.toStringAsFixed(2),
@@ -338,15 +687,55 @@ class InvoiceController extends GetxController {
     }).toList();
 
     String docType = "INV";
-    String payTerm = paymentMode.value;
+    String payTerm = paymentTerm.value.trim();
+    String mode = paymentMode.value.trim();
+
     if (documentType.value == 'CREDIT_SALE') {
-      payTerm = "CREDIT";
-    } else if (documentType.value == 'CREDIT_NOTE') {
-      docType = "CRE";
-      payTerm = "CREDIT";
-    } else if (documentType.value == 'DEBIT_NOTE') {
-      docType = "DEB";
-      payTerm = "CREDIT";
+      if (mode.toUpperCase() == 'CASH') mode = 'CREDIT';
+      if (payTerm.toUpperCase() == 'IMMEDIATE' || payTerm.toUpperCase() == 'CASH' || payTerm.isEmpty) {
+        payTerm = 'CREDIT';
+      }
+    } else if (documentType.value == 'CREDIT_NOTE' || documentType.value == 'DEBIT_NOTE') {
+      docType = documentType.value == 'CREDIT_NOTE' ? "CRE" : "DEB";
+      // MoR Rule 7030: PaymentTerm and Mode must match the referenced invoice exactly
+      if (selectedReferenceInvoice.value != null) {
+        final refPayload = selectedReferenceInvoice.value!.requestPayload;
+        final refTerm = refPayload?['PaymentDetails']?['PaymentTerm']?.toString() ??
+            refPayload?['paymentDetails']?['paymentTerm']?.toString();
+        final refMode = refPayload?['PaymentDetails']?['Mode']?.toString() ??
+            refPayload?['paymentDetails']?['mode']?.toString();
+        if (refTerm != null && refTerm.trim().isNotEmpty) payTerm = refTerm.trim();
+        if (refMode != null && refMode.trim().isNotEmpty) mode = refMode.trim();
+      }
+    }
+
+    if (payTerm.isEmpty) {
+      payTerm = (mode.toUpperCase() == 'CREDIT') ? 'CREDIT' : 'IMMEDIATE';
+    }
+    if (mode.isEmpty) {
+      mode = (payTerm.toUpperCase() == 'CREDIT') ? 'CREDIT' : 'CASH';
+    }
+
+    if (payTerm.toLowerCase() == 'custom' && customPaymentTerm.value.trim().isNotEmpty) {
+      payTerm = customPaymentTerm.value.trim();
+    }
+
+    // Standardize Mode to MoR Rule 7022 specification ("CASH", "ADVANCE", "CREDIT")
+    String formattedMode;
+    switch (mode.toUpperCase()) {
+      case 'CREDIT':
+        formattedMode = 'CREDIT';
+        break;
+      case 'ADVANCE':
+        formattedMode = 'ADVANCE';
+        break;
+      case 'DIRECT_TRANSFER':
+      case 'DIRECT TRANSFER':
+      case 'BANK_TRANSFER':
+      case 'CASH':
+      default:
+        formattedMode = 'CASH';
+        break;
     }
 
     final String docReason = (docType == "CRE" || docType == "DEB")
@@ -412,7 +801,7 @@ class InvoiceController extends GetxController {
       },
       itemList: itemListMap,
       valueDetails: valDetails,
-      paymentDetails: {"PaymentTerm": payTerm, "Mode": paymentMode.value},
+      paymentDetails: {"PaymentTerm": payTerm, "Mode": formattedMode},
       referenceDetails: {
         "RelatedDocument":
             (documentType.value == 'CREDIT_NOTE' ||
@@ -429,25 +818,39 @@ class InvoiceController extends GetxController {
     );
 
     await _sendInvoiceRequest(context, request);
+    } catch (e) {
+      isSubmitting.value = false;
+      Logger().e('Error in registerFormInvoice: $e');
+    }
   }
 
   Future<void> registerSampleInvoice(BuildContext context) async {
-    final authController = Get.isRegistered<AuthController>()
-        ? Get.find<AuthController>()
-        : Get.put(AuthController());
-    final hasMorAuth = await authController.ensureMorAuth();
-    if (!hasMorAuth) {
-      authController.showMorCredentialsRequiredDialog(action: 'create an invoice');
-      Get.snackbar(
-        'MoR Credentials Required',
-        'Please contact support to set up your MoR credentials.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+    final hoursController = Get.isRegistered<BranchHoursController>()
+        ? Get.find<BranchHoursController>()
+        : Get.put(BranchHoursController());
+    if (!hoursController.isCurrentlyOpen()) {
+      hoursController.showClosedDialog(context);
       return;
     }
 
     isSubmitting.value = true;
-    final int nextDocNumber = await _getNextDocumentNumber();
+    try {
+      final authController = Get.isRegistered<AuthController>()
+          ? Get.find<AuthController>()
+          : Get.put(AuthController());
+      final hasMorAuth = await authController.ensureMorAuth();
+      if (!hasMorAuth) {
+        isSubmitting.value = false;
+        authController.showMorCredentialsRequiredDialog(action: 'create an invoice');
+        Get.snackbar(
+          'MoR Credentials Required',
+          'Please contact support to set up your MoR credentials.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
+
+      final int nextDocNumber = await _getNextDocumentNumber();
     final tin = await ConfigPreference.getTin();
     final cashierName = await AppSettings.getCashierName();
     final systemNumber = await AppSettings.getSystemNumber();
@@ -530,17 +933,17 @@ class InvoiceController extends GetxController {
     );
 
     await _sendInvoiceRequest(context, request);
+    } catch (e) {
+      isSubmitting.value = false;
+      Logger().e('Error in registerSampleInvoice: $e');
+    }
   }
 
   String? _extractExpectedValue(dynamic responseData) {
-    if (responseData is Map) {
-      final msg = responseData['message'] ?? responseData['errorMessage'];
-      if (msg != null && msg is String && msg.contains('expected value:')) {
-        final match = RegExp(r'expected value: ([\d]+)').firstMatch(msg);
-        return match?.group(1);
-      }
-    }
-    return null;
+    if (responseData == null) return null;
+    final str = responseData is String ? responseData : jsonEncode(responseData);
+    final match = RegExp(r'expected\s*(?:value)?\s*:\s*(\d+)', caseSensitive: false).firstMatch(str);
+    return match?.group(1);
   }
 
   Future<void> _sendInvoiceRequest(
@@ -552,12 +955,25 @@ class InvoiceController extends GetxController {
       request,
       onSuccess: (response) async {
         final data = response.data;
-        final String irn =
-            (data != null &&
-                data['body'] != null &&
-                data['body']['irn'] != null)
-            ? data['body']['irn']
-            : "mock_irn_fallback_${DateTime.now().millisecondsSinceEpoch}";
+        String? irn;
+        String? signedQr;
+        if (data != null) {
+          if (data['body'] != null && data['body'] is Map) {
+            irn = data['body']['irn']?.toString();
+            signedQr = data['body']['signed_qr']?.toString();
+          }
+          if (irn == null && data['irn'] != null) {
+            irn = data['irn']?.toString();
+          }
+          if (signedQr == null && data['signed_qr'] != null) {
+            signedQr = data['signed_qr']?.toString();
+          }
+          if (irn == null && data['data'] != null && data['data'] is Map) {
+            irn = data['data']['irn']?.toString();
+            signedQr = data['data']['signed_qr']?.toString();
+          }
+        }
+        final String finalIrn = irn ?? "mock_irn_fallback_${DateTime.now().millisecondsSinceEpoch}";
 
         Get.dialog(
           Dialog(
@@ -599,7 +1015,7 @@ class InvoiceController extends GetxController {
           final historyController = Get.put(InvoiceHistoryController());
           await historyController.fetchInvoices(refresh: true);
           registeredInvoice = historyController.invoices.firstWhereOrNull(
-            (inv) => inv.irn == irn,
+            (inv) => inv.irn == finalIrn,
           );
         } catch (e) {
           Logger().e('Error fetching registered invoice: $e');
@@ -608,9 +1024,10 @@ class InvoiceController extends GetxController {
         // If not found in history yet, construct a minimal summary from local state
         registeredInvoice ??= InvoiceSummary(
           id: 0,
-          irn: irn,
+          irn: finalIrn,
           documentNumber: request.documentDetails['DocumentNumber'],
           status: 'A',
+          signedQr: signedQr,
           buyer: BuyerInfo(legalName: buyerName.value, tin: buyerTin.value),
           totals: TotalsInfo(
             totalValue: grandTotal.toStringAsFixed(2),
@@ -629,10 +1046,10 @@ class InvoiceController extends GetxController {
       onFailure: (error, response) async {
         final dynamic errorData = (error is dio_lib.DioException)
             ? error.response?.data
-            : response?.data;
+            : response.data;
         final int? statusCode = (error is dio_lib.DioException)
             ? error.response?.statusCode
-            : (error is int ? error : response?.statusCode);
+            : (error is int ? error : response.statusCode);
 
         if (error is dio_lib.DioException) {
           final isNetworkError =
@@ -697,7 +1114,7 @@ class InvoiceController extends GetxController {
           }
         }
 
-        if (retryCount < 1 && statusCode == 406) {
+        if (retryCount < 2 && statusCode == 406) {
           final expectedValue = _extractExpectedValue(errorData);
           if (expectedValue != null) {
             Logger().i(
@@ -706,6 +1123,8 @@ class InvoiceController extends GetxController {
             request.documentDetails['DocumentNumber'] = expectedValue;
             request.sourceSystem['InvoiceCounter'] =
                 int.tryParse(expectedValue) ?? expectedValue;
+            // Short backoff delay before retry to prevent triggering rate-limiters (HTTP 429)
+            await Future.delayed(const Duration(milliseconds: 1200));
             _sendInvoiceRequest(context, request, retryCount: retryCount + 1);
             return;
           }
@@ -727,40 +1146,45 @@ class InvoiceController extends GetxController {
     BuildContext context,
   ) async {
     try {
-      final receiptController = Get.put(ReceiptController());
-      final receipt = await receiptController.registerSalesReceipt(
-        invoice.irn!,
-        invoice.totals.totalValue!,
-        invoice.documentNumber!,
-        invoice.totals.totalValue!,
-        showSnackbar: false,
-      );
+      final docType = invoice.requestPayload?['DocumentDetails']?['Type']?.toString().toUpperCase() ?? 'INV';
+      final payTerm = invoice.requestPayload?['PaymentDetails']?['PaymentTerm']?.toString().toUpperCase() ?? 'IMMEDIATE';
+      final payMode = invoice.requestPayload?['PaymentDetails']?['Mode']?.toString().toUpperCase() ?? 'CASH';
+      final isCredit = payTerm == 'CREDIT' || payMode == 'CREDIT' || payTerm.contains('NET') || payTerm.contains('DAY');
+
+      // Auto-register Sales Receipt (CRB) only for Cash Sales
+      final isCashSale = docType == 'INV' && !isCredit;
+
+      ReceiptSummary? receipt;
+      if (isCashSale && invoice.irn != null && invoice.totals.totalValue != null) {
+        final receiptController = Get.put(ReceiptController());
+        receipt = await receiptController.registerSalesReceipt(
+          invoice.irn!,
+          invoice.totals.totalValue!,
+          invoice.documentNumber ?? '',
+          invoice.totals.totalValue!,
+          showSnackbar: false,
+        );
+      }
 
       final invoiceBytes = await InvoicePdfService.generate(invoice);
 
-      // If receipt is registered, we can try to show both.
-      // Since merging PDF bytes is non-trivial without extra dependencies,
-      // we'll generate one PDF that contains both if possible,
-      // or just show the invoice if receipt fails.
+      Uint8List previewBytes;
+      String screenTitle;
 
-      Uint8List combinedBytes;
       if (receipt != null) {
-        // We'll create a new document and add pages from both if we had a PDF merger.
-        // Instead, let's create a combined PDF by calling a specialized method or just appending.
-        // For simplicity, I'll generate the invoice PDF and if receipt exists,
-        // I would ideally append.
-        // Let's see if we can just use pw.Document to create a multi-page PDF.
-
-        final receiptBytes = await ReceiptPdfService.generate(receipt, invoice);
-
-        // As a compromise, let's use a screen that can show multiple PDFs or
-        // just show the invoice and inform about the receipt.
-        // BUT the user asked for "a PDF preview screen that shows both".
-        // Let's try to merge them using the pdf package's widgets.
-
-        combinedBytes = await _generateCombinedPdf(invoice, receipt);
+        previewBytes = await _generateCombinedPdf(invoice, receipt);
+        screenTitle = 'Invoice & Receipt #${invoice.documentNumber}';
       } else {
-        combinedBytes = invoiceBytes;
+        previewBytes = invoiceBytes;
+        if (docType == 'CRE') {
+          screenTitle = 'Tax Credit Note #${invoice.documentNumber}';
+        } else if (docType == 'DEB') {
+          screenTitle = 'Tax Debit Note #${invoice.documentNumber}';
+        } else if (isCredit) {
+          screenTitle = 'Credit Sales Invoice #${invoice.documentNumber}';
+        } else {
+          screenTitle = 'Sales Invoice #${invoice.documentNumber}';
+        }
       }
 
       if (Get.isDialogOpen ?? false) {
@@ -769,8 +1193,8 @@ class InvoiceController extends GetxController {
 
       Get.to(
         () => PdfPreviewScreen(
-          pdfBytes: combinedBytes,
-          title: 'Invoice & Receipt #${invoice.documentNumber}',
+          pdfBytes: previewBytes,
+          title: screenTitle,
         ),
       );
     } catch (e) {
@@ -909,10 +1333,15 @@ class InvoiceController extends GetxController {
     final int? statusCode = (error is dio_lib.DioException)
         ? error.response?.statusCode
         : (error is int ? error : response?.statusCode);
-    final isMorAuthError = statusCode == 401 ||
-        errorMsg.toLowerCase().contains('mor') ||
-        errorMsg.toLowerCase().contains('gateway') ||
-        errorMsg.toLowerCase().contains('credential');
+    final hasRuleCode = RegExp(r'^\d{4}:').hasMatch(errorMsg.trim());
+    final isMorAuthError = !hasRuleCode &&
+        (statusCode == 401 ||
+            statusCode == 4503 ||
+            errorMsg.toLowerCase().contains('invalid credential') ||
+            errorMsg.toLowerCase().contains('unauthenticated') ||
+            errorMsg.toLowerCase().contains('unauthorized') ||
+            (errorMsg.toLowerCase().contains('credential') &&
+                !errorMsg.toLowerCase().contains('rule')));
 
     if (isMorAuthError) {
       errorMsg = 'Please contact support to set up your MoR credentials.';
@@ -938,23 +1367,85 @@ class InvoiceController extends GetxController {
     if (data == null) return null;
 
     if (data is String) {
-      try {
-        data = jsonDecode(data);
-      } catch (_) {
+      final trimmed = data.trim();
+      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+          (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+        try {
+          data = jsonDecode(trimmed);
+        } catch (_) {
+          return data;
+        }
+      } else {
         return data;
       }
     }
 
-    if (data is Map) {
+    const genericHeaders = {
+      'SCHEMA ERROR',
+      'RULE VALIDATION ERROR',
+      'VALIDATION ERROR',
+      'SERVER ERROR',
+      'INTERNAL SERVER ERROR',
+      'GATEWAY ERROR',
+      'BAD REQUEST',
+      'UNPROCESSABLE ENTITY',
+      'ERROR',
+      'FAILED',
+      'AN ERROR OCCURRED',
+    };
+
+    if (data is Map || data is List) {
       final List<String> extractedErrors = [];
 
       void findErrors(dynamic obj) {
         if (obj is Map) {
-          // Look for common error fields
-          final msg = obj['message'] ?? obj['errorMessage'] ?? obj['error'];
-          if (msg != null && msg is String && msg != "SCHEMA ERROR") {
-            extractedErrors.add(msg);
+          // If stringified nested JSON in any field (like 'body' or 'data')
+          for (final entry in obj.entries) {
+            final val = entry.value;
+            if (val is String) {
+              final t = val.trim();
+              if ((t.startsWith('{') && t.endsWith('}')) ||
+                  (t.startsWith('[') && t.endsWith(']'))) {
+                try {
+                  findErrors(jsonDecode(t));
+                  continue;
+                } catch (_) {}
+              }
+            }
           }
+
+          // Look for common error fields
+          final msg = obj['message'] ??
+              obj['error'] ??
+              obj['detail'] ??
+              obj['reason'] ??
+              obj['description'];
+          if (msg != null && msg is String && msg.trim().isNotEmpty) {
+            final trimmedMsg = msg.trim();
+            if (!genericHeaders.contains(trimmedMsg.toUpperCase())) {
+              extractedErrors.add(trimmedMsg);
+            }
+          }
+
+          final errorMsgField = obj['errorMessage'] ??
+              obj['error_message'] ??
+              obj['errorMessages'];
+          if (errorMsgField is String && errorMsgField.trim().isNotEmpty) {
+            final trimmed = errorMsgField.trim();
+            if (!genericHeaders.contains(trimmed.toUpperCase())) {
+              extractedErrors.add(trimmed);
+            }
+          } else if (errorMsgField is List) {
+            for (var m in errorMsgField) {
+              if (m != null && m is String && m.trim().isNotEmpty) {
+                final trimmed = m.trim();
+                if (!genericHeaders.contains(trimmed.toUpperCase())) {
+                  extractedErrors.add(trimmed);
+                }
+              }
+            }
+          }
+
           // Recurse into body or other nested structures
           obj.forEach((key, value) {
             if (value is Map || value is List) {
@@ -963,6 +1454,16 @@ class InvoiceController extends GetxController {
           });
         } else if (obj is List) {
           for (var item in obj) {
+            if (item is String) {
+              final t = item.trim();
+              if ((t.startsWith('{') && t.endsWith('}')) ||
+                  (t.startsWith('[') && t.endsWith(']'))) {
+                try {
+                  findErrors(jsonDecode(t));
+                  continue;
+                } catch (_) {}
+              }
+            }
             findErrors(item);
           }
         }
@@ -971,15 +1472,23 @@ class InvoiceController extends GetxController {
       findErrors(data);
 
       if (extractedErrors.isNotEmpty) {
-        // Return unique errors joined by newlines
+        // Prioritize specific rule errors (e.g. "7030: ...")
+        final ruleErrors = extractedErrors
+            .where((e) => RegExp(r'^\d{4}:').hasMatch(e.trim()))
+            .toList();
+        if (ruleErrors.isNotEmpty) {
+          return ruleErrors.toSet().join('\n');
+        }
         return extractedErrors.toSet().join('\n');
       }
 
-      // Fallback to the top-level message if nothing else was found
-      final dynamic topMessage = data['message'] ?? data['messages'];
-      if (topMessage != null) {
-        if (topMessage is List) return topMessage.join('\n');
-        return topMessage.toString();
+      // Fallback to top-level message
+      if (data is Map) {
+        final dynamic topMessage = data['message'] ?? data['messages'];
+        if (topMessage != null) {
+          if (topMessage is List) return topMessage.join('\n');
+          return topMessage.toString();
+        }
       }
     }
 
@@ -990,28 +1499,68 @@ class InvoiceController extends GetxController {
 class CancelInvoiceController extends GetxController {
   var isSubmitting = false.obs;
 
-  Future<void> cancelInvoice(String irn, String reasonCode) async {
-    final authController = Get.isRegistered<AuthController>()
-        ? Get.find<AuthController>()
-        : Get.put(AuthController());
-    final hasMorAuth = await authController.ensureMorAuth();
-    if (!hasMorAuth) {
-      authController.showMorCredentialsRequiredDialog(action: 'cancel an invoice');
-      Get.snackbar(
-        'MoR Credentials Required',
-        'Please contact support to set up your MoR credentials.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return;
-    }
-
+  Future<bool> cancelInvoice(String irn, String reasonCode) async {
     isSubmitting.value = true;
-    final req = InvoiceCancelRequest(irn: irn, reasonCode: reasonCode);
-    await ApiService.cancelInvoice(
-      req,
-      onSuccess: (r) => Get.snackbar('Success', 'Invoice cancelled.'),
-      onFailure: (e, r) => Get.snackbar('Error', 'Failed to cancel invoice.'),
-    );
-    isSubmitting.value = false;
+    bool success = false;
+    try {
+      final authController = Get.isRegistered<AuthController>()
+          ? Get.find<AuthController>()
+          : Get.put(AuthController());
+      final hasMorAuth = await authController.ensureMorAuth();
+      if (!hasMorAuth) {
+        authController.showMorCredentialsRequiredDialog(action: 'cancel an invoice');
+        Get.snackbar(
+          'MoR Credentials Required',
+          'Please contact support to set up your MoR credentials.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return false;
+      }
+
+      final req = InvoiceCancelRequest(irn: irn, reasonCode: reasonCode);
+      await ApiService.cancelInvoice(
+        req,
+        onSuccess: (r) async {
+          await CancelledInvoicesStorage.markCancelled(irn, reasonCode: reasonCode);
+          success = true;
+          Get.snackbar('Success', 'Invoice cancelled.');
+          if (Get.isRegistered<InvoiceHistoryController>()) {
+            final hist = Get.find<InvoiceHistoryController>();
+            hist.markInvoiceCancelledLocally(irn, reasonCode: reasonCode);
+            hist.fetchInvoices(refresh: true);
+          }
+        },
+        onFailure: (e, r) async {
+          dynamic respData = r.data;
+          if (respData == null && e is dio_lib.DioException) {
+            respData = e.response?.data;
+          }
+          final errStr = '${e.toString()} ${respData?.toString() ?? ''}'.toLowerCase();
+          if (errStr.contains('already cancel') ||
+              errStr.contains('is cancelled') ||
+              errStr.contains('is canceled')) {
+            await CancelledInvoicesStorage.markCancelled(irn, reasonCode: reasonCode);
+            success = true;
+            Get.snackbar(
+              'Already Cancelled',
+              'This invoice has already been cancelled in the system.',
+              snackPosition: SnackPosition.BOTTOM,
+            );
+            if (Get.isRegistered<InvoiceHistoryController>()) {
+              final hist = Get.find<InvoiceHistoryController>();
+              hist.markInvoiceCancelledLocally(irn, reasonCode: reasonCode);
+              hist.fetchInvoices(refresh: true);
+            }
+            return;
+          }
+          Get.snackbar('Error', 'Failed to cancel invoice.');
+        },
+      );
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to cancel invoice: $e');
+    } finally {
+      isSubmitting.value = false;
+    }
+    return success;
   }
 }

@@ -1,3 +1,4 @@
+import 'package:get/get.dart';
 class InvoiceRegisterRequest {
   final Map<String, dynamic> documentDetails;
   final String transactionType;
@@ -118,6 +119,36 @@ class QueuedInvoice {
   final String buyerName;
   final String grandTotal;
   final DateTime queuedAt;
+
+  String get rawDocumentType {
+    final docType = request.documentDetails['Type']?.toString().toUpperCase() ?? 'INV';
+    final payTerm = request.paymentDetails['PaymentTerm']?.toString().toUpperCase() ?? 'IMMEDIATE';
+    final payMode = request.paymentDetails['Mode']?.toString().toUpperCase() ?? '';
+
+    if (docType == 'CRE' || docType == 'CN') return 'CREDIT_NOTE';
+    if (docType == 'DEB' || docType == 'DN') return 'DEBIT_NOTE';
+    if (docType == 'TWTH') return 'WITHHOLDING';
+    if (payTerm == 'CREDIT' || payMode == 'CREDIT' || payTerm.contains('NET') || payTerm.contains('DAY')) {
+      return 'CREDIT_SALE';
+    }
+    return 'CASH_SALE';
+  }
+
+  String get documentType {
+    switch (rawDocumentType) {
+      case 'CREDIT_NOTE':
+        return 'credit_note'.tr;
+      case 'DEBIT_NOTE':
+        return 'debit_note'.tr;
+      case 'WITHHOLDING':
+        return 'withholding_receipt'.tr;
+      case 'CREDIT_SALE':
+        return 'credit_sale'.tr;
+      case 'CASH_SALE':
+      default:
+        return 'cash_sale'.tr;
+    }
+  }
 
   QueuedInvoice({
     required this.id,

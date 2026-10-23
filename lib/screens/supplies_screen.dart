@@ -69,6 +69,7 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
               Obx(
                 () => DropdownButtonFormField<TaxCategory>(
                   value: selectedTax.value,
+                  isExpanded: true,
                   dropdownColor: Get.theme.cardColor,
                   style: TextStyle(color: Get.theme.textTheme.bodyLarge?.color),
                   decoration: _dialogInputDecoration('tax_category'.tr),
@@ -76,7 +77,11 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
                       .map(
                         (cat) => DropdownMenuItem(
                           value: cat,
-                          child: Text(cat.description),
+                          child: Text(
+                            cat.description,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
                         ),
                       )
                       .toList(),
@@ -85,25 +90,28 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: selectedUnit,
+                value: InvoiceController.sanitizeUnit(selectedUnit),
+                isExpanded: true,
                 dropdownColor: Get.theme.cardColor,
                 style: TextStyle(color: Get.theme.textTheme.bodyLarge?.color),
                 decoration: _dialogInputDecoration('unit'.tr),
-                items: ['PCS', 'KG', 'LTR', 'MTR', 'DAY', 'HR']
-                    .map((u) => DropdownMenuItem(value: u, child: Text(u)))
+                items: InvoiceController.validMorUnits
+                    .map((u) => DropdownMenuItem(value: u, child: Text(u, overflow: TextOverflow.ellipsis)))
                     .toList(),
-                onChanged: (val) => selectedUnit = val!,
+                onChanged: (val) => selectedUnit = InvoiceController.sanitizeUnit(val),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: selectedNature,
+                value: InvoiceController.sanitizeNatureOfSupplies(selectedNature),
+                isExpanded: true,
                 dropdownColor: Get.theme.cardColor,
                 style: TextStyle(color: Get.theme.textTheme.bodyLarge?.color),
                 decoration: _dialogInputDecoration('nature'.tr),
-                items: ['goods', 'service', 'other']
-                    .map((n) => DropdownMenuItem(value: n, child: Text(n)))
-                    .toList(),
-                onChanged: (val) => selectedNature = val!,
+                items: const [
+                  DropdownMenuItem(value: 'goods', child: Text('ዕቃዎች / Goods')),
+                  DropdownMenuItem(value: 'service', child: Text('አገልግሎት / Service')),
+                ],
+                onChanged: (val) => selectedNature = InvoiceController.sanitizeNatureOfSupplies(val),
               ),
             ],
           ),
@@ -133,8 +141,8 @@ class _SuppliesScreenState extends State<SuppliesScreen> {
                 unitPrice: price,
                 quantity: 1,
                 taxCategory: selectedTax.value,
-                natureOfSupplies: selectedNature,
-                unit: selectedUnit,
+                natureOfSupplies: InvoiceController.sanitizeNatureOfSupplies(selectedNature),
+                unit: InvoiceController.sanitizeUnit(selectedUnit),
                 itemCode: itemCodeController.text.trim(),
               );
 

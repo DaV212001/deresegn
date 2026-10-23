@@ -225,26 +225,36 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
     );
   }
 
-  Widget _buildStatusBadge(String? status, ThemeData theme) {
-    Color bgColor;
+  Widget _buildDocumentTypeBadge(
+    String rawType,
+    String displayType,
+    ThemeData theme,
+  ) {
     Color textColor;
-    String text;
+    Color bgColor;
 
-    switch (status?.toUpperCase()) {
-      case 'A':
-        bgColor = theme.primaryColor.withOpacity(0.2);
-        textColor = theme.primaryColor;
-        text = 'active'.tr;
+    switch (rawType.toUpperCase()) {
+      case 'CREDIT_SALE':
+        textColor = const Color(0xFF1E88E5);
+        bgColor = const Color(0xFF1E88E5).withOpacity(0.18);
         break;
-      case 'C':
-        bgColor = theme.colorScheme.secondary.withOpacity(0.2);
-        textColor = theme.colorScheme.secondary;
-        text = 'cancelled'.tr;
+      case 'CREDIT_NOTE':
+        textColor = const Color(0xFFFB8C00);
+        bgColor = const Color(0xFFFB8C00).withOpacity(0.18);
         break;
+      case 'DEBIT_NOTE':
+        textColor = const Color(0xFF8E24AA);
+        bgColor = const Color(0xFF8E24AA).withOpacity(0.18);
+        break;
+      case 'WITHHOLDING':
+        textColor = const Color(0xFF00ACC1);
+        bgColor = const Color(0xFF00ACC1).withOpacity(0.18);
+        break;
+      case 'CASH_SALE':
       default:
-        bgColor = Colors.grey.withOpacity(0.2);
-        textColor = Colors.grey;
-        text = status ?? 'unknown'.tr;
+        textColor = const Color(0xFF43A047);
+        bgColor = const Color(0xFF43A047).withOpacity(0.18);
+        break;
     }
 
     return Container(
@@ -252,14 +262,75 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: textColor.withOpacity(0.35), width: 0.8),
       ),
       child: Text(
-        text,
+        displayType,
         style: TextStyle(
           color: textColor,
           fontSize: 10,
           fontWeight: FontWeight.bold,
         ),
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(
+    String? status,
+    ThemeData theme, {
+    bool isCancelled = false,
+  }) {
+    Color bgColor;
+    Color textColor;
+    Color borderColor;
+    String text;
+    IconData icon;
+
+    final effectiveCancelled = isCancelled ||
+        status?.toUpperCase() == 'C' ||
+        status?.toUpperCase() == 'CANCELLED';
+
+    if (effectiveCancelled) {
+      bgColor = const Color(0xFFD32F2F).withOpacity(0.12);
+      textColor = const Color(0xFFD32F2F);
+      borderColor = const Color(0xFFD32F2F).withOpacity(0.3);
+      text = 'cancelled'.tr;
+      icon = Icons.cancel_outlined;
+    } else if (status?.toUpperCase() == 'A' || status?.toUpperCase() == 'ACTIVE') {
+      bgColor = const Color(0xFF2E7D32).withOpacity(0.12);
+      textColor = const Color(0xFF2E7D32);
+      borderColor = const Color(0xFF2E7D32).withOpacity(0.3);
+      text = 'active'.tr;
+      icon = Icons.check_circle_outline;
+    } else {
+      bgColor = Colors.grey.withOpacity(0.12);
+      textColor = Colors.grey;
+      borderColor = Colors.grey.withOpacity(0.3);
+      text = status ?? 'unknown'.tr;
+      icon = Icons.info_outline;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor, width: 0.8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: textColor),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -392,6 +463,64 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
             ),
           );
         }),
+        Obx(() {
+          if (!_controller.isOfflineMode.value) return const SizedBox.shrink();
+          final dfTime = DateFormat('MMM dd, HH:mm');
+          return Container(
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade700.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: Colors.amber.shade700.withOpacity(0.35),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.cloud_off_rounded,
+                  size: 20,
+                  color: Colors.amber.shade800,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'offline_cached_banner'.tr,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.amber.shade900,
+                        ),
+                      ),
+                      if (_controller.lastCachedTime.value != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          '${'last_updated'.tr}: ${dfTime.format(_controller.lastCachedTime.value!.toLocal())}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.amber.shade900.withOpacity(0.8),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.refresh_rounded, size: 20, color: Colors.amber.shade900),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  tooltip: 'retry'.tr,
+                  onPressed: () => _controller.fetchInvoices(refresh: true),
+                ),
+              ],
+            ),
+          );
+        }),
         Expanded(
           child: Obx(() {
             if (_controller.isLoading.value) {
@@ -501,6 +630,8 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                   }
 
                   final invoice = _controller.invoices[index];
+                  final isCancelled = invoice.isCancelled;
+                  final reason = invoice.cancellationReasonDescription;
                   final buyerName = invoice.buyer.legalName ?? 'Unknown Buyer';
                   final totalValue = invoice.totals.totalValue ?? '0.00';
                   final currency = invoice.totals.currency ?? 'ETB';
@@ -518,7 +649,12 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                       decoration: BoxDecoration(
                         color: theme.cardColor,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: theme.dividerColor),
+                        border: Border.all(
+                          color: isCancelled
+                              ? const Color(0xFFD32F2F).withOpacity(0.55)
+                              : theme.dividerColor,
+                          width: isCancelled ? 1.2 : 1.0,
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -530,7 +666,9 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                                 child: Text(
                                   buyerName,
                                   style: TextStyle(
-                                    color: theme.textTheme.bodyLarge?.color,
+                                    color: isCancelled
+                                        ? theme.textTheme.bodyLarge?.color?.withOpacity(0.7)
+                                        : theme.textTheme.bodyLarge?.color,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
                                   ),
@@ -538,9 +676,45 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              _buildStatusBadge(invoice.status, theme),
+                              const SizedBox(width: 8),
+                              _buildDocumentTypeBadge(
+                                invoice.rawDocumentType,
+                                invoice.documentType,
+                                theme,
+                              ),
+                              const SizedBox(width: 6),
+                              _buildStatusBadge(
+                                invoice.status,
+                                theme,
+                                isCancelled: isCancelled,
+                              ),
                             ],
                           ),
+                          if (isCancelled && reason != null && reason.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.info_outline_rounded,
+                                  size: 13,
+                                  color: Color(0xFFD32F2F),
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    '${'cancellation_reason'.tr}: $reason',
+                                    style: const TextStyle(
+                                      color: Color(0xFFD32F2F),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                           const SizedBox(height: 8),
                           Text(
                             'IRN: ${invoice.irn ?? 'N/A'}',
@@ -565,9 +739,12 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                               Text(
                                 '$totalValue $currency',
                                 style: TextStyle(
-                                  color: theme.primaryColor,
+                                  color: isCancelled
+                                      ? const Color(0xFFD32F2F)
+                                      : theme.primaryColor,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
+                                  decoration: isCancelled ? TextDecoration.lineThrough : null,
                                 ),
                               ),
                             ],
@@ -652,6 +829,21 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    _buildDocumentTypeBadge(
+                      request.documentDetails['Type']?.toString().toUpperCase() == 'CRE'
+                          ? 'CREDIT_NOTE'
+                          : (request.paymentDetails['PaymentTerm']?.toString().toUpperCase() == 'CREDIT'
+                              ? 'CREDIT_SALE'
+                              : 'CASH_SALE'),
+                      request.documentDetails['Type']?.toString().toUpperCase() == 'CRE'
+                          ? 'credit_note'.tr
+                          : (request.paymentDetails['PaymentTerm']?.toString().toUpperCase() == 'CREDIT'
+                              ? 'credit_sale'.tr
+                              : 'cash_sale'.tr),
+                      theme,
+                    ),
+                    const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(

@@ -8,12 +8,22 @@ import 'package:logger/logger.dart';
 import '../config/config_preference.dart';
 import '../models/auth_models.dart';
 import '../models/company_models.dart';
+import '../screens/otp_verification_screen.dart';
 import '../services/api_service.dart';
+import '../services/push_notification_service.dart';
 
 class AuthController extends GetxController {
   var isLinked = false.obs;
   var isLoggingIn = false.obs;
   var isCompanyLoading = false.obs;
+  var isMorAuthenticating = false.obs;
+  static Future<bool>? _morAuthFuture;
+
+  // OTP state variables
+  var isOtpLoading = false.obs;
+  var isResendingOtp = false.obs;
+  var otpCooldownSeconds = 0.obs;
+  Timer? _otpCooldownTimer;
 
   // Lockout countdown timer
   var lockoutSeconds = 0.obs;
@@ -126,7 +136,148 @@ class AuthController extends GetxController {
   @override
   void onClose() {
     _lockoutTimer?.cancel();
+    _otpCooldownTimer?.cancel();
     super.onClose();
+  }
+
+  void startOtpCooldown([int seconds = 60]) {
+    _otpCooldownTimer?.cancel();
+    otpCooldownSeconds.value = seconds;
+    _otpCooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (otpCooldownSeconds.value <= 1) {
+        timer.cancel();
+        otpCooldownSeconds.value = 0;
+      } else {
+        otpCooldownSeconds.value--;
+      }
+    });
+  }
+
+  Future<bool> verifyOtp({
+    required String phone,
+    required String code,
+    bool isCompany = true,
+  }) async {
+    if (code.trim().length != 6) {
+      Get.snackbar('Invalid Code', 'Please enter a valid 6-digit verification code.');
+      return false;
+    }
+    isOtpLoading.value = true;
+    bool success = false;
+
+    if (isCompany) {
+      await ApiService.verifyCompanyOtp(
+        phone: phone.trim(),
+        code: code.trim(),
+        onSuccess: (response) async {
+          success = true;
+          isOtpLoading.value = false;
+          final body = response.data is Map ? response.data : <String, dynamic>{};
+          final token = body['token'] ?? body['data']?['token'];
+          if (token != null) {
+            await ConfigPreference.updateCompanyToken(token.toString());
+          }
+          final user = body['user'] is Map ? body['user'] as Map : null;
+          if (user != null && user['company_id'] != null) {
+            await ConfigPreference.saveCompanyContext(
+              companyId: user['company_id'].toString(),
+            );
+          }
+          final branch = body['branch'] is Map ? body['branch'] as Map : null;
+          if (branch != null) {
+            if (branch['id'] != null) {
+              await ConfigPreference.saveBranchId(branch['id'].toString());
+            }
+            await ConfigPreference.saveBranchSubscription(
+              status: branch['status']?.toString() ?? 'pending',
+              packageId: branch['package_id'] is int ? branch['package_id'] as int : null,
+              expiredDate: branch['expired_date']?.toString(),
+              phone: branch['phone_number']?.toString(),
+              email: branch['email']?.toString(),
+            );
+          }
+        },
+        onFailure: (error, response) {
+          isOtpLoading.value = false;
+          _handleError(error, response);
+        },
+      );
+    } else {
+      await ApiService.verifyBranchOtp(
+        phoneNumber: phone.trim(),
+        code: code.trim(),
+        onSuccess: (response) {
+          success = true;
+          isOtpLoading.value = false;
+        },
+        onFailure: (error, response) {
+          isOtpLoading.value = false;
+          _handleError(error, response);
+        },
+      );
+    }
+    return success;
+  }
+
+  Future<bool> resendOtp({
+    required String phone,
+    bool isCompany = true,
+  }) async {
+    if (otpCooldownSeconds.value > 0) {
+      Get.snackbar(
+        'Please wait',
+        'You can request a new code in ${otpCooldownSeconds.value}s.',
+      );
+      return false;
+    }
+
+    isResendingOtp.value = true;
+    bool success = false;
+
+    if (isCompany) {
+      await ApiService.resendCompanyOtp(
+        phone: phone.trim(),
+        onSuccess: (response) {
+          success = true;
+          isResendingOtp.value = false;
+          startOtpCooldown(60);
+          final msg = _parseMessage(response.data) ?? 'OTP resent successfully.';
+          Get.snackbar(
+            'Code Sent',
+            msg,
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green.shade800,
+            colorText: Colors.white,
+          );
+        },
+        onFailure: (error, response) {
+          isResendingOtp.value = false;
+          _handleError(error, response);
+        },
+      );
+    } else {
+      await ApiService.resendBranchOtp(
+        phoneNumber: phone.trim(),
+        onSuccess: (response) {
+          success = true;
+          isResendingOtp.value = false;
+          startOtpCooldown(60);
+          final msg = _parseMessage(response.data) ?? 'OTP resent successfully.';
+          Get.snackbar(
+            'Code Sent',
+            msg,
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green.shade800,
+            colorText: Colors.white,
+          );
+        },
+        onFailure: (error, response) {
+          isResendingOtp.value = false;
+          _handleError(error, response);
+        },
+      );
+    }
+    return success;
   }
 
   Future<void> checkDeviceLink() async {
@@ -155,14 +306,50 @@ class AuthController extends GetxController {
         website: website,
       ),
       onSuccess: (response) async {
-        final token = _tokenFromResponse(response.data);
+        final body = response.data is Map ? response.data : <String, dynamic>{};
+        final user = body['user'] is Map ? body['user'] as Map : null;
+        final branch = body['branch'] is Map ? body['branch'] as Map : null;
+        final token = _tokenFromResponse(body);
+
         if (token != null) {
           await ConfigPreference.updateCompanyToken(token);
+        }
+
+        final compId = user?['company_id']?.toString() ?? _idFromResponse(body) ?? '';
+        if (compId.isNotEmpty) {
           await ConfigPreference.saveCompanyContext(
-            companyId: _idFromResponse(response.data) ?? '',
+            companyId: compId,
+            branchId: branch?['id']?.toString(),
           );
         }
+
+        if (branch != null) {
+          final branchStatus = '${branch['status'] ?? 'pending'}'.toLowerCase();
+          await ConfigPreference.saveBranchSubscription(
+            status: branchStatus,
+            phone: branch['phone_number']?.toString() ?? phone,
+            email: branch['email']?.toString() ?? email,
+          );
+        }
+
         success = true;
+
+        // Check if OTP verification is required (e.g. user is unverified or response indicates OTP sent)
+        final isVerified = user?['is_verified'] == true;
+        final msg = '${body['message'] ?? ''}'.toLowerCase();
+        final requiresOtp = !isVerified || msg.contains('otp') || msg.contains('verify');
+
+        if (requiresOtp) {
+          Logger().i('Registration initiated. Navigating to OTP verification for $phone');
+          Get.to(() => OtpVerificationScreen(
+                phone: phone,
+                isCompanyRegistration: true,
+                branchId: branch?['id'] != null ? int.tryParse('${branch!['id']}') : null,
+                companyId: compId,
+                ownerName: owner,
+                email: email,
+              ));
+        }
       },
       onFailure: (e, r) => _handleError(e, r),
     );
@@ -210,7 +397,25 @@ class AuthController extends GetxController {
       },
       onFailure: (e, r) {
         if (!handleLockoutIfPresent(e, r)) {
-          _handleError(e, r);
+          final errorMsg = _parseMessage(r.data) ??
+              _parseMessage((e is dio_lib.DioException) ? e.response?.data : null) ?? '';
+          final lower = errorMsg.toLowerCase();
+          if (lower.contains('verify your phone') ||
+              lower.contains('please verify') ||
+              lower.contains('verification required')) {
+            Get.to(() => OtpVerificationScreen(
+                  phone: phone.trim(),
+                  isCompanyRegistration: true,
+                  companyId: companyId,
+                ));
+            Get.snackbar(
+              'Verification Required',
+              'Please verify your phone number before logging in.',
+              snackPosition: SnackPosition.BOTTOM,
+            );
+          } else {
+            _handleError(e, r);
+          }
         }
       },
     );
@@ -220,19 +425,35 @@ class AuthController extends GetxController {
 
   Future<void> performBranchLogin(String tin, String password) async {
     isLoggingIn.value = true;
-    
+
     final request = BranchLoginRequest(tinNumber: tin, password: password);
-    
+
     await ApiService.loginBranch(
       request,
       onSuccess: (response) async {
         final data = response.data;
         final token = data['token'];
-        final branchDetails = data['branch'];
-        
+        final branchDetails = data['branch'] is Map ? data['branch'] : null;
+
         if (token != null && branchDetails != null) {
+          final rawStatus = branchDetails['status'] ?? data['status'];
+          final status = (rawStatus != null ? '$rawStatus' : '').toLowerCase();
+          final packageId = branchDetails['package_id'] != null
+              ? int.tryParse('${branchDetails['package_id']}')
+              : null;
+          final expiredDate = branchDetails['expired_date']?.toString();
+
           await ConfigPreference.updateBranchToken(token);
           await ConfigPreference.saveBranchId('${branchDetails['id']}');
+          unawaited(PushNotificationService.registerDeviceToken(branchToken: token, force: true));
+          await ConfigPreference.saveBranchSubscription(
+            status: status.isNotEmpty ? status : 'active',
+            packageId: packageId,
+            expiredDate: expiredDate,
+            phone: branchDetails['phone_number']?.toString() ?? tin,
+            email: branchDetails['email']?.toString(),
+          );
+
           if (branchDetails['company_id'] != null) {
             await ConfigPreference.saveCompanyContext(
               companyId: '${branchDetails['company_id']}',
@@ -245,8 +466,45 @@ class AuthController extends GetxController {
             apiKey: '',
             tin: branchDetails['tin_number'] ?? tin,
           );
+
+          // Eagerly authenticate with MoR upon branch login so subsequent invoice registrations
+          // have an active MoR session ready without delay or failure.
+          try {
+            await ensureMorAuth();
+          } catch (e) {
+            Logger().w('Initial MoR authentication during branch login encountered: $e');
+          }
+
           isLoggingIn.value = false;
-          Get.offAllNamed('/dashboard');
+
+          // Look at the status field in the login response to determine payment flow
+          bool isActive = status == 'active';
+          if (expiredDate != null && expiredDate.isNotEmpty) {
+            final expiry = DateTime.tryParse(expiredDate);
+            if (expiry != null && expiry.isBefore(DateTime.now())) {
+              isActive = false;
+            }
+          }
+
+          if (!isActive) {
+            Logger().i(
+              'Payment required: branch status is "$status", active=$isActive. Navigating to payment packages.',
+            );
+            Get.offAllNamed(
+              '/payment-packages',
+              arguments: {
+                'branch_id': branchDetails['id'],
+                'branch_name': branchDetails['branch_name'],
+                'status': status,
+                'package_id': packageId,
+                'phone': branchDetails['phone_number'] ?? tin,
+                'email': branchDetails['email'],
+                'expired_date': expiredDate,
+              },
+            );
+          } else {
+            Get.offAllNamed('/dashboard');
+          }
         } else {
           Logger().w('Branch login returned 200 but missing token payload.');
           isLoggingIn.value = false;
@@ -268,6 +526,24 @@ class AuthController extends GetxController {
             icon: const Icon(Icons.lock_clock_rounded, color: Colors.white),
           );
         } else {
+          final errorMsg = _parseMessage(response.data) ??
+              _parseMessage((error is dio_lib.DioException) ? error.response?.data : null) ?? '';
+          final lower = errorMsg.toLowerCase();
+          if (lower.contains('verify your phone') ||
+              lower.contains('please verify') ||
+              lower.contains('verification required')) {
+            isLoggingIn.value = false;
+            Get.to(() => OtpVerificationScreen(
+                  phone: tin,
+                  isCompanyRegistration: false,
+                ));
+            Get.snackbar(
+              'Verification Required',
+              'Please verify your phone number with the OTP code.',
+              snackPosition: SnackPosition.BOTTOM,
+            );
+            return;
+          }
           _handleError(error, response);
         }
         isLoggingIn.value = false;
@@ -275,36 +551,93 @@ class AuthController extends GetxController {
     );
   }
 
-  Future<bool> ensureMorAuth() async {
+  Future<bool> ensureMorAuth({bool forceRefresh = false}) async {
     final morToken = ConfigPreference.getMorToken();
-    if (morToken != null && morToken.isNotEmpty) {
+    if (!forceRefresh && morToken != null && morToken.isNotEmpty) {
       return true;
     }
 
-    bool success = false;
-    await ApiService.login(
-      onSuccess: (response) async {
-        final body = response.data is Map ? response.data : <String, dynamic>{};
-        final data = body['data'] is Map ? body['data'] : body;
-        final token = data['accessToken'] ?? data['access_token'] ?? data['token'];
-        final refresh = data['refreshToken'] ?? data['refresh_token'] ?? '';
-        final expires = data['expiresIn'] ?? data['expires_in'] ?? 3600;
+    if (_morAuthFuture != null) {
+      Logger().d('MoR authentication already in progress, joining shared future...');
+      return _morAuthFuture!;
+    }
 
-        if (token != null && '$token'.isNotEmpty) {
-          final int expiryInt = expires is int ? expires : (int.tryParse('$expires') ?? 3600);
-          await ConfigPreference.updateMorTokens('$token', '$refresh', expiryInt);
-          Logger().i('Deferred MoR login successful.');
-          success = true;
-        } else {
-          Logger().w('MoR login returned 200 but missing token.');
+    final hasToken = (ConfigPreference.getAccessToken() != null &&
+            ConfigPreference.getAccessToken()!.isNotEmpty) ||
+        (ConfigPreference.getCompanyAccessToken() != null &&
+            ConfigPreference.getCompanyAccessToken()!.isNotEmpty);
+    if (!hasToken) {
+      Logger().w('ensureMorAuth called but no branch or company token is available.');
+      return false;
+    }
+
+    _morAuthFuture = _performMorLoginTask();
+    try {
+      final success = await _morAuthFuture!;
+      return success;
+    } finally {
+      _morAuthFuture = null;
+    }
+  }
+
+  Future<bool> _performMorLoginTask() async {
+    isMorAuthenticating.value = true;
+    bool success = false;
+    try {
+      await ApiService.login(
+        onSuccess: (response) async {
+          final body = response.data is Map ? response.data : <String, dynamic>{};
+          final data = body['data'] is Map ? body['data'] : body;
+          final token = data['accessToken'] ?? data['access_token'] ?? data['token'];
+          final refresh = data['refreshToken'] ?? data['refresh_token'] ?? '';
+          final expires = data['expiresIn'] ?? data['expires_in'] ?? 3600;
+
+          if (token != null && '$token'.isNotEmpty) {
+            final int expiryInt = expires is int ? expires : (int.tryParse('$expires') ?? 3600);
+            await ConfigPreference.updateMorTokens('$token', '$refresh', expiryInt);
+            Logger().i('MoR login successful.');
+            success = true;
+          } else {
+            Logger().w('MoR login returned 200 but missing token.');
+            success = false;
+          }
+        },
+        onFailure: (error, response) {
+          Logger().e('MoR login failed: $error');
           success = false;
-        }
-      },
-      onFailure: (error, response) {
-        Logger().e('Deferred MoR login failed: $error');
-        success = false;
-      },
-    );
+        },
+      );
+
+      // If initial attempt failed, retry once after a short delay to handle transient gateway blips
+      if (!success) {
+        Logger().i('Retrying MoR login once after failure...');
+        await Future.delayed(const Duration(milliseconds: 1000));
+        await ApiService.login(
+          onSuccess: (response) async {
+            final body = response.data is Map ? response.data : <String, dynamic>{};
+            final data = body['data'] is Map ? body['data'] : body;
+            final token = data['accessToken'] ?? data['access_token'] ?? data['token'];
+            final refresh = data['refreshToken'] ?? data['refresh_token'] ?? '';
+            final expires = data['expiresIn'] ?? data['expires_in'] ?? 3600;
+
+            if (token != null && '$token'.isNotEmpty) {
+              final int expiryInt = expires is int ? expires : (int.tryParse('$expires') ?? 3600);
+              await ConfigPreference.updateMorTokens('$token', '$refresh', expiryInt);
+              Logger().i('MoR login successful on retry.');
+              success = true;
+            }
+          },
+          onFailure: (error, response) {
+            Logger().e('MoR login retry failed: $error');
+          },
+        );
+      }
+    } catch (e) {
+      Logger().e('Exception during MoR login task: $e');
+      success = false;
+    } finally {
+      isMorAuthenticating.value = false;
+    }
 
     return success;
   }

@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 import 'package:deresegn/config/config_preference.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../config/app_settings.dart';
@@ -10,9 +11,12 @@ import '../models/company_models.dart';
 import '../models/invoice_history_model.dart';
 import '../services/api_service.dart';
 import '../services/invoice_pdf_service.dart';
+import '../services/push_notification_service.dart';
 import '../theme/theme_service.dart';
+import 'branch_hours_screen.dart';
 import 'branch_setup_screen.dart';
 import 'delete_account_screen.dart';
+import 'payment_packages_screen.dart';
 import 'pdf_preview_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -162,6 +166,82 @@ class SettingsScreen extends StatelessWidget {
                 color: Colors.grey,
               ),
               onTap: () => _handleCreateBranch(context),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            Divider(
+              height: 1,
+              indent: 56,
+              endIndent: 16,
+              color: theme.dividerColor.withValues(alpha: 0.5),
+            ),
+            ListTile(
+              title: const Text(
+                'Subscription & Packages',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                ConfigPreference.getBranchStatus() != null
+                    ? 'Status: ${ConfigPreference.getBranchStatus()!.toUpperCase()}'
+                    : 'Manage branch subscription and packages',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: theme.primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.card_membership_rounded,
+                  color: theme.primaryColor,
+                  size: 20,
+                ),
+              ),
+              trailing: const Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: Colors.grey,
+              ),
+              onTap: () => Get.to(() => const PaymentPackagesScreen()),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            Divider(
+              height: 1,
+              indent: 56,
+              endIndent: 16,
+              color: theme.dividerColor.withValues(alpha: 0.5),
+            ),
+            ListTile(
+              title: const Text(
+                'Operating Hours',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text(
+                'View branch weekly schedule and open hours',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: theme.primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.schedule_rounded,
+                  color: theme.primaryColor,
+                  size: 20,
+                ),
+              ),
+              trailing: const Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: Colors.grey,
+              ),
+              onTap: () => Get.to(() => const BranchHoursScreen()),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -334,6 +414,77 @@ class SettingsScreen extends StatelessWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
+            ),
+            Divider(
+              height: 1,
+              indent: 56,
+              endIndent: 16,
+              color: theme.dividerColor.withOpacity(0.5),
+            ),
+            ListTile(
+              title: const Text(
+                'FCM Push Device Token',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: () {
+                final token = ConfigPreference.getFcmToken();
+                if (token != null && token.isNotEmpty) {
+                  final preview = token.length > 28
+                      ? '${token.substring(0, 14)}...${token.substring(token.length - 10)}'
+                      : token;
+                  return Text(
+                    'Token: $preview\nTap to copy full token for backend testing',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  );
+                }
+                return const Text(
+                  'Tap to retrieve token',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                );
+              }(),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.notifications_active_outlined, color: Colors.orange, size: 20),
+              ),
+              trailing: const Icon(Icons.copy_rounded, size: 18, color: Colors.grey),
+              isThreeLine: true,
+              onTap: () async {
+                final token = await PushNotificationService.getOrRefreshToken();
+                if (token != null && token.isNotEmpty) {
+                  await Clipboard.setData(ClipboardData(text: token));
+                  Get.snackbar(
+                    'Copied to Clipboard',
+                    'FCM Device Token copied! Send this to your backend developer.',
+                    snackPosition: SnackPosition.BOTTOM,
+                    duration: const Duration(seconds: 4),
+                    backgroundColor: Colors.black87,
+                    colorText: Colors.white,
+                    margin: const EdgeInsets.all(16),
+                  );
+                } else {
+                  Get.snackbar(
+                    'Token Not Available',
+                    'FCM token is not generated yet. Ensure device has Google Play Services and internet.',
+                    snackPosition: SnackPosition.BOTTOM,
+                    backgroundColor: Colors.red.shade800,
+                    colorText: Colors.white,
+                    margin: const EdgeInsets.all(16),
+                  );
+                }
+              },
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            Divider(
+              height: 1,
+              indent: 56,
+              endIndent: 16,
+              color: theme.dividerColor.withOpacity(0.5),
             ),
             ListTile(
               title: Text(
@@ -799,6 +950,7 @@ class _CompanyLoginDialogState extends State<CompanyLoginDialog> {
                 )
               else
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   decoration: InputDecoration(
                     labelText: 'Choose company',
                     prefixIcon: const Icon(Icons.apartment_outlined, size: 20),

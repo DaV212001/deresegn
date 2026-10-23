@@ -43,3 +43,14 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase Service Account Private Keys
+*firebase-adminsdk*.json
+
+
+# Temporary testing & debug artifacts
+screenshot_*.png
+screen*.png
+dump*.xml
+uidump*.xml
+*.dill

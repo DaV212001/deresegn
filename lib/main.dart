@@ -6,11 +6,15 @@ import 'package:get/get.dart';
 import 'config/config_preference.dart';
 import 'controllers/auth_controller.dart';
 import 'services/offline_queue_service.dart';
+import 'services/cancelled_invoices_storage.dart';
+import 'services/push_notification_service.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/setup_terminal_screen.dart';
 import 'screens/company_auth_screen.dart';
 import 'screens/branch_setup_screen.dart';
 import 'screens/delete_account_screen.dart';
+import 'screens/otp_verification_screen.dart';
+import 'screens/payment_packages_screen.dart';
 import 'screens/security_alert_screen.dart';
 import 'services/security_service.dart';
 import 'theme/app_theme.dart';
@@ -24,7 +28,11 @@ void main() async {
   final securityResult = await securityService.checkDeviceIntegrity(enforceAction: true);
 
   await ConfigPreference.init();
+  await CancelledInvoicesStorage.init();
   final themeService = Get.put(ThemeService());
+
+  // Initialize Push Notification Service (Firebase Cloud Messaging + AwesomeNotifications)
+  await PushNotificationService.initialize();
 
   // Initialize Offline Queue Service
   await Get.putAsync(() => OfflineQueueService().init());
@@ -101,6 +109,14 @@ class _DeresegnAppState extends State<DeresegnApp> with WidgetsBindingObserver {
           middlewares: [InitialNavigationMiddleware()],
         ),
         GetPage(name: '/delete-account', page: () => const DeleteAccountScreen()),
+        GetPage(
+          name: '/otp-verification',
+          page: () => const OtpVerificationScreen(phone: ''),
+        ),
+        GetPage(
+          name: '/payment-packages',
+          page: () => const PaymentPackagesScreen(),
+        ),
       ],
     );
   }

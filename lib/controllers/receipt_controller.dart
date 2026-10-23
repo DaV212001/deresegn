@@ -21,27 +21,28 @@ class ReceiptController extends GetxController {
     String? paymentServiceProvider,
     bool showSnackbar = true,
   }) async {
-    final authController = Get.isRegistered<AuthController>()
-        ? Get.find<AuthController>()
-        : Get.put(AuthController());
-    final hasMorAuth = await authController.ensureMorAuth();
-    if (!hasMorAuth) {
-      if (showSnackbar) {
-        authController.showMorCredentialsRequiredDialog(action: 'register a receipt');
-        Get.snackbar(
-          'MoR Credentials Required',
-          'Please contact support to set up your MoR credentials.',
-          snackPosition: SnackPosition.BOTTOM,
-        );
-      }
-      return null;
-    }
-
     Get.log(
       "Registering Receipt for IRN: $invoiceIrn, DocNum: $documentNumber, Total: $invoiceTotal, Mode: $modeOfPayment",
     );
     isSubmittingReceipt.value = true;
     ReceiptSummary? result;
+    try {
+      final authController = Get.isRegistered<AuthController>()
+          ? Get.find<AuthController>()
+          : Get.put(AuthController());
+      final hasMorAuth = await authController.ensureMorAuth();
+      if (!hasMorAuth) {
+        isSubmittingReceipt.value = false;
+        if (showSnackbar) {
+          authController.showMorCredentialsRequiredDialog(action: 'register a receipt');
+          Get.snackbar(
+            'MoR Credentials Required',
+            'Please contact support to set up your MoR credentials.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
+        return null;
+      }
 
     final tin = await ConfigPreference.getTin();
     final systemNumber = await AppSettings.getSystemNumber();
@@ -112,58 +113,77 @@ class ReceiptController extends GetxController {
         }
       },
     );
-    isSubmittingReceipt.value = false;
+    } catch (e) {
+      Get.log("Exception in registerSalesReceipt: $e");
+    } finally {
+      isSubmittingReceipt.value = false;
+    }
     return result;
   }
 
   Future<void> registerWithholding(
     String invoiceIrn,
     String buyerTin,
-    double pretaxAmount,
-  ) async {
-    final authController = Get.isRegistered<AuthController>()
-        ? Get.find<AuthController>()
-        : Get.put(AuthController());
-    final hasMorAuth = await authController.ensureMorAuth();
-    if (!hasMorAuth) {
-      authController.showMorCredentialsRequiredDialog(action: 'register withholding');
-      Get.snackbar(
-        'MoR Credentials Required',
-        'Please contact support to set up your MoR credentials.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return;
-    }
-
+    double pretaxAmount, {
+    String natureOfSupplies = 'goods',
+    double rate = 0.03,
+  }) async {
     isSubmittingWithholding.value = true;
-    final systemNumber = await AppSettings.getSystemNumber();
+    try {
+      final authController = Get.isRegistered<AuthController>()
+          ? Get.find<AuthController>()
+          : Get.put(AuthController());
+      final hasMorAuth = await authController.ensureMorAuth();
+      if (!hasMorAuth) {
+        authController.showMorCredentialsRequiredDialog(action: 'register withholding');
+        Get.snackbar(
+          'MoR Credentials Required',
+          'Please contact support to set up your MoR credentials.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
 
-    final request = WithholdingReceiptRequest(
-      receiptNumber: "WHT-${DateTime.now().millisecondsSinceEpoch}",
-      reason: "Withhold for goods purchased",
-      receiptCounter: "1",
-      manualReceiptNumber: (DateTime.now().millisecondsSinceEpoch % 100000)
-          .toString(),
-      sourceSystemType: "POS",
-      sourceSystemNumber: systemNumber,
-      buyerTIN: buyerTin,
-      invoiceDetail: {"InvoiceIRN": invoiceIrn, "Currency": "ETB"},
-      withholdDetail: {
-        "Type": "TWHT",
-        "PreTaxAmount": double.parse(pretaxAmount.toStringAsFixed(2)),
-        "WithholdingAmount": double.parse(
-          (pretaxAmount * 0.02).toStringAsFixed(2),
-        ),
-      },
-    );
+      final systemNumber = await AppSettings.getSystemNumber();
+      final withholdAmount = double.parse((pretaxAmount * rate).toStringAsFixed(2));
+      final String reason = natureOfSupplies.toLowerCase().contains('serv')
+          ? 'Withholding tax deduction on service payment.'
+          : 'Withholding tax deducted from the payment.';
 
-    await ApiService.registerWithholdingReceipt(
-      request,
-      onSuccess: (r) => Get.snackbar('Success', 'Withholding registered.'),
-      onFailure: (e, r) =>
-          Get.snackbar('Error', 'Failed to register withholding.'),
-    );
-    isSubmittingWithholding.value = false;
+      final request = WithholdingReceiptRequest(
+        receiptNumber: "WHT-${DateTime.now().millisecondsSinceEpoch}",
+        reason: reason,
+        receiptCounter: "1",
+        manualReceiptNumber: (DateTime.now().millisecondsSinceEpoch % 100000)
+            .toString(),
+        sourceSystemType: "POS",
+        sourceSystemNumber: systemNumber,
+        buyerTIN: buyerTin,
+        invoiceDetail: {"InvoiceIRN": invoiceIrn, "Currency": "ETB"},
+        withholdDetail: {
+          "Type": "TWHT",
+          "NatureOfSupplies": InvoiceController.sanitizeNatureOfSupplies(natureOfSupplies),
+          "PreTaxAmount": double.parse(pretaxAmount.toStringAsFixed(2)),
+          "WithholdingAmount": withholdAmount,
+        },
+      );
+
+      await ApiService.registerWithholdingReceipt(
+        request,
+        onSuccess: (r) {
+          Get.snackbar('Success', 'Withholding receipt registered.');
+          if (Get.isRegistered<ReceiptFetchController>(tag: invoiceIrn)) {
+            Get.find<ReceiptFetchController>(tag: invoiceIrn).fetchReceipts();
+          }
+        },
+        onFailure: (e, r) =>
+            Get.snackbar('Error', 'Failed to register withholding.'),
+      );
+    } catch (e) {
+      Get.log("Exception in registerWithholding: $e");
+    } finally {
+      isSubmittingWithholding.value = false;
+    }
   }
 }
 

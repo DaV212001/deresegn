@@ -26,9 +26,33 @@ class AuthInterceptor extends Interceptor {
     );
   }
 
-  Future<void> _redirectToLogin() async {
-    await ConfigPreference.clearMorTokens();
-    Get.offAllNamed('/company-auth');
+  static bool _isRedirecting = false;
+
+  Future<void> _redirectToLogin({String? reason}) async {
+    if (_isRedirecting) return;
+    _isRedirecting = true;
+    try {
+      await ConfigPreference.clearTokens();
+  
+      if (Get.currentRoute != '/company-auth') {
+    
+        Get.offAllNamed('/company-auth');
+        Get.snackbar(
+          'Session Expired',
+          reason ?? 'Please log in again.',
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 4),
+        );
+      }
+    } catch (e) {
+      Logger().e('Error in _redirectToLogin: $e');
+    } finally {
+      Future.delayed(const Duration(seconds: 2), () {
+        _isRedirecting = false;
+      });
+    }
+
+
   }
 
   @override
@@ -36,53 +60,55 @@ class AuthInterceptor extends Interceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    final isPublicEndpoint =
-        options.path.contains('/company/register') ||
-        options.path.contains('/company/login') ||
-        options.path == '/api/companies' ||
-        options.path == '/api/branch/login';
-    final isCompanyEndpoint = options.path.startsWith('/api/branches');
-    if (isPublicEndpoint || isCompanyEndpoint) {
-      // Ensure company endpoints have Authorization header if not already set
-      if (isCompanyEndpoint && !options.headers.containsKey('Authorization')) {
-        final compToken =
-            ConfigPreference.getCompanyAccessToken() ??
-            ConfigPreference.getAccessToken();
-        if (compToken != null) {
-          options.headers['Authorization'] = 'Bearer $compToken';
-        }
-      }
+    // Always request JSON to prevent backend from returning 302 web HTML views
+    options.headers['Accept'] = 'application/json';
+
+    final isUnauthenticated = _isUnauthenticatedEndpoint(options.path);
+    if (isUnauthenticated) {
       return handler.next(options);
     }
 
-    final branchId = ConfigPreference.getBranchId();
+    final rawBranchId = ConfigPreference.getBranchId();
+    final branchId = rawBranchId?.trim().replaceAll(RegExp(r'^/+'), '');
     if (branchId != null &&
         branchId.isNotEmpty &&
         !options.path.contains('supplies')) {
       options.headers['Branch-Id'] = branchId;
     }
-    if (ConfigPreference.isAccessTokenExpired()) {
-      Logger().d('Branch token expired. Logging out...');
+
+    final branchToken = ConfigPreference.getAccessToken();
+    final companyToken = ConfigPreference.getCompanyAccessToken();
+
+    // If both tokens are missing on a protected endpoint, reject
+    if ((branchToken == null || branchToken.isEmpty) &&
+        (companyToken == null || companyToken.isEmpty) &&
+        options.path != '/api/login') {
+      Logger().w('No authentication token available for ${options.path}');
       await _redirectToLogin();
       return handler.reject(_sessionExpiredException(options));
     }
 
-    final isSuppliesOrCompany =
-        options.path.contains('supplies') ||
-        options.path.startsWith('/api/branches');
+    final isCompanyOnly =
+        options.path.startsWith('/api/company') ||
+        (options.path == '/api/branches' && options.method.toUpperCase() == 'POST');
 
-    final token = isSuppliesOrCompany
-        ? (ConfigPreference.getCompanyAccessToken() ??
-              ConfigPreference.getAccessToken())
-        : ConfigPreference.getAccessToken();
+    final token = isCompanyOnly
+        ? (companyToken ?? branchToken)
+        : (branchToken ?? companyToken);
 
-    if (!options.headers.containsKey('Authorization') && token != null) {
+    final existingAuth = options.headers['Authorization']?.toString();
+    final isInvalidExistingAuth = existingAuth == null ||
+        existingAuth.trim().isEmpty ||
+        existingAuth == 'Bearer null' ||
+        existingAuth == 'Bearer ';
+
+    if (isInvalidExistingAuth && token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
     }
 
     if (options.path != '/api/login') {
       final morToken = ConfigPreference.getMorToken();
-      if (morToken != null) {
+      if (morToken != null && morToken.isNotEmpty) {
         options.headers['Mor-Token'] = 'Bearer $morToken';
       }
     }
@@ -90,15 +116,44 @@ class AuthInterceptor extends Interceptor {
     return handler.next(options);
   }
 
-  static bool _isAuthOrPublicEndpoint(String path) {
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) async {
+    final data = response.data;
+    final isHtml = data is String &&
+        (data.trimLeft().toLowerCase().startsWith('<!doctype html') ||
+            data.toLowerCase().contains('<html'));
+
+    if (isHtml && response.requestOptions.path.startsWith('/api')) {
+      Logger().w(
+        'API endpoint ${response.requestOptions.path} returned HTML instead of JSON. Session likely expired.',
+      );
+      await _redirectToLogin();
+      return handler.reject(
+        _sessionExpiredException(response.requestOptions, response: response),
+      );
+    }
+
+    return super.onResponse(response, handler);
+  }
+
+
+  static bool _isUnauthenticatedEndpoint(String path) {
     return path.contains('/company/register') ||
         path.contains('/company/login') ||
         path.contains('/branch/login') ||
         path.contains('/verify') ||
+        path.contains('/verify-phone') ||
         path.contains('/resend-otp') ||
-        path.contains('/refresh/token') ||
-        path.startsWith('/api/branches') ||
-        path.contains('supplies') ||
+        path == '/api/companies';
+  }
+
+  static bool _isAuthEntrypoint(String path) {
+    return path.contains('/company/register') ||
+        path.contains('/company/login') ||
+        path.contains('/branch/login') ||
+        path.contains('/verify') ||
+        path.contains('/verify-phone') ||
+        path.contains('/resend-otp') ||
         path == '/api/companies' ||
         path == '/api/login';
   }
@@ -106,19 +161,18 @@ class AuthInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     final path = err.requestOptions.path;
+    final statusCode = err.response?.statusCode;
+    final data = err.response?.data;
 
-    if (err.response?.statusCode == 401 && !_isAuthOrPublicEndpoint(path)) {
-      if (path.contains('supplies')) {
-        Logger().w(
-          '⚠️ [SUPPLIES] Received 401 Unauthorized for supplies endpoint ($path). Preserving branch session.',
-        );
-        return handler.next(err);
-      }
+    final isUnauthenticated = statusCode == 401 ||
+        (data is Map &&
+            data['message']?.toString().toLowerCase().contains('unauthenticated') == true);
 
-      final data = err.response?.data;
-      final isMorError =
-          data is Map &&
-          (data['code'] == '4503' || data['message'] == 'GATEWAY ERROR');
+    if (isUnauthenticated && !_isAuthEntrypoint(path)) {
+      final isMorError = data is Map &&
+          (data['code'] == '4503' ||
+           data['message'] == 'GATEWAY ERROR' ||
+           (data['message']?.toString().toLowerCase().contains('mor') ?? false));
 
       if (isMorError) {
         Logger().d(
@@ -142,8 +196,8 @@ class AuthInterceptor extends Interceptor {
           return handler.next(err);
         }
       } else {
-        Logger().d('Branch 401 Unauthorized detected. Logging out...');
-        await _redirectToLogin();
+        Logger().w('Session expired or unauthenticated on $path (401). Logging out...');
+        await _redirectToLogin(reason: 'Session expired. Please log in again.');
         return handler.reject(
           _sessionExpiredException(err.requestOptions, response: err.response),
         );
@@ -314,6 +368,9 @@ class DioConfig {
         baseUrl: kApiBaseUrl,
         connectTimeout: const Duration(seconds: 60),
         receiveTimeout: const Duration(seconds: 120),
+        headers: {
+          'Accept': 'application/json',
+        },
       ),
     );
 

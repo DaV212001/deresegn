@@ -58,8 +58,8 @@ class DioService {
     required String path,
     Options? options,
     Object? data,
-    Function(Response)? onSuccess,
-    Function(Object, Response)? onFailure,
+    FutureOr<void> Function(Response)? onSuccess,
+    FutureOr<void> Function(Object, Response)? onFailure,
   }) async {
     Response response = Response(requestOptions: RequestOptions());
     try {
@@ -71,12 +71,12 @@ class DioService {
       if (response.statusCode != null &&
           response.statusCode! >= 200 &&
           response.statusCode! < 300) {
-        if (onSuccess != null) onSuccess(response);
+        if (onSuccess != null) await onSuccess(response);
       } else {
-        if (onFailure != null) onFailure(response.statusCode!, response);
+        if (onFailure != null) await onFailure(response.statusCode!, response);
       }
     } catch (e) {
-      if (onFailure != null) onFailure(e, response);
+      if (onFailure != null) await onFailure(e, response);
     }
   }
 
@@ -84,8 +84,8 @@ class DioService {
     required String path,
     Options? options,
     Object? data,
-    Function(Response)? onSuccess,
-    Function(Object, Response)? onFailure,
+    FutureOr<void> Function(Response)? onSuccess,
+    FutureOr<void> Function(Object, Response)? onFailure,
     Map<String, String>? queryParameters,
   }) async {
     Response response = Response(
@@ -99,31 +99,31 @@ class DioService {
         queryParameters: queryParameters,
       );
       if (response.statusCode == 200) {
-        if (onSuccess != null) onSuccess(response);
+        if (onSuccess != null) await onSuccess(response);
       } else {
-        if (onFailure != null) onFailure(response.statusCode!, response);
+        if (onFailure != null) await onFailure(response.statusCode!, response);
       }
     } catch (e) {
-      if (onFailure != null) onFailure(e, response);
+      if (onFailure != null) await onFailure(e, response);
     }
   }
 
   static Future<void> dioDelete({
     required String path,
     Options? options,
-    Function(Response)? onSuccess,
-    Function(Object, Response)? onFailure,
+    FutureOr<void> Function(Response)? onSuccess,
+    FutureOr<void> Function(Object, Response)? onFailure,
   }) async {
     Response response = Response(requestOptions: RequestOptions());
     try {
       response = await (await DioConfig.dio()).delete(path, options: options);
       if (response.statusCode == 200 || response.statusCode == 204) {
-        if (onSuccess != null) onSuccess(response);
+        if (onSuccess != null) await onSuccess(response);
       } else {
-        if (onFailure != null) onFailure(response.statusCode!, response);
+        if (onFailure != null) await onFailure(response.statusCode!, response);
       }
     } catch (e) {
-      if (onFailure != null) onFailure(e, response);
+      if (onFailure != null) await onFailure(e, response);
     }
   }
 }

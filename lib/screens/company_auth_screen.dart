@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
+import '../config/config_preference.dart';
 import '../controllers/auth_controller.dart';
 import 'branch_setup_screen.dart';
 
@@ -158,7 +159,7 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
         website.text.trim(),
       );
 
-      if (success) {
+      if (success && ConfigPreference.getCompanyAccessToken() != null) {
         _showPostRegistrationDialog();
       }
     } else {

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "734061067388",
+    "project_id": "deresegn",
+    "storage_bucket": "deresegn.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:734061067388:android:dd188ff1d15e457a08ddf9",
+        "android_client_info": {
+          "package_name": "com.eims.deresegn"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCc4CwExKlXvLxwVYP7eoxHrkQepx6ARX0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
