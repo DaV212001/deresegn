@@ -66,5 +66,44 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Deresegn requires access to your photo library to select business certificates, private keys, invoice letterheads, or receipt images.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Deresegn requires permission to save generated tax invoices, receipts, and financial reports to your photo library.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Deresegn requires camera access to scan QR codes on invoices, receipts, and fiscal registration documents.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Deresegn requires access to your location during branch registration and fiscal transaction auditing.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Deresegn requires access to your location to verify branch setup and ensure fiscal compliance.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Deresegn requires access to local network devices to discover and connect to receipt printers and POS hardware.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_printer._tcp</string>
+		<string>_ipp._tcp</string>
+		<string>_http._tcp</string>
+	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>http</string>
+		<string>tel</string>
+		<string>mailto</string>
+	</array>
 </dict>
 </plist>
