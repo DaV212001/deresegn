@@ -1,12 +1,16 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:get/get.dart' hide Response;
 import 'package:logger/logger.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config/config_preference.dart';
+import '../config/dio_config.dart';
 import '../models/payment_package_models.dart';
 import '../services/api_service.dart';
+import '../utils/phone_utils.dart';
+import 'branch_certificate_screen.dart';
 import 'in_app_payment_browser_screen.dart';
 
 class PaymentPackagesScreen extends StatefulWidget {
@@ -215,7 +219,30 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
                 keyboardType: TextInputType.phone,
                 decoration: InputDecoration(
                   labelText: 'Phone Number',
-                  prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                  hintText: '09xxxx or 9xxxxx',
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.phone_outlined, size: 20),
+                        const SizedBox(width: 8),
+                        const Text(
+                          '+251',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          height: 20,
+                          width: 1,
+                          color: Colors.grey.withValues(alpha: 0.5),
+                        ),
+                      ],
+                    ),
+                  ),
                   filled: true,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -238,12 +265,21 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
                     return;
                   }
 
+                  if (!PhoneUtils.isValidEthiopianPhone(ph)) {
+                    Get.snackbar(
+                      'Invalid Phone Number',
+                      'Please enter a valid phone number (09xxxx or 9xxxxx).',
+                      snackPosition: SnackPosition.BOTTOM,
+                    );
+                    return;
+                  }
+
                   Get.back();
                   _startPayment(
                     firstName: fn,
                     lastName: ln,
                     email: em,
-                    phone: ph,
+                    phone: PhoneUtils.normalize(ph),
                   );
                 },
                 style: ElevatedButton.styleFrom(
@@ -320,15 +356,25 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
       },
       onFailure: (error, response) {
         setState(() => _isProcessingPayment = false);
-        final msg = response.data is Map
-            ? (response.data['message'] ?? 'Could not initialize payment.')
-            : 'Payment initialization failed.';
+        final dynamic respData = response.data;
+        final serverMsg = DioConfig.extractErrorMessage(respData);
+        final String msg;
+        if (serverMsg != null && serverMsg.isNotEmpty) {
+          msg = serverMsg;
+        } else if (response.statusCode == 401) {
+          msg = 'Payment authorization failed. If you logged in with branch credentials, package subscriptions may require company admin authorization.';
+        } else if (error is DioException) {
+          msg = DioConfig.convertDioError(error);
+        } else {
+          msg = 'Payment initialization failed. Please try again.';
+        }
         Get.snackbar(
           'Payment Error',
-          '$msg',
+          msg,
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: Colors.red.shade900.withValues(alpha: 0.9),
           colorText: Colors.white,
+          duration: const Duration(seconds: 5),
         );
       },
     );
@@ -562,7 +608,20 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
                 child: ElevatedButton(
                   onPressed: () {
                     Get.back();
-                    Get.offAllNamed('/dashboard');
+                    final branchId = widget.branchId != null && widget.branchId != 0
+                        ? widget.branchId!
+                        : (int.tryParse(ConfigPreference.getBranchId() ?? '') ?? 0);
+                    if (!ConfigPreference.isBranchCertificateInstalled()) {
+                      Get.off(() => BranchCertificateScreen(
+                            branchId: branchId,
+                            email: widget.email ?? '',
+                            ownerName: '${widget.firstName ?? ''} ${widget.lastName ?? ''}'.trim(),
+                            phone: widget.phone ?? '',
+                            isFromRegistration: true,
+                          ));
+                    } else {
+                      Get.offAllNamed('/dashboard');
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -584,51 +643,104 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
     );
   }
 
+  Future<void> _handleBackNavigation() async {
+    _pollingTimer?.cancel();
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+      return;
+    }
+
+    final isActive = _status.toLowerCase() == 'active';
+    if (isActive) {
+      Get.offAllNamed('/dashboard');
+    } else {
+      // User is unpaid/inactive and has no backstack: return to login screen.
+      // Clear tokens so they are not trapped in a redirect loop on app relaunch.
+      await ConfigPreference.clearTokens();
+      Get.offAllNamed('/company-auth');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final isActive = _status.toLowerCase() == 'active';
+    final canPop = Navigator.canPop(context);
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: const Text('Payment Packages'),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        actions: [
-          if (isActive)
-            IconButton(
-              icon: const Icon(Icons.close_rounded),
-              onPressed: () => Get.back(),
-            ),
-        ],
-      ),
-      body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _fetchError != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.error_outline_rounded,
-                              size: 56, color: Colors.red.shade400),
-                          const SizedBox(height: 16),
-                          Text(_fetchError!, textAlign: TextAlign.center),
-                          const SizedBox(height: 20),
-                          ElevatedButton.icon(
-                            onPressed: _loadPackages,
-                            icon: const Icon(Icons.refresh_rounded),
-                            label: const Text('Retry'),
-                          ),
-                        ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBackNavigation();
+      },
+      child: Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        appBar: AppBar(
+          title: const Text('Payment Packages'),
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          leading: IconButton(
+            key: const Key('payment_back_button'),
+            icon: const Icon(Icons.arrow_back_rounded),
+            tooltip: canPop ? 'Back' : (isActive ? 'Dashboard' : 'Back to Login'),
+            onPressed: _handleBackNavigation,
+          ),
+          actions: [
+            if (canPop || isActive)
+              IconButton(
+                key: const Key('payment_close_button'),
+                icon: const Icon(Icons.close_rounded),
+                tooltip: 'Close',
+                onPressed: _handleBackNavigation,
+              )
+            else
+              TextButton.icon(
+                key: const Key('payment_login_action_button'),
+                onPressed: _handleBackNavigation,
+                icon: const Icon(Icons.logout_rounded, size: 16),
+                label: const Text('Login'),
+                style: TextButton.styleFrom(
+                  foregroundColor: theme.colorScheme.primary,
+                  textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+          ],
+        ),
+        body: SafeArea(
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _fetchError != null
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline_rounded,
+                                size: 56, color: Colors.red.shade400),
+                            const SizedBox(height: 16),
+                            Text(_fetchError!, textAlign: TextAlign.center),
+                            const SizedBox(height: 20),
+                            ElevatedButton.icon(
+                              onPressed: _loadPackages,
+                              icon: const Icon(Icons.refresh_rounded),
+                              label: const Text('Retry'),
+                            ),
+                            if (!isActive) ...[
+                              const SizedBox(height: 12),
+                              OutlinedButton.icon(
+                                key: const Key('payment_error_back_to_login_button'),
+                                onPressed: _handleBackNavigation,
+                                icon: const Icon(Icons.arrow_back_rounded),
+                                label: const Text('Back to Login Screen'),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                    ),
-                  )
+                    )
                 : Column(
                     children: [
                       // Subscription Status Banner
@@ -890,42 +1002,73 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
                           ],
                         ),
                         child: SafeArea(
-                          child: SizedBox(
-                            width: double.infinity,
-                            height: 52,
-                            child: ElevatedButton(
-                              onPressed: _isProcessingPayment
-                                  ? null
-                                  : _showPayerDetailsSheet,
-                              style: ElevatedButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: ElevatedButton(
+                                  onPressed: _isProcessingPayment
+                                      ? null
+                                      : _showPayerDetailsSheet,
+                                  style: ElevatedButton.styleFrom(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                  child: _isProcessingPayment
+                                      ? const SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : Text(
+                                          _selectedPackage != null
+                                              ? 'Subscribe with ${_selectedPackage!.name} (${_selectedPackage!.formattedPrice})'
+                                              : 'Select a Package',
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                 ),
                               ),
-                              child: _isProcessingPayment
-                                  ? const SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.5,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : Text(
-                                      _selectedPackage != null
-                                          ? 'Subscribe with ${_selectedPackage!.name} (${_selectedPackage!.formattedPrice})'
-                                          : 'Select a Package',
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                            ),
+                              if (canPop) ...[
+                                const SizedBox(height: 6),
+                                TextButton.icon(
+                                  key: const Key('payment_bottom_back_button'),
+                                  onPressed: _handleBackNavigation,
+                                  icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                                  label: const Text('Back to Invoices'),
+                                  style: TextButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    foregroundColor: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              ] else if (!isActive) ...[
+                                const SizedBox(height: 6),
+                                TextButton.icon(
+                                  key: const Key('payment_bottom_back_to_login_button'),
+                                  onPressed: _handleBackNavigation,
+                                  icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                                  label: const Text('Return to Login Screen'),
+                                  style: TextButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    foregroundColor: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                       ),
                     ],
                   ),
+      ),
       ),
     );
   }

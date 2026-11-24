@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
+import '../config/config_preference.dart';
 import '../controllers/auth_controller.dart';
+import '../utils/phone_utils.dart';
+import 'branch_certificate_screen.dart';
 import 'payment_packages_screen.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
@@ -36,6 +39,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       List.generate(_codeLength, (_) => TextEditingController());
   final List<FocusNode> _focusNodes =
       List.generate(_codeLength, (_) => FocusNode());
+  final List<FocusNode> _keyboardFocusNodes =
+      List.generate(_codeLength, (_) => FocusNode());
 
   int _cooldownSeconds = 60;
   Timer? _cooldownTimer;
@@ -60,6 +65,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       c.dispose();
     }
     for (final f in _focusNodes) {
+      f.dispose();
+    }
+    for (final f in _keyboardFocusNodes) {
       f.dispose();
     }
     super.dispose();
@@ -112,8 +120,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     }
   }
 
-  void _onKey(RawKeyEvent event, int index) {
-    if (event is RawKeyDownEvent &&
+  void _onKey(KeyEvent event, int index) {
+    if (event is KeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.backspace &&
         _controllers[index].text.isEmpty &&
         index > 0) {
@@ -153,19 +161,23 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         icon: const Icon(Icons.check_circle_rounded, color: Colors.white),
       );
 
-      // Branch payment packages flow check
-      // For registration or pending branch accounts, navigate to PaymentPackagesScreen
+      // Payment screen should never be the first screen users navigate into.
+      // Navigate to certificate setup if not installed, or directly to the dashboard.
       if (widget.isCompanyRegistration) {
-        Get.off(() => PaymentPackagesScreen(
-              branchId: widget.branchId ?? 0,
-              phone: widget.phone,
-              email: widget.email ?? '',
-              firstName: widget.ownerName?.split(' ').first ?? 'Owner',
-              lastName: (widget.ownerName?.split(' ').length ?? 0) > 1
-                  ? widget.ownerName!.split(' ').sublist(1).join(' ')
-                  : 'Account',
-              currentStatus: 'pending',
-            ));
+        final branchId = widget.branchId ??
+            int.tryParse(ConfigPreference.getBranchId() ?? '') ??
+            0;
+        if (!ConfigPreference.isBranchCertificateInstalled() && branchId != 0) {
+          Get.off(() => BranchCertificateScreen(
+                branchId: branchId,
+                email: widget.email ?? '',
+                ownerName: widget.ownerName ?? 'Owner',
+                phone: widget.phone,
+                isFromRegistration: true,
+              ));
+        } else {
+          Get.offAllNamed('/dashboard');
+        }
       } else {
         // For existing branch login, prompt to sign in now that phone is verified
         Get.back(result: true);
@@ -258,7 +270,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           text: 'We have sent a 6-digit verification code to\n',
                         ),
                         TextSpan(
-                          text: widget.phone,
+                          text: PhoneUtils.formatForDisplay(widget.phone),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: theme.colorScheme.primary,
@@ -271,61 +283,65 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 const SizedBox(height: 36),
 
                 // 6-digit Code Input Boxes
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(_codeLength, (index) {
-                    return Container(
-                      width: 48,
-                      height: 56,
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      child: RawKeyboardListener(
-                        focusNode: FocusNode(),
-                        onKey: (event) => _onKey(event, index),
-                        child: TextField(
-                          controller: _controllers[index],
-                          focusNode: _focusNodes[index],
-                          keyboardType: TextInputType.number,
-                          textAlign: TextAlign.center,
-                          maxLength: 1,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 380),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(_codeLength, (index) {
+                      return Expanded(
+                        child: Container(
+                          height: 56,
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          child: KeyboardListener(
+                            focusNode: _keyboardFocusNodes[index],
+                            onKeyEvent: (event) => _onKey(event, index),
+                            child: TextField(
+                              controller: _controllers[index],
+                              focusNode: _focusNodes[index],
+                              keyboardType: TextInputType.number,
+                              textAlign: TextAlign.center,
+                              maxLength: 1,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              decoration: InputDecoration(
+                                counterText: '',
+                                filled: true,
+                                fillColor: isDark
+                                    ? const Color(0xFF242424)
+                                    : const Color(0xFFF3F4F6),
+                                contentPadding: EdgeInsets.zero,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: theme.dividerColor.withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: theme.dividerColor.withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: theme.colorScheme.primary,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                              onChanged: (val) => _onDigitChanged(index, val),
+                            ),
                           ),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          decoration: InputDecoration(
-                            counterText: '',
-                            filled: true,
-                            fillColor: isDark
-                                ? const Color(0xFF242424)
-                                : const Color(0xFFF3F4F6),
-                            contentPadding: EdgeInsets.zero,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: theme.dividerColor.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: theme.dividerColor.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: theme.colorScheme.primary,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                          onChanged: (val) => _onDigitChanged(index, val),
                         ),
-                      ),
-                    );
-                  }),
+                      );
+                    }),
+                  ),
                 ),
 
                 // Error Message Display
@@ -393,8 +409,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 const SizedBox(height: 24),
 
                 // Resend Code Section
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       "Didn't receive the code? ",

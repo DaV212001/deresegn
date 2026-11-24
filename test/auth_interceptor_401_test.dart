@@ -62,4 +62,77 @@ void main() {
     expect(ConfigPreference.getCompanyAccessToken(), isNull);
     expect(ConfigPreference.isLoggedIn(), isFalse);
   });
+
+  test('AuthInterceptor does NOT logout or wipe session on 401 from /api/payment/initialize', () async {
+    await ConfigPreference.updateBranchToken('mock_branch_token_123');
+    expect(ConfigPreference.isLoggedIn(), isTrue);
+
+    final interceptor = AuthInterceptor();
+    final handler = _TestErrorHandler();
+    final dioErr = DioException(
+      requestOptions: RequestOptions(path: '/api/payment/initialize', method: 'POST'),
+      response: Response(
+        requestOptions: RequestOptions(path: '/api/payment/initialize', method: 'POST'),
+        statusCode: 401,
+        data: {'message': 'Unauthenticated.'},
+      ),
+      type: DioExceptionType.badResponse,
+    );
+
+    interceptor.onError(dioErr, handler);
+
+    // Give microtasks a cycle to settle
+    await Future.delayed(const Duration(milliseconds: 50));
+
+    // The error should be passed directly to next() for screen-level handling
+    expect(handler.passedErr, isNotNull);
+    expect(handler.rejectedErr, isNull);
+    // User session should NOT be wiped out
+    expect(ConfigPreference.getAccessToken(), 'mock_branch_token_123');
+  });
+
+  test('AuthInterceptor does NOT logout or wipe session on 401 from /api/packages', () async {
+    await ConfigPreference.updateBranchToken('mock_branch_token_123');
+    expect(ConfigPreference.isLoggedIn(), isTrue);
+
+    final interceptor = AuthInterceptor();
+    final handler = _TestErrorHandler();
+    final dioErr = DioException(
+      requestOptions: RequestOptions(path: '/api/packages', method: 'GET'),
+      response: Response(
+        requestOptions: RequestOptions(path: '/api/packages', method: 'GET'),
+        statusCode: 401,
+        data: {'message': 'Unauthenticated.'},
+      ),
+      type: DioExceptionType.badResponse,
+    );
+
+    interceptor.onError(dioErr, handler);
+    await Future.delayed(const Duration(milliseconds: 50));
+
+    expect(handler.passedErr, isNotNull);
+    expect(handler.rejectedErr, isNull);
+    expect(ConfigPreference.getAccessToken(), 'mock_branch_token_123');
+  });
+}
+
+class _TestErrorHandler extends ErrorInterceptorHandler {
+  DioException? passedErr;
+  DioException? rejectedErr;
+  Response? resolvedResponse;
+
+  @override
+  void next(DioException err) {
+    passedErr = err;
+  }
+
+  @override
+  void reject(DioException err, [bool trueOnError = false]) {
+    rejectedErr = err;
+  }
+
+  @override
+  void resolve(Response response) {
+    resolvedResponse = response;
+  }
 }

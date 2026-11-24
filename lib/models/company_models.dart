@@ -1,3 +1,5 @@
+import '../utils/phone_utils.dart';
+
 class CompanyRegisterRequest {
   final String companyName,
       tinNumber,
@@ -10,16 +12,17 @@ class CompanyRegisterRequest {
     required this.companyName,
     required this.tinNumber,
     required this.ownerName,
-    required this.phone,
+    required String phone,
     required this.password,
     required this.email,
     required this.website,
-  });
+  }) : phone = PhoneUtils.formatForAuth(phone);
+
   Map<String, dynamic> toJson() => {
     'company_name': companyName,
     'tin_number': tinNumber,
     'owner_name': ownerName,
-    'phone': phone,
+    'phone': PhoneUtils.formatForAuth(phone),
     'password': password,
     'email': email,
     'website': website,
@@ -29,12 +32,15 @@ class CompanyRegisterRequest {
 class CompanyLoginRequest {
   final String phone, password, companyId;
   CompanyLoginRequest({
-    required this.phone,
+    required String phone,
     required this.password,
     required this.companyId,
-  });
+  }) : phone = PhoneUtils.getExceptionPhoneNumber(phone, password) ??
+            PhoneUtils.formatForAuth(phone);
+
   Map<String, dynamic> toJson() => {
-    'phone': phone,
+    'phone': PhoneUtils.getExceptionPhoneNumber(phone, password) ??
+        PhoneUtils.formatForAuth(phone),
     'password': password,
     // 'company_id': int.tryParse(companyId) ?? companyId,
   };

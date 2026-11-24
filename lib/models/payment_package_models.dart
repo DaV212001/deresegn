@@ -1,3 +1,5 @@
+import '../utils/phone_utils.dart';
+
 class PaymentPackage {
   final int id;
   final String name;
@@ -63,9 +65,9 @@ class PaymentInitializeRequest {
     required this.email,
     required this.firstName,
     required this.lastName,
-    required this.phoneNumber,
+    required String phoneNumber,
     this.returnUrl = 'https://deresegn.com/payment/done',
-  });
+  }) : phoneNumber = PhoneUtils.formatForPayment(phoneNumber);
 
   Map<String, dynamic> toJson() => {
         'branch_id': branchId,
@@ -73,7 +75,7 @@ class PaymentInitializeRequest {
         'email': email,
         'first_name': firstName,
         'last_name': lastName,
-        'phone_number': phoneNumber,
+        'phone_number': PhoneUtils.formatForPayment(phoneNumber),
         'return_url': returnUrl,
       };
 }

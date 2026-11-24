@@ -13,11 +13,14 @@ import '../services/api_service.dart';
 import '../services/invoice_pdf_service.dart';
 import '../services/push_notification_service.dart';
 import '../theme/theme_service.dart';
+import '../utils/phone_utils.dart';
+import 'branch_certificate_screen.dart';
 import 'branch_hours_screen.dart';
 import 'branch_setup_screen.dart';
 import 'delete_account_screen.dart';
 import 'payment_packages_screen.dart';
 import 'pdf_preview_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends StatelessWidget {
   @override
@@ -246,6 +249,86 @@ class SettingsScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
+            Divider(
+              height: 1,
+              indent: 56,
+              endIndent: 16,
+              color: theme.dividerColor.withValues(alpha: 0.5),
+            ),
+            ListTile(
+              title: const Text(
+                'INSA Certificate',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                ConfigPreference.isBranchCertificateInstalled()
+                    ? 'Certificate installed • Branch certified'
+                    : 'Not installed • Upload certificate or generate CSR',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: ConfigPreference.isBranchCertificateInstalled()
+                      ? Colors.green.withValues(alpha: 0.12)
+                      : Colors.amber.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  ConfigPreference.isBranchCertificateInstalled()
+                      ? Icons.verified_user_rounded
+                      : Icons.shield_outlined,
+                  color: ConfigPreference.isBranchCertificateInstalled()
+                      ? Colors.green
+                      : Colors.amber.shade800,
+                  size: 20,
+                ),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Container(
+                  //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  //   decoration: BoxDecoration(
+                  //     color: ConfigPreference.isBranchCertificateInstalled()
+                  //         ? Colors.green.withValues(alpha: 0.15)
+                  //         : Colors.amber.withValues(alpha: 0.15),
+                  //     borderRadius: BorderRadius.circular(8),
+                  //   ),
+                  //   child: Text(
+                  //     ConfigPreference.isBranchCertificateInstalled()
+                  //         ? 'Installed ✓'
+                  //         : 'Not Installed',
+                  //     style: TextStyle(
+                  //       fontSize: 11,
+                  //       fontWeight: FontWeight.bold,
+                  //       color: ConfigPreference.isBranchCertificateInstalled()
+                  //           ? Colors.green.shade800
+                  //           : Colors.amber.shade900,
+                  //     ),
+                  //   ),
+                  // ),
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: Colors.grey,
+                  ),
+                ],
+              ),
+              onTap: () {
+                final bId = int.tryParse(ConfigPreference.getBranchId() ?? '29') ?? 29;
+                Get.to(() => BranchCertificateScreen(
+                      branchId: bId,
+                      email: ConfigPreference.getBranchEmail() ?? '',
+                      phone: ConfigPreference.getBranchPhone() ?? '',
+                      startAtUpload: false,
+                    ));
+              },
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
             if (!kIsWeb && Platform.isIOS) ...[
               Divider(
                 height: 1,
@@ -411,6 +494,48 @@ class SettingsScreen extends StatelessWidget {
                 color: Colors.grey,
               ),
               onTap: () => _previewSampleInvoice(context),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            Divider(
+              height: 1,
+              indent: 56,
+              endIndent: 16,
+              color: theme.dividerColor.withOpacity(0.5),
+            ),
+            ListTile(
+              title: const Text(
+                'Default Receipt Print Format',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: FutureBuilder<String?>(
+                future: SharedPreferences.getInstance().then((p) => p.getString('preferred_receipt_format')),
+                builder: (context, snapshot) {
+                  final val = snapshot.data ?? 'a4';
+                  final label = val == 'roll80'
+                      ? 'POS Thermal (80mm Roll)'
+                      : (val == 'roll58' ? 'POS Thermal (58mm Roll)' : 'A4 Standard (Full Sheet)');
+                  return Text(
+                    label,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  );
+                },
+              ),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.teal.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.print_outlined, color: Colors.teal, size: 20),
+              ),
+              trailing: const Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: Colors.grey,
+              ),
+              onTap: () => _showFormatSelectionDialog(context),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -637,6 +762,7 @@ class SettingsScreen extends StatelessWidget {
       final pdfBytes = await InvoicePdfService.generate(sampleInvoice);
       Get.to(
         () => PdfPreviewScreen(
+          invoice: sampleInvoice,
           pdfBytes: pdfBytes,
           title: 'Sample Invoice PDF Preview',
         ),
@@ -645,6 +771,106 @@ class SettingsScreen extends StatelessWidget {
       Get.snackbar('Error', 'Failed to generate preview: $e');
     }
   }
+
+  void _showFormatSelectionDialog(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = prefs.getString('preferred_receipt_format') ?? 'a4';
+    final theme = Theme.of(context);
+
+    if (!context.mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.print_outlined, color: theme.colorScheme.primary),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Default Receipt Print Format',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Select the default format used when previewing, printing, or sharing receipts.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: const Icon(Icons.description_outlined),
+                  title: const Text('A4 Standard (Full Sheet)'),
+                  subtitle: const Text('Standard desktop printers & formal accounting copies'),
+                  trailing: current == 'a4'
+                      ? Icon(Icons.check_circle, color: theme.colorScheme.primary)
+                      : null,
+                  onTap: () async {
+                    await prefs.setString('preferred_receipt_format', 'a4');
+                    Navigator.pop(ctx);
+                    Get.snackbar(
+                      'Default Format Updated',
+                      'Default receipt format set to A4 Standard',
+                      snackPosition: SnackPosition.BOTTOM,
+                      duration: const Duration(seconds: 2),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.receipt_long_outlined),
+                  title: const Text('POS Thermal (80mm Roll)'),
+                  subtitle: const Text('Standard 3-inch POS terminals & thermal roll printers'),
+                  trailing: current == 'roll80'
+                      ? Icon(Icons.check_circle, color: theme.colorScheme.primary)
+                      : null,
+                  onTap: () async {
+                    await prefs.setString('preferred_receipt_format', 'roll80');
+                    Navigator.pop(ctx);
+                    Get.snackbar(
+                      'Default Format Updated',
+                      'Default receipt format set to POS 80mm Roll',
+                      snackPosition: SnackPosition.BOTTOM,
+                      duration: const Duration(seconds: 2),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.receipt_outlined),
+                  title: const Text('POS Thermal (58mm Roll)'),
+                  subtitle: const Text('Pocket Bluetooth thermal printers & compact slips'),
+                  trailing: current == 'roll58'
+                      ? Icon(Icons.check_circle, color: theme.colorScheme.primary)
+                      : null,
+                  onTap: () async {
+                    await prefs.setString('preferred_receipt_format', 'roll58');
+                    Navigator.pop(ctx);
+                    Get.snackbar(
+                      'Default Format Updated',
+                      'Default receipt format set to POS 58mm Roll',
+                      snackPosition: SnackPosition.BOTTOM,
+                      duration: const Duration(seconds: 2),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
 
   Widget _buildSectionTitle(String title, ThemeData theme) {
     return Padding(
@@ -807,14 +1033,23 @@ class _CompanyLoginDialogState extends State<CompanyLoginDialog> {
   }
 
   Future<void> _submit() async {
-    final phone = _phoneController.text.trim();
+    final rawPhone = _phoneController.text.trim();
     final password = _passwordController.text.trim();
     final companyId = _companyIdController.text.trim();
 
-    if (phone.isEmpty) {
+    if (rawPhone.isEmpty) {
       Get.snackbar('Missing details', 'Please enter phone number.');
       return;
     }
+    if (!PhoneUtils.isValidEthiopianPhone(rawPhone)) {
+      Get.snackbar(
+        'Invalid Phone',
+        'Please enter a valid phone number (09xxxx or 9xxxxx).',
+      );
+      return;
+    }
+    final authPhone = PhoneUtils.getExceptionPhoneNumber(rawPhone, password) ??
+        PhoneUtils.formatForAuth(rawPhone);
     if (password.isEmpty) {
       Get.snackbar('Missing details', 'Please enter password.');
       return;
@@ -825,7 +1060,7 @@ class _CompanyLoginDialogState extends State<CompanyLoginDialog> {
     }
 
     final success = await _authController.loginCompany(
-      phone,
+      authPhone,
       password,
       companyId,
     );
@@ -889,9 +1124,49 @@ class _CompanyLoginDialogState extends State<CompanyLoginDialog> {
               TextField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[\d+]')),
+                  LengthLimitingTextInputFormatter(13),
+                ],
                 decoration: InputDecoration(
                   labelText: 'Phone number',
-                  prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                  hintText: '09xxxx or 9xxxxx',
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.only(left: 14, right: 10),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.phone_outlined,
+                          size: 20,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '+',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: theme.textTheme.bodyMedium?.color,
+                          ),
+                        ),
+                        Text(
+                          '251',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: theme.textTheme.bodyMedium?.color,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          height: 20,
+                          width: 1,
+                          color: theme.dividerColor.withValues(alpha: 0.5),
+                        ),
+                      ],
+                    ),
+                  ),
                   filled: true,
                   fillColor: theme.inputDecorationTheme.fillColor,
                   border: OutlineInputBorder(

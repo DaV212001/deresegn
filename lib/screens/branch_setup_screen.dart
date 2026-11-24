@@ -5,7 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart' hide MultipartFile, FormData;
 
 import '../config/config_preference.dart';
+import '../config/dio_config.dart';
 import '../controllers/auth_controller.dart';
+import '../utils/phone_utils.dart';
+import 'branch_certificate_screen.dart';
 import '../services/api_service.dart';
 
 class BranchSetupScreen extends StatefulWidget {
@@ -119,6 +122,84 @@ class _BranchSetupScreenState extends State<BranchSetupScreen> {
         ),
       );
 
+  Widget phoneField(
+    TextEditingController controller, {
+    String label = 'Phone number',
+  }) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: controller,
+        keyboardType: TextInputType.phone,
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'[\d+]')),
+          LengthLimitingTextInputFormatter(13),
+        ],
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: '09xxxx or 9xxxxx',
+          hintStyle: TextStyle(
+            fontSize: 13,
+            color: theme.hintColor.withValues(alpha: 0.5),
+          ),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 14, right: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.phone_outlined,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '+',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: theme.textTheme.bodyMedium?.color,
+                  ),
+                ),
+                Text(
+                  '251',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: theme.textTheme.bodyMedium?.color,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  height: 20,
+                  width: 1,
+                  color: theme.dividerColor.withValues(alpha: 0.5),
+                ),
+              ],
+            ),
+          ),
+          filled: true,
+          fillColor: theme.inputDecorationTheme.fillColor,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          counterText: '',
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: theme.dividerColor.withOpacity(.35)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> pick(bool isKey) async {
     final result = await FilePicker.platform.pickFiles(withData: false);
     if (result == null) return;
@@ -146,9 +227,33 @@ class _BranchSetupScreenState extends State<BranchSetupScreen> {
     }
 
     if (privateKey?.path == null || certificate?.path == null) {
-      Get.snackbar(
-        'Files required',
-        'Select the branch private key and certificate.',
+      Get.dialog(
+        AlertDialog(
+          title: const Text('Digital Certificate Required'),
+          content: const Text(
+            'To create and certify a branch, an INSA digital certificate is required.\n\nWould you like to generate a Certificate Signing Request (CSR) and request a certificate from INSA?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Get.back();
+                final bId = int.tryParse(ConfigPreference.getBranchId() ?? '29') ?? 29;
+                Get.to(() => BranchCertificateScreen(
+                      branchId: bId,
+                      tin: tin.text.trim(),
+                      organizationName: name.text.trim(),
+                      email: email.text.trim(),
+                      phone: phone.text.trim(),
+                    ));
+              },
+              child: const Text('Generate CSR & Certificate'),
+            ),
+          ],
+        ),
       );
       return;
     }
@@ -158,7 +263,7 @@ class _BranchSetupScreenState extends State<BranchSetupScreen> {
       final data = FormData.fromMap({
         'branch_name': name.text.trim(),
         'location': location.text.trim(),
-        'phone_number': phone.text.trim(),
+        'phone_number': PhoneUtils.formatForAuth(phone.text.trim()),
         'email': email.text.trim(),
         'password': newBranchPassword.text.trim(),
         'tin_number': tin.text.trim(),
@@ -202,7 +307,12 @@ class _BranchSetupScreenState extends State<BranchSetupScreen> {
             newBranchPassword.text.trim(),
           );
         },
-        onFailure: (e, r) => Get.snackbar('Branch setup failed', '$e'),
+        onFailure: (e, r) {
+          final errorMsg = e is DioException
+              ? DioConfig.convertDioError(e)
+              : (DioConfig.extractErrorMessage(r.data) ?? 'Branch setup failed.');
+          Get.snackbar('Branch setup failed', errorMsg);
+        },
       );
     } finally {
       if (mounted) setState(() => saving = false);
@@ -271,11 +381,9 @@ class _BranchSetupScreenState extends State<BranchSetupScreen> {
                   const SizedBox(height: 26),
                   f(name, 'Branch name', icon: Icons.store_outlined),
                   f(location, 'Location', icon: Icons.location_on_outlined),
-                  f(
+                  phoneField(
                     phone,
-                    'Phone number',
-                    icon: Icons.phone_outlined,
-                    keyboardType: TextInputType.phone,
+                    label: 'Phone number',
                   ),
                   f(
                     email,
@@ -323,6 +431,39 @@ class _BranchSetupScreenState extends State<BranchSetupScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.primaryColor.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.shield_outlined, color: theme.colorScheme.primary),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Need an INSA certificate? Generate CSR and request one online.',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            final bId = int.tryParse(ConfigPreference.getBranchId() ?? '29') ?? 29;
+                            Get.to(() => BranchCertificateScreen(
+                                  branchId: bId,
+                                  tin: tin.text.trim(),
+                                  organizationName: name.text.trim(),
+                                  email: email.text.trim(),
+                                  phone: phone.text.trim(),
+                                ));
+                          },
+                          child: const Text('Generate CSR'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
                   OutlinedButton.icon(
                     onPressed: () => pick(true),
                     icon: const Icon(Icons.key_outlined),

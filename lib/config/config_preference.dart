@@ -34,6 +34,7 @@ class ConfigPreference {
   static const String keyBranchEmail = 'branch_email';
   static const String keyBranchWorkingHours = 'branch_working_hours';
   static const String keyFcmToken = 'fcm_token';
+  static const String keyBranchCertificateInstalled = 'branch_certificate_installed';
 
   // Theme Keys
   static const String keyIsDarkMode = 'is_dark_mode';
@@ -56,6 +57,8 @@ class ConfigPreference {
     _branchEmail = await _storage.read(key: keyBranchEmail);
     _branchWorkingHoursJson = await _storage.read(key: keyBranchWorkingHours);
     _fcmToken = await _storage.read(key: keyFcmToken);
+    final certVal = await _storage.read(key: keyBranchCertificateInstalled);
+    _isBranchCertificateInstalled = certVal == 'true';
   }
 
   static String? _companyId;
@@ -67,6 +70,7 @@ class ConfigPreference {
   static String? _branchEmail;
   static String? _branchWorkingHoursJson;
   static String? _fcmToken;
+  static bool? _isBranchCertificateInstalled;
 
   static String? getCompanyId() => _companyId;
   static String? getBranchId() => _branchId;
@@ -75,6 +79,51 @@ class ConfigPreference {
   static String? getExpiredDate() => _expiredDate;
   static String? getBranchPhone() => _branchPhone;
   static String? getBranchEmail() => _branchEmail;
+  static bool isBranchCertificateInstalled() => _isBranchCertificateInstalled ?? false;
+
+  static Future<void> saveBranchCertificateInstalled(bool installed) async {
+    _isBranchCertificateInstalled = installed;
+    await _storage.write(
+      key: keyBranchCertificateInstalled,
+      value: installed ? 'true' : 'false',
+    );
+  }
+
+  static final Map<int, String> _branchCsrCache = {};
+
+  static String? getBranchCsr(int branchId) => _branchCsrCache[branchId];
+
+  static Future<void> saveBranchCsr(int branchId, String csr) async {
+    _branchCsrCache[branchId] = csr;
+    try {
+      await _storage.write(
+        key: 'branch_csr_$branchId',
+        value: csr,
+      );
+    } catch (_) {}
+  }
+
+  static Future<String?> loadBranchCsr(int branchId) async {
+    if (_branchCsrCache.containsKey(branchId) && _branchCsrCache[branchId] != null) {
+      return _branchCsrCache[branchId];
+    }
+    try {
+      final val = await _storage.read(key: 'branch_csr_$branchId');
+      if (val != null && val.isNotEmpty) {
+        _branchCsrCache[branchId] = val;
+      }
+      return val;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> removeBranchCsr(int branchId) async {
+    _branchCsrCache.remove(branchId);
+    try {
+      await _storage.delete(key: 'branch_csr_$branchId');
+    } catch (_) {}
+  }
 
   static bool isBranchActive() {
     if (_branchStatus == null) return false;
@@ -208,8 +257,10 @@ class ConfigPreference {
     await clearMorTokens();
     _companyAccessToken = null;
     _accessToken = null;
+    _isBranchCertificateInstalled = null;
     await _storage.delete(key: keyCompanyAccessToken);
     await _storage.delete(key: keyAccessToken);
+    await _storage.delete(key: keyBranchCertificateInstalled);
     await InvoiceCacheService.clearCache();
   }
 

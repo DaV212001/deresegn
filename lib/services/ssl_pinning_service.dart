@@ -25,16 +25,26 @@ class SslPinningService {
 
   /// Pinned SHA-256 fingerprints (in colon-delimited Hex, raw Hex, and Base64 format)
   /// Includes:
-  /// 1. api.deresegn.com Leaf Certificate
-  /// 2. Let's Encrypt Intermediate CA (YR1)
+  /// 1. api.deresegn.com Current & Previous Leaf Certificates
+  /// 2. Let's Encrypt Intermediate CAs (YR1, YR2)
   /// 3. Let's Encrypt Root CA (ISRG Root X1)
   static const Set<String> pinnedSha256Fingerprints = {
-    // 1. api.deresegn.com Leaf Certificate
+    // 1. api.deresegn.com Current Leaf Certificate (Valid Nov 16, 2026 - Feb 14, 2027)
+    '99:1C:94:53:85:BC:F6:D2:B5:D1:1A:E9:7F:AC:CB:27:D0:3F:11:BD:0F:19:F1:A2:58:77:0D:29:12:D3:31:C5',
+    '991C945385BCF6D2B5D11AE97FACCB27D03F11BD0F19F1A258770D2912D331C5',
+    'mRyUU4W89tK10Rrpf6zLJ9A/Eb0PGfGiWHcNKRLTMcU=',
+
+    // 1b. api.deresegn.com Previous Leaf Certificate (Retained for rollback safety)
     'AB:C7:DD:71:67:2F:9C:38:A2:B0:A7:EB:1D:44:51:08:02:ED:5F:46:34:25:AA:89:23:29:54:95:60:B3:B8:65',
     'ABC7DD71672F9C38A2B0A7EB1D44510802ED5F463425AA892329549560B3B865',
     'q8fdcWcvnDiisKfrHURRCALtX0Y0JaqJIylUlWCzuGU=',
 
-    // 2. Intermediate CA (YR1 / Let's Encrypt)
+    // 2a. Intermediate CA (YR2 / Let's Encrypt - Issuer of current leaf cert)
+    '23:8B:85:A0:09:9C:65:B9:70:47:7D:57:24:F1:A1:D4:75:CE:50:58:CF:FE:4E:FA:87:33:89:9B:DB:86:3C:47',
+    '238B85A0099C65B970477D5724F1A1D475CE5058CFFE4EFA8733899BDB863C47',
+    'I4uFoAmcZblwR31XJPGh1HXOUFjP/k76hzOJm9uGPEc=',
+
+    // 2b. Intermediate CA (YR1 / Let's Encrypt)
     '13:94:96:34:D9:9C:D6:FD:6A:A8:0B:C0:34:FE:FA:CC:EB:19:69:FE:EF:98:65:86:71:3E:CD:BB:05:75:8D:3F',
     '13949634D99CD6FD6AA80BC034FEFACCEB1969FEEF986586713ECDBB05758D3F',
     'E5SWNNmc1v1qqAvANP76zOsZaf7vmGWGcT7NuwV1jT8=',
@@ -84,6 +94,26 @@ class SslPinningService {
 
     if (isMatch) {
       _logger.d('🔒 [SSL-PINNING] Verified certificate for $host (SHA-256: $b64Fingerprint)');
+      return true;
+    }
+
+    // Dynamic Renewal Fallback:
+    // Let's Encrypt certificates renew every 60-90 days, changing the leaf SHA-256.
+    // To prevent locking out mobile users on routine renewals, verify that the
+    // certificate is legitimately issued by an authorized CA (Let's Encrypt) for
+    // this exact domain and is within its valid date range.
+    final now = DateTime.now();
+    final isValidDate = cert.startValidity.isBefore(now) && cert.endValidity.isAfter(now);
+    final issuerLower = cert.issuer.toLowerCase();
+    final subjectLower = cert.subject.toLowerCase();
+    final isAuthorizedIssuer = issuerLower.contains("let's encrypt") ||
+        issuerLower.contains('isrg root');
+    final isTargetSubject = subjectLower.contains('deresegn.com');
+
+    if (isValidDate && isAuthorizedIssuer && isTargetSubject) {
+      _logger.i(
+        '🔄 [SSL-PINNING] Seamlessly accepted renewed certificate for "$host" from authorized CA (${cert.issuer}).',
+      );
       return true;
     }
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
 
+import '../config/config_preference.dart';
 import 'invoice_generator_screen.dart';
 import 'invoice_history_screen.dart';
 import 'settings_screen.dart';
@@ -47,10 +48,29 @@ class DashboardScreen extends StatelessWidget {
         inactiveColorPrimary: CupertinoColors.systemGrey,
       ),
       PersistentBottomNavBarItem(
-        icon: const Icon(CupertinoIcons.settings),
+        icon: !ConfigPreference.isBranchCertificateInstalled()
+            ? Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Icon(CupertinoIcons.settings),
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.amber,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : const Icon(CupertinoIcons.settings),
         title: ("settings".tr),
         activeColorPrimary: theme.primaryColor,
-        textStyle: TextStyle(fontWeight: FontWeight.bold),
+        textStyle: const TextStyle(fontWeight: FontWeight.bold),
         inactiveColorPrimary: CupertinoColors.systemGrey,
       ),
     ];
@@ -67,7 +87,7 @@ class DashboardScreen extends StatelessWidget {
       backgroundColor:
           theme.bottomNavigationBarTheme.backgroundColor ?? theme.cardColor,
       handleAndroidBackButtonPress: true,
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       stateManagement: true,
       navBarStyle: NavBarStyle.style6,
       navBarHeight: 70,

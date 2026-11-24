@@ -242,7 +242,30 @@ class InvoiceSummary {
         payload = jsonDecode(payload);
       } catch (_) {}
     }
-    final payloadMap = payload is Map<String, dynamic> ? payload : null;
+    Map<String, dynamic>? payloadMap =
+        payload is Map<String, dynamic> ? Map<String, dynamic>.from(payload) : null;
+
+    if (payloadMap != null) {
+      if (payloadMap['ItemList'] == null && json['items'] is List) {
+        payloadMap['ItemList'] = json['items'];
+      }
+      if (payloadMap['SellerDetails'] == null && json['seller'] is Map) {
+        payloadMap['SellerDetails'] = json['seller'];
+      }
+      if (payloadMap['BuyerDetails'] == null && json['buyer'] is Map) {
+        payloadMap['BuyerDetails'] = json['buyer'];
+      }
+      if (payloadMap['ValueDetails'] == null && json['totals'] is Map) {
+        payloadMap['ValueDetails'] = json['totals'];
+      }
+    } else if (json['items'] is List || json['seller'] is Map || json['totals'] is Map) {
+      payloadMap = {
+        if (json['items'] is List) 'ItemList': json['items'],
+        if (json['seller'] is Map) 'SellerDetails': json['seller'],
+        if (json['buyer'] is Map) 'BuyerDetails': json['buyer'],
+        if (json['totals'] is Map) 'ValueDetails': json['totals'],
+      };
+    }
 
     final docNum = json['document_number'] ??
         json['DocumentNumber'] ??

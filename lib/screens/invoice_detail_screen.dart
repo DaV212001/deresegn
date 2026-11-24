@@ -8,7 +8,8 @@ import 'package:intl/intl.dart';
 
 import '../controllers/invoice_controller.dart';
 import '../controllers/receipt_controller.dart';
-import '../models/invoice_history_model.dart';
+import '../models/invoice_history_model.dart';
+
 import '../services/cancelled_invoices_storage.dart';
 import '../services/invoice_pdf_service.dart';
 import '../services/receipt_pdf_service.dart';
@@ -570,6 +571,10 @@ class InvoiceDetailScreen extends StatelessWidget {
 
       Get.to(
         () => PdfPreviewScreen(
+          invoice: currentInvoice,
+          irn: currentInvoice.irn,
+          documentNumber: currentInvoice.documentNumber,
+          isCancelled: isCancelledRx.value || currentInvoice.isCancelled,
           pdfBytes: bytes,
           title: 'Invoice ${currentInvoice.documentNumber ?? currentInvoice.id}',
         ),
@@ -1371,6 +1376,9 @@ class InvoiceDetailScreen extends StatelessWidget {
                                             pdfBytes: bytes,
                                             title:
                                                 'Receipt ${receipt.receiptNumber ?? receipt.id}',
+                                            receipt: receipt,
+                                            parentInvoice: invoice,
+                                            isWithholding: isWht,
                                           ),
                                         ),
                                       );

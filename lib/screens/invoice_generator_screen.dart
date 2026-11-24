@@ -10,6 +10,7 @@ import '../controllers/invoice_controller.dart';
 import '../controllers/invoice_history_controller.dart';
 import '../models/invoice_history_model.dart';
 import '../models/invoice_models.dart';
+import 'branch_certificate_screen.dart';
 
 class InvoiceGeneratorScreen extends StatefulWidget {
   final String? initialDocumentType;
@@ -38,6 +39,8 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
   // Input Controllers
   final _tinController = TextEditingController();
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
 
   final _itemDescController = TextEditingController();
   final _itemPriceController = TextEditingController();
@@ -114,6 +117,12 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
     _nameController.addListener(
       () => _controller.buyerName.value = _nameController.text,
     );
+    _phoneController.addListener(
+      () => _controller.buyerPhone.value = _phoneController.text,
+    );
+    _emailController.addListener(
+      () => _controller.buyerEmail.value = _emailController.text,
+    );
     _itemDescController.addListener(() {
       setState(() {});
     });
@@ -147,6 +156,8 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
         _referenceIrnController.text = widget.referenceInvoice!.irn ?? '';
         _tinController.text = _controller.buyerTin.value;
         _nameController.text = _controller.buyerName.value;
+        _phoneController.text = _controller.buyerPhone.value;
+        _emailController.text = _controller.buyerEmail.value;
       } else if (widget.initialReferenceIrn != null) {
         _referenceIrnController.text = widget.initialReferenceIrn!;
         _controller.referenceIrn.value = widget.initialReferenceIrn!;
@@ -158,6 +169,8 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
       if (!mounted) return;
       _tinController.clear();
       _nameController.clear();
+      _phoneController.clear();
+      _emailController.clear();
       _itemDescController.clear();
       _itemPriceController.clear();
       _itemQtyController.clear();
@@ -181,6 +194,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Text(
           'new_invoice'.tr,
@@ -234,11 +248,98 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
 
   Widget _buildBuyerTab() {
     final theme = Theme.of(context);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 100.0),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Certificate Warning Banner (if certificate is not installed)
+          if (!ConfigPreference.isBranchCertificateInstalled()) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 20),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.amber.withOpacity(0.4)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.shield_outlined, color: Colors.amber, size: 22),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'INSA Certificate Not Installed',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: theme.textTheme.bodyLarge?.color,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'A digital certificate is required to submit e-invoices to MoR. If you have received your certificate file (.cer / .pem), upload it below.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.textTheme.bodySmall?.color ?? Colors.grey.shade700,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber.shade800,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: () {
+                          final branchId = int.tryParse(ConfigPreference.getBranchId() ?? '29') ?? 29;
+                          Get.to(() => BranchCertificateScreen(
+                                branchId: branchId,
+                                email: ConfigPreference.getBranchEmail() ?? '',
+                                phone: ConfigPreference.getBranchPhone() ?? '',
+                                startAtUpload: true,
+                              ));
+                        },
+                        icon: const Icon(Icons.upload_file_rounded, size: 16),
+                        label: const Text('Upload Certificate', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          final branchId = int.tryParse(ConfigPreference.getBranchId() ?? '29') ?? 29;
+                          Get.to(() => BranchCertificateScreen(
+                                branchId: branchId,
+                                email: ConfigPreference.getBranchEmail() ?? '',
+                                phone: ConfigPreference.getBranchPhone() ?? '',
+                                startAtUpload: false,
+                              ));
+                        },
+                        child: const Text('How to Get One', style: TextStyle(fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
           // CopyAccessTokenWidget(),
           Obx(() {
             final isRefLocked = _controller.selectedReferenceInvoice.value != null;
@@ -306,6 +407,22 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                     icon: Icons.business_outlined,
                     readOnly: isRefLocked,
                   ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    'buyer_phone'.tr,
+                    _phoneController,
+                    icon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                    readOnly: isRefLocked,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    'buyer_email'.tr,
+                    _emailController,
+                    icon: Icons.email_outlined,
+                    keyboardType: TextInputType.emailAddress,
+                    readOnly: isRefLocked,
+                  ),
                   if (!isRefLocked) ...[
                     const SizedBox(height: 16),
                     GestureDetector(
@@ -315,9 +432,13 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                           if (_isWalkIn) {
                             _tinController.text = '0000000000';
                             _nameController.text = 'Walking';
+                            _phoneController.clear();
+                            _emailController.clear();
                           } else {
                             _tinController.text = '';
                             _nameController.text = '';
+                            _phoneController.clear();
+                            _emailController.clear();
                           }
                         });
                       },
@@ -421,8 +542,9 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
           }),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildItemsTab() {
     return Column(
@@ -1442,6 +1564,9 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                                     _hoursController.showClosedDialog(context);
                                     return;
                                   }
+                                  if (!_controller.checkActiveSubscriptionOrPromptPayment()) {
+                                    return;
+                                  }
                                   _controller.registerFormInvoice(context);
                                 },
                           child: isSubmitting
@@ -1489,6 +1614,9 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                               : () {
                                   if (!_hoursController.isCurrentlyOpen()) {
                                     _hoursController.showClosedDialog(context);
+                                    return;
+                                  }
+                                  if (!_controller.checkActiveSubscriptionOrPromptPayment()) {
                                     return;
                                   }
                                   _controller.registerSampleInvoice(context);
@@ -1659,6 +1787,8 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
                                     _referenceIrnController.text = inv.irn ?? '';
                                     _tinController.text = _controller.buyerTin.value;
                                     _nameController.text = _controller.buyerName.value;
+                                    _phoneController.text = _controller.buyerPhone.value;
+                                    _emailController.text = _controller.buyerEmail.value;
                                     Navigator.pop(ctx);
                                     Get.snackbar(
                                       'Invoice Referenced',
@@ -1779,6 +1909,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
     bool isNumber = false,
     IconData? icon,
     bool readOnly = false,
+    TextInputType? keyboardType,
   }) {
     return _buildTextFieldCustom(
       label,
@@ -1786,6 +1917,7 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
       isNumber: isNumber,
       icon: icon,
       readOnly: readOnly,
+      keyboardType: keyboardType,
     );
   }
 
@@ -1796,14 +1928,17 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
     FocusNode? focusNode,
     IconData? icon,
     bool readOnly = false,
+    TextInputType? keyboardType,
   }) {
     return TextField(
       controller: controller,
       focusNode: focusNode,
       readOnly: readOnly,
-      keyboardType: isNumber
-          ? const TextInputType.numberWithOptions(decimal: true)
-          : TextInputType.text,
+      scrollPadding: const EdgeInsets.only(bottom: 120, top: 20),
+      keyboardType: keyboardType ??
+          (isNumber
+              ? const TextInputType.numberWithOptions(decimal: true)
+              : TextInputType.text),
       style: TextStyle(
         color: readOnly
             ? Theme.of(context).textTheme.bodyLarge?.color?.withValues(alpha: 0.6)
@@ -1931,6 +2066,8 @@ class _InvoiceGeneratorScreenState extends State<InvoiceGeneratorScreen>
 
   @override
   void dispose() {
+    _phoneController.dispose();
+    _emailController.dispose();
     _customPaymentTermController.dispose();
     super.dispose();
   }

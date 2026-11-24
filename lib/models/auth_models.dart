@@ -1,3 +1,5 @@
+import '../utils/phone_utils.dart';
+
 class LoginRequest {
   final String clientId;
   final String clientSecret;
@@ -23,10 +25,17 @@ class BranchLoginRequest {
   final String tinNumber;
   final String password;
 
-  BranchLoginRequest({required this.tinNumber, required this.password});
+  BranchLoginRequest({required String tinNumber, required this.password})
+      : tinNumber = PhoneUtils.getExceptionPhoneNumber(tinNumber, password) ??
+            (PhoneUtils.isValidEthiopianPhone(tinNumber)
+                ? PhoneUtils.formatForAuth(tinNumber)
+                : tinNumber);
 
   Map<String, dynamic> toJson() => {
-    "phone_number": tinNumber,
+    "phone_number": PhoneUtils.getExceptionPhoneNumber(tinNumber, password) ??
+        (PhoneUtils.isValidEthiopianPhone(tinNumber)
+            ? PhoneUtils.formatForAuth(tinNumber)
+            : tinNumber),
     "password": password,
   };
 }

@@ -1,9 +1,13 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../config/app_settings.dart';
 import '../config/config_preference.dart';
+import '../config/dio_config.dart';
 import '../models/receipt_models.dart';
 import '../services/api_service.dart';
+import '../screens/payment_packages_screen.dart';
 import 'auth_controller.dart';
 import 'invoice_controller.dart';
 
@@ -27,6 +31,23 @@ class ReceiptController extends GetxController {
     isSubmittingReceipt.value = true;
     ReceiptSummary? result;
     try {
+      if (!ConfigPreference.isBranchActive()) {
+        isSubmittingReceipt.value = false;
+        if (showSnackbar) {
+          Get.snackbar(
+            'Subscription Required',
+            'An active package is required to register receipts. Please select a package to proceed.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.amber.shade900,
+            colorText: Colors.white,
+            icon: const Icon(Icons.payment_rounded, color: Colors.white),
+            duration: const Duration(seconds: 4),
+          );
+        }
+        Get.to(() => const PaymentPackagesScreen());
+        return null;
+      }
+
       final authController = Get.isRegistered<AuthController>()
           ? Get.find<AuthController>()
           : Get.put(AuthController());
@@ -101,13 +122,9 @@ class ReceiptController extends GetxController {
         }
       },
       onFailure: (e, r) {
-        String errorMsg = 'Failed to register receipt';
-        if (r.data != null) {
-          // Use the same error parsing logic as InvoiceController
-          final controller = Get.find<InvoiceController>();
-          final parsed = controller.parseMessage(r.data);
-          if (parsed != null) errorMsg = parsed;
-        }
+        String errorMsg = e is DioException
+            ? DioConfig.convertDioError(e)
+            : (DioConfig.extractErrorMessage(r.data) ?? 'Failed to register receipt');
         if (showSnackbar) {
           Get.snackbar('Error', errorMsg, snackPosition: SnackPosition.BOTTOM);
         }
@@ -130,6 +147,21 @@ class ReceiptController extends GetxController {
   }) async {
     isSubmittingWithholding.value = true;
     try {
+      if (!ConfigPreference.isBranchActive()) {
+        isSubmittingWithholding.value = false;
+        Get.snackbar(
+          'Subscription Required',
+          'An active package is required to register withholding receipts. Please select a package to proceed.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.amber.shade900,
+          colorText: Colors.white,
+          icon: const Icon(Icons.payment_rounded, color: Colors.white),
+          duration: const Duration(seconds: 4),
+        );
+        Get.to(() => const PaymentPackagesScreen());
+        return;
+      }
+
       final authController = Get.isRegistered<AuthController>()
           ? Get.find<AuthController>()
           : Get.put(AuthController());

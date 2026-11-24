@@ -18,11 +18,8 @@ class InitialNavigationMiddleware extends GetMiddleware {
       Logger().i('Branch authentication required');
       return const RouteSettings(name: '/company-auth');
     }
-    if (ConfigPreference.getBranchStatus() != null &&
-        !ConfigPreference.isBranchActive()) {
-      Logger().i('Branch subscription inactive or expired. Redirecting to payment packages');
-      return const RouteSettings(name: '/payment-packages');
-    }
+    // Note: Payment screen should never be the initial screen users navigate into.
+    // It will only pop up when users attempt to register invoices without an active subscription.
     return null;
   }
 }

@@ -144,6 +144,8 @@ class AuthInterceptor extends Interceptor {
         path.contains('/verify') ||
         path.contains('/verify-phone') ||
         path.contains('/resend-otp') ||
+        path.contains('/payment/') ||
+        path.contains('/packages') ||
         path == '/api/companies';
   }
 
@@ -154,6 +156,8 @@ class AuthInterceptor extends Interceptor {
         path.contains('/verify') ||
         path.contains('/verify-phone') ||
         path.contains('/resend-otp') ||
+        path.contains('/payment/') ||
+        path.contains('/packages') ||
         path == '/api/companies' ||
         path == '/api/login';
   }
@@ -163,6 +167,13 @@ class AuthInterceptor extends Interceptor {
     final path = err.requestOptions.path;
     final statusCode = err.response?.statusCode;
     final data = err.response?.data;
+
+    // Payment and package endpoints must never trigger an automatic forced logout.
+    // Propagate the error so calling screens can handle or display user feedback.
+    final isPaymentEndpoint = path.contains('/payment/') || path.contains('/packages');
+    if (isPaymentEndpoint) {
+      return handler.next(err);
+    }
 
     final isUnauthenticated = statusCode == 401 ||
         (data is Map &&
@@ -317,46 +328,254 @@ class DioConfig {
         error.message == 'Session expired. Please log in again.';
   }
 
+  /// Extracts user-friendly error messages from backend error responses,
+  /// including validation field maps (e.g. `{"phone": ["This phone number is already registered..."]}`),
+  /// nested Laravel/NestJS `errors` maps, MoR rule codes (e.g. `7030: ...`), and generic header filtering.
+  static String? extractErrorMessage(dynamic data) {
+    if (data == null) return null;
+
+    if (data is String) {
+      final trimmed = data.trim();
+      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+          (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+        try {
+          data = jsonDecode(trimmed);
+        } catch (_) {
+          return trimmed.isNotEmpty ? trimmed : null;
+        }
+      } else {
+        // If it's HTML, never display raw HTML tags to the user
+        if (trimmed.toLowerCase().startsWith('<!doctype') ||
+            trimmed.toLowerCase().startsWith('<html')) {
+          return null;
+        }
+        return trimmed.isNotEmpty ? trimmed : null;
+      }
+    }
+
+    const genericHeaders = {
+      'SCHEMA ERROR',
+      'RULE VALIDATION ERROR',
+      'VALIDATION ERROR',
+      'VALIDATION FAILED',
+      'SERVER ERROR',
+      'INTERNAL SERVER ERROR',
+      'GATEWAY ERROR',
+      'BAD REQUEST',
+      'UNPROCESSABLE ENTITY',
+      'UNPROCESSABLE',
+      'ERROR',
+      'FAILED',
+      'AN ERROR OCCURRED',
+      'THE GIVEN DATA WAS INVALID.',
+      'THE GIVEN DATA WAS INVALID',
+    };
+
+    final List<String> extractedErrors = [];
+
+    void findErrors(dynamic obj) {
+      if (obj == null) return;
+
+      if (obj is String) {
+        final trimmed = obj.trim();
+        if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+            (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+          try {
+            findErrors(jsonDecode(trimmed));
+            return;
+          } catch (_) {}
+        }
+        if (trimmed.isNotEmpty &&
+            !trimmed.toLowerCase().startsWith('<!doctype') &&
+            !trimmed.toLowerCase().startsWith('<html') &&
+            !genericHeaders.contains(trimmed.toUpperCase())) {
+          extractedErrors.add(trimmed);
+        }
+      } else if (obj is List) {
+        for (final item in obj) {
+          findErrors(item);
+        }
+      } else if (obj is Map) {
+        // Check for stringified JSON inside fields like 'body' or 'data'
+        for (final entry in obj.entries) {
+          final val = entry.value;
+          if (val is String) {
+            final t = val.trim();
+            if ((t.startsWith('{') && t.endsWith('}')) ||
+                (t.startsWith('[') && t.endsWith(']'))) {
+              try {
+                findErrors(jsonDecode(t));
+              } catch (_) {}
+            }
+          }
+        }
+
+        // Prioritize nested errors map/list (e.g. Laravel {"message": "...", "errors": {"phone": [...]}})
+        if (obj['errors'] != null) {
+          findErrors(obj['errors']);
+        }
+        if (obj['error'] != null && obj['error'] is! String) {
+          findErrors(obj['error']);
+        }
+
+        // Standard error message field keys
+        const directKeys = [
+          'errorMessage',
+          'error_message',
+          'errorMessages',
+          'message',
+          'messages',
+          'error',
+          'detail',
+          'details',
+          'reason',
+          'description',
+        ];
+
+        for (final key in directKeys) {
+          final val = obj[key];
+          if (val is String) {
+            final trimmed = val.trim();
+            if (trimmed.isNotEmpty &&
+                !genericHeaders.contains(trimmed.toUpperCase())) {
+              extractedErrors.add(trimmed);
+            }
+          } else if (val is List) {
+            for (final item in val) {
+              findErrors(item);
+            }
+          }
+        }
+
+        // Process field-level validation errors (e.g. {"phone": ["..."]}, {"tin": "..."})
+        const metadataKeys = {
+          'status',
+          'statusCode',
+          'status_code',
+          'code',
+          'path',
+          'timestamp',
+          'retryable',
+          'retry_after',
+        };
+
+        for (final entry in obj.entries) {
+          final keyStr = entry.key.toString();
+          if (directKeys.contains(keyStr) ||
+              keyStr == 'errors' ||
+              metadataKeys.contains(keyStr)) {
+            continue;
+          }
+          final val = entry.value;
+          if (val is String) {
+            final trimmed = val.trim();
+            if (trimmed.isNotEmpty &&
+                !genericHeaders.contains(trimmed.toUpperCase())) {
+              extractedErrors.add(trimmed);
+            }
+          } else if (val is List || val is Map) {
+            findErrors(val);
+          }
+        }
+      }
+    }
+
+    findErrors(data);
+
+    if (extractedErrors.isNotEmpty) {
+      // Prioritize specific rule errors (e.g. "7030: ...")
+      final ruleErrors = extractedErrors
+          .where((e) => RegExp(r'^\d{4}:').hasMatch(e.trim()))
+          .toList();
+      if (ruleErrors.isNotEmpty) {
+        return ruleErrors.toSet().join('\n');
+      }
+      return extractedErrors.toSet().join('\n');
+    }
+
+    // Fallback: if top-level 'message' exists
+    if (data is Map && data['message'] != null) {
+      final m = data['message'].toString().trim();
+      if (m.isNotEmpty && !genericHeaders.contains(m.toUpperCase())) {
+        return m;
+      }
+    }
+
+    return null;
+  }
+
   static String convertDioError(DioException e) {
-    String errorMessage = 'Unknown error occurred';
+    // 1. If backend returned error response data, extract the specific error message
+    if (e.response?.data != null) {
+      final backendMessage = extractErrorMessage(e.response!.data);
+      if (backendMessage != null && backendMessage.isNotEmpty) {
+        return backendMessage;
+      }
+    }
+
+    // 2. Fall back to user-friendly status and network error messages
     switch (e.type) {
       case DioExceptionType.cancel:
-        errorMessage = 'Request cancelled';
-        break;
+        return 'Request was cancelled.';
       case DioExceptionType.connectionTimeout:
-        errorMessage = 'Connection timeout';
-        break;
+        return 'Connection timed out. Please check your internet connection.';
       case DioExceptionType.sendTimeout:
-        errorMessage = 'Send timeout';
-        break;
+        return 'Request timed out while sending data. Please try again.';
       case DioExceptionType.receiveTimeout:
-        errorMessage = 'Receive timeout';
-        break;
-      case DioExceptionType.badResponse:
-        errorMessage =
-            'HTTP error ${e.response!.statusCode}: ${e.response!.statusMessage}';
-        break;
-      case DioExceptionType.unknown:
-        errorMessage = e.message ?? 'Other Dio error occurred';
-        break;
+        return 'Server took too long to respond. Please try again.';
       case DioExceptionType.badCertificate:
-        errorMessage =
-            'Security Alert: SSL/TLS certificate verification failed. Untrusted network connection detected.';
-        break;
+        return 'Security Alert: SSL/TLS certificate verification failed. Untrusted network connection detected.';
       case DioExceptionType.connectionError:
-        errorMessage = 'Connection error, check your internet';
-        break;
+        return 'Unable to connect to server. Please check your internet connection.';
       case DioExceptionType.transformTimeout:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        return 'Data processing timed out. Please try again.';
+      case DioExceptionType.badResponse:
+        final statusCode = e.response?.statusCode;
+        switch (statusCode) {
+          case 400:
+            return 'Invalid request. Please check the information you entered.';
+          case 401:
+            return 'Unauthorized or session expired. Please log in again.';
+          case 403:
+            return 'Access denied. You do not have permission to perform this action.';
+          case 404:
+            return 'The requested resource was not found.';
+          case 409:
+            return 'Conflict: this record already exists.';
+          case 422:
+            return 'Validation failed. Please check the information you entered.';
+          case 429:
+            return 'Too many requests. Please wait a moment and try again.';
+          case 500:
+          case 502:
+          case 503:
+          case 504:
+            return 'Server is temporarily unavailable. Please try again later.';
+          default:
+            if (statusCode != null && statusCode >= 500) {
+              return 'Server error ($statusCode). Please try again later.';
+            } else if (statusCode != null && statusCode >= 400) {
+              return 'Request failed ($statusCode). Please check your input.';
+            }
+            return 'An unexpected error occurred while communicating with the server.';
+        }
+      case DioExceptionType.unknown:
+      default:
+        final msg = e.message;
+        if (msg != null &&
+            msg.isNotEmpty &&
+            !msg.toLowerCase().contains('dioexception') &&
+            !msg.toLowerCase().contains('instance of')) {
+          return msg;
+        }
+        return 'An unexpected network error occurred. Please try again.';
     }
-    return errorMessage;
   }
 
   static Future<Dio> dio() async {
     if (_dioInstance != null) return _dioInstance!;
 
-    if (cookieJar == null) {
+    if (!isTestMode && cookieJar == null) {
       final dir = await getApplicationDocumentsDirectory();
       cookieJar = PersistCookieJar(
         storage: FileStorage('${dir.path}/.cookies/'),
@@ -374,10 +593,10 @@ class DioConfig {
       ),
     );
 
-    // Enforce SSL/TLS Certificate Pinning on all requests
-    _dioInstance!.httpClientAdapter = SslPinningService.createPinnedAdapter();
-
     if (!isTestMode) {
+      // Enforce SSL/TLS Certificate Pinning on all requests
+      _dioInstance!.httpClientAdapter = SslPinningService.createPinnedAdapter();
+
       _dioInstance!.interceptors.addAll([
         AuthInterceptor(),
         LoggingInterceptor(),

@@ -76,7 +76,9 @@ class DioService {
         if (onFailure != null) await onFailure(response.statusCode!, response);
       }
     } catch (e) {
-      if (onFailure != null) await onFailure(e, response);
+      final actualResponse =
+          (e is DioException && e.response != null) ? e.response! : response;
+      if (onFailure != null) await onFailure(e, actualResponse);
     }
   }
 
@@ -104,7 +106,9 @@ class DioService {
         if (onFailure != null) await onFailure(response.statusCode!, response);
       }
     } catch (e) {
-      if (onFailure != null) await onFailure(e, response);
+      final actualResponse =
+          (e is DioException && e.response != null) ? e.response! : response;
+      if (onFailure != null) await onFailure(e, actualResponse);
     }
   }
 
@@ -123,7 +127,9 @@ class DioService {
         if (onFailure != null) await onFailure(response.statusCode!, response);
       }
     } catch (e) {
-      if (onFailure != null) await onFailure(e, response);
+      final actualResponse =
+          (e is DioException && e.response != null) ? e.response! : response;
+      if (onFailure != null) await onFailure(e, actualResponse);
     }
   }
 }

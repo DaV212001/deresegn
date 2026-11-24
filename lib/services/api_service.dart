@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 
 import '../models/auth_models.dart';
+import '../models/branch_certificate_models.dart';
 import '../models/company_models.dart';
 import '../models/invoice_history_model.dart';
 import '../models/invoice_models.dart';
@@ -85,6 +86,105 @@ class ApiService {
       ),
       onSuccess: onSuccess,
       onFailure: onFailure,
+    );
+  }
+
+  static Future<void> requestBranchCsr({
+    required int branchId,
+    required BranchCsrRequest request,
+    Function(BranchCsrResponse)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    final token = ConfigPreference.getAccessToken() ??
+        ConfigPreference.getCompanyAccessToken();
+    await DioService.dioPost(
+      path: '/api/branches/$branchId/certificate/csr',
+      data: request.toJson(),
+      options: Options(
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
+      ),
+      onSuccess: (response) {
+        if (response.data != null) {
+          final data = response.data is Map
+              ? Map<String, dynamic>.from(response.data)
+              : <String, dynamic>{};
+          onSuccess?.call(BranchCsrResponse.fromJson(data));
+        }
+      },
+      onFailure: (error, response) {
+        onFailure?.call(error, response);
+      },
+    );
+  }
+
+  static Future<void> uploadBranchCertificate({
+    required int branchId,
+    required String certificatePem,
+    Function(BranchCertificateUploadResponse)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    final token = ConfigPreference.getAccessToken() ??
+        ConfigPreference.getCompanyAccessToken();
+    await DioService.dioPost(
+      path: '/api/branches/$branchId/certificate/upload',
+      data: {'certificate': certificatePem},
+      options: Options(
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
+      ),
+      onSuccess: (response) {
+        if (response.data != null) {
+          final data = response.data is Map
+              ? Map<String, dynamic>.from(response.data)
+              : <String, dynamic>{};
+          onSuccess?.call(BranchCertificateUploadResponse.fromJson(data));
+        }
+      },
+      onFailure: (error, response) {
+        onFailure?.call(error, response);
+      },
+    );
+  }
+
+  static Future<void> getBranchCertificateStatus({
+    required int branchId,
+    String? branchToken,
+    Function(BranchCertificateStatusResponse)? onSuccess,
+    Function(Object, Response)? onFailure,
+  }) async {
+    final token = branchToken ??
+        ConfigPreference.getAccessToken() ??
+        ConfigPreference.getCompanyAccessToken();
+    await DioService.dioGet(
+      path: '/api/branches/$branchId/certificate/status',
+      options: Options(
+        headers: {
+          'Accept': 'application/json',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
+          'Branch-Id': '$branchId',
+        },
+      ),
+      onSuccess: (response) {
+        if (response.data != null) {
+          final data = response.data is Map
+              ? Map<String, dynamic>.from(response.data)
+              : <String, dynamic>{};
+          onSuccess?.call(BranchCertificateStatusResponse.fromJson(data));
+        }
+      },
+      onFailure: (error, response) {
+        onFailure?.call(error, response);
+      },
     );
   }
 
@@ -200,6 +300,104 @@ class ApiService {
       data: request.toJson(),
       onSuccess: onSuccess,
       onFailure: onFailure,
+    );
+  }
+
+  static Future<void> notifyInvoiceRegistration({
+    required Uint8List pdfBytes,
+    String? irn,
+    String? documentNumber,
+    String? channel,
+    bool resend = false,
+    Function(Map<String, dynamic>)? onSuccess,
+    Function(Object, Response?)? onFailure,
+  }) async {
+    final token = ConfigPreference.getAccessToken();
+    final branchId = ConfigPreference.getBranchId();
+
+    final formData = FormData.fromMap({
+      'pdf': MultipartFile.fromBytes(
+        pdfBytes,
+        filename: 'invoice_${irn ?? documentNumber ?? "doc"}.pdf',
+      ),
+      if (irn != null && irn.isNotEmpty) 'irn': irn,
+      if (documentNumber != null && documentNumber.isNotEmpty)
+        'document_number': documentNumber,
+      if (channel != null && channel.isNotEmpty) 'channel': channel,
+      if (resend) 'resend': true,
+    });
+
+    await DioService.dioPost(
+      path: '/api/invoice/notify/registration',
+      data: formData,
+      options: Options(
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'multipart/form-data',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
+          if (branchId != null && branchId.isNotEmpty)
+            'Branch-Id': branchId,
+        },
+      ),
+      onSuccess: (response) {
+        final data = response.data is Map
+            ? Map<String, dynamic>.from(response.data)
+            : <String, dynamic>{};
+        onSuccess?.call(data);
+      },
+      onFailure: (error, response) {
+        onFailure?.call(error, response);
+      },
+    );
+  }
+
+  static Future<void> notifyInvoiceCancellation({
+    required Uint8List pdfBytes,
+    String? irn,
+    String? documentNumber,
+    String? channel,
+    bool resend = false,
+    Function(Map<String, dynamic>)? onSuccess,
+    Function(Object, Response?)? onFailure,
+  }) async {
+    final token = ConfigPreference.getAccessToken();
+    final branchId = ConfigPreference.getBranchId();
+
+    final formData = FormData.fromMap({
+      'pdf': MultipartFile.fromBytes(
+        pdfBytes,
+        filename: 'cancelled_invoice_${irn ?? documentNumber ?? "doc"}.pdf',
+      ),
+      if (irn != null && irn.isNotEmpty) 'irn': irn,
+      if (documentNumber != null && documentNumber.isNotEmpty)
+        'document_number': documentNumber,
+      if (channel != null && channel.isNotEmpty) 'channel': channel,
+      if (resend) 'resend': true,
+    });
+
+    await DioService.dioPost(
+      path: '/api/invoice/notify/cancellation',
+      data: formData,
+      options: Options(
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'multipart/form-data',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
+          if (branchId != null && branchId.isNotEmpty)
+            'Branch-Id': branchId,
+        },
+      ),
+      onSuccess: (response) {
+        final data = response.data is Map
+            ? Map<String, dynamic>.from(response.data)
+            : <String, dynamic>{};
+        onSuccess?.call(data);
+      },
+      onFailure: (error, response) {
+        onFailure?.call(error, response);
+      },
     );
   }
 
@@ -485,15 +683,21 @@ class ApiService {
     Function(PaymentInitializeResponse)? onSuccess,
     Function(Object, Response)? onFailure,
   }) async {
+    final companyToken = ConfigPreference.getCompanyAccessToken();
+    final branchToken = ConfigPreference.getAccessToken();
+
+    // Prefer company token if available (packages/subscriptions are company-scoped)
     final effectiveToken = token ??
-        ConfigPreference.getCompanyAccessToken() ??
-        ConfigPreference.getAccessToken();
+        (companyToken != null && companyToken.isNotEmpty
+            ? companyToken
+            : branchToken);
 
     await DioService.dioPost(
       path: '/api/payment/initialize',
       data: request.toJson(),
       options: Options(
         headers: {
+          'Accept': 'application/json',
           if (effectiveToken != null && effectiveToken.isNotEmpty)
             'Authorization': 'Bearer $effectiveToken',
         },
@@ -503,7 +707,37 @@ class ApiService {
           onSuccess(PaymentInitializeResponse.fromJson(response.data));
         }
       },
-      onFailure: onFailure,
+      onFailure: (error, response) async {
+        // If 401 Unauthorized occurs when using a branch token (or when company token was unavailable),
+        // retry once without Authorization header in case the endpoint accepts public checkout.
+        if (response.statusCode == 401 &&
+            effectiveToken != null &&
+            effectiveToken != companyToken) {
+          Logger().i(
+            'Received 401 on /api/payment/initialize with branch token. Retrying without Authorization header...',
+          );
+          await DioService.dioPost(
+            path: '/api/payment/initialize',
+            data: request.toJson(),
+            options: Options(
+              headers: {
+                'Accept': 'application/json',
+              },
+            ),
+            onSuccess: (retryResponse) {
+              if (onSuccess != null && retryResponse.data != null) {
+                onSuccess(PaymentInitializeResponse.fromJson(retryResponse.data));
+              }
+            },
+            onFailure: onFailure,
+          );
+          return;
+        }
+
+        if (onFailure != null) {
+          onFailure(error, response);
+        }
+      },
     );
   }
 

@@ -24,7 +24,7 @@ class MockX509Certificate implements X509Certificate {
   MockX509Certificate({
     required this.der,
     this.subject = 'CN=api.deresegn.com',
-    this.issuer = 'CN=YR1, O=Let\'s Encrypt, C=US',
+    this.issuer = 'CN=PortSwigger CA, O=PortSwigger, C=UK',
     DateTime? startValidity,
     DateTime? endValidity,
     Uint8List? sha1,
@@ -91,6 +91,38 @@ void main() {
     test('createPinnedAdapter returns non-null adapter', () {
       final adapter = SslPinningService.createPinnedAdapter();
       expect(adapter, isNotNull);
+    });
+
+    test('isCertificateValid approves live api.deresegn.com production certificate', () {
+      const liveHex =
+          '99:1C:94:53:85:BC:F6:D2:B5:D1:1A:E9:7F:AC:CB:27:D0:3F:11:BD:0F:19:F1:A2:58:77:0D:29:12:D3:31:C5';
+      expect(SslPinningService.pinnedSha256Fingerprints.contains(liveHex), isTrue);
+    });
+
+    test('isCertificateValid dynamically approves future auto-renewed Let\'s Encrypt certificates', () {
+      final cert = MockX509Certificate(
+        der: Uint8List.fromList(utf8.encode('future-renewed-cert-unseen-hash')),
+        issuer: 'CN=YR3, O=Let\'s Encrypt, C=US',
+        subject: 'CN=www.api.deresegn.com',
+        startValidity: DateTime.now().subtract(const Duration(days: 1)),
+        endValidity: DateTime.now().add(const Duration(days: 89)),
+      );
+
+      final isApproved = SslPinningService.isCertificateValid(cert, 'api.deresegn.com');
+      expect(isApproved, isTrue);
+    });
+
+    test('isCertificateValid rejects expired certificates even if from Let\'s Encrypt', () {
+      final cert = MockX509Certificate(
+        der: Uint8List.fromList(utf8.encode('expired-cert')),
+        issuer: 'CN=YR2, O=Let\'s Encrypt, C=US',
+        subject: 'CN=www.api.deresegn.com',
+        startValidity: DateTime(2025, 1, 1),
+        endValidity: DateTime(2025, 4, 1),
+      );
+
+      final isApproved = SslPinningService.isCertificateValid(cert, 'api.deresegn.com');
+      expect(isApproved, isFalse);
     });
   });
 }

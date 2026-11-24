@@ -11,6 +11,7 @@ import 'services/push_notification_service.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/setup_terminal_screen.dart';
 import 'screens/company_auth_screen.dart';
+import 'screens/branch_certificate_screen.dart';
 import 'screens/branch_setup_screen.dart';
 import 'screens/delete_account_screen.dart';
 import 'screens/otp_verification_screen.dart';
@@ -112,6 +113,10 @@ class _DeresegnAppState extends State<DeresegnApp> with WidgetsBindingObserver {
         GetPage(
           name: '/otp-verification',
           page: () => const OtpVerificationScreen(phone: ''),
+        ),
+        GetPage(
+          name: '/branch-certificate',
+          page: () => const BranchCertificateScreen(branchId: 0),
         ),
         GetPage(
           name: '/payment-packages',

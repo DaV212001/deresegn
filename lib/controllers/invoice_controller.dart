@@ -17,6 +17,7 @@ import '../models/invoice_history_model.dart';
 import '../models/invoice_models.dart';
 import '../models/receipt_models.dart';
 import '../screens/invoice_detail_screen.dart';
+import '../screens/payment_packages_screen.dart';
 import '../screens/pdf_preview_screen.dart';
 import '../services/api_service.dart';
 import '../services/cancelled_invoices_storage.dart';
@@ -159,6 +160,8 @@ class InvoiceController extends GetxController {
   // Form State
   var buyerTin = ''.obs;
   var buyerName = ''.obs;
+  var buyerPhone = ''.obs;
+  var buyerEmail = ''.obs;
   var items = <InvoiceItem>[].obs;
   var paymentMode = 'CASH'.obs;
   var paymentTerm = 'IMMEDIATE'.obs;
@@ -193,8 +196,13 @@ class InvoiceController extends GetxController {
       buyerName.value = 'Walk-in Customer';
     }
 
-    // Inherit PaymentTerm and Mode from parent invoice (Required for MoR Rule 7030 compliance)
     final refPayload = parentInvoice.requestPayload;
+    final rBuyer = (refPayload?['BuyerDetails'] as Map<String, dynamic>?) ??
+        (refPayload?['buyerDetails'] as Map<String, dynamic>?);
+    buyerPhone.value = parentInvoice.buyer.phone ?? rBuyer?['Phone']?.toString() ?? '';
+    buyerEmail.value = parentInvoice.buyer.email ?? rBuyer?['Email']?.toString() ?? '';
+
+    // Inherit PaymentTerm and Mode from parent invoice (Required for MoR Rule 7030 compliance)
     String? term = refPayload?['PaymentDetails']?['PaymentTerm']?.toString() ??
         refPayload?['paymentDetails']?['paymentTerm']?.toString();
     String? mode = refPayload?['PaymentDetails']?['Mode']?.toString() ??
@@ -253,14 +261,16 @@ class InvoiceController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    fetchSupplies();
-    final authController = Get.isRegistered<AuthController>()
-        ? Get.find<AuthController>()
-        : Get.put(AuthController());
-    authController.ensureMorAuth().catchError((e) {
-      Logger().w('Background MoR auth in InvoiceController: $e');
-      return false;
-    });
+    if (!DioConfig.isTestMode) {
+      fetchSupplies();
+      final authController = Get.isRegistered<AuthController>()
+          ? Get.find<AuthController>()
+          : Get.put(AuthController());
+      authController.ensureMorAuth().catchError((e) {
+        Logger().w('Background MoR auth in InvoiceController: $e');
+        return false;
+      });
+    }
   }
 
   Future<void> fetchSupplies() async {
@@ -389,6 +399,8 @@ class InvoiceController extends GetxController {
   void clearForm() {
     buyerTin.value = '';
     buyerName.value = '';
+    buyerPhone.value = '';
+    buyerEmail.value = '';
     items.clear();
     paymentMode.value = 'CASH';
     paymentTerm.value = 'IMMEDIATE';
@@ -415,7 +427,35 @@ class InvoiceController extends GetxController {
     return DateFormat("dd-MM-yyyy'T'HH:mm:ss").format(utc);
   }
 
+  /// Verifies whether the branch has an active package subscription.
+  /// If unpaid or expired, pops up the PaymentPackagesScreen and prevents invoice submission.
+  bool checkActiveSubscriptionOrPromptPayment() {
+    if (ConfigPreference.isBranchActive()) {
+      return true;
+    }
+
+    Logger().i(
+      'Invoice registration blocked: branch subscription is inactive/unpaid. Prompting payment screen.',
+    );
+    if (!DioConfig.isTestMode) {
+      Get.snackbar(
+        'Subscription Required',
+        'An active package is required to register invoices. Please select a package to proceed.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.amber.shade900,
+        colorText: Colors.white,
+        icon: const Icon(Icons.payment_rounded, color: Colors.white),
+        duration: const Duration(seconds: 4),
+      );
+    }
+
+    Get.to(() => const PaymentPackagesScreen());
+    return false;
+  }
+
   Future<void> registerWithholdingFromForm(BuildContext context) async {
+    if (!checkActiveSubscriptionOrPromptPayment()) return;
+
     if (referenceIrn.value.trim().isEmpty) {
       Get.snackbar(
         'Reference Required',
@@ -521,7 +561,12 @@ class InvoiceController extends GetxController {
                 irn: referenceIrn.value.trim(),
                 documentNumber: 'WHT',
                 status: 'A',
-                buyer: BuyerInfo(legalName: buyerName.value, tin: buyerTin.value),
+                buyer: BuyerInfo(
+            legalName: buyerName.value,
+            tin: buyerTin.value,
+            phone: buyerPhone.value.trim().isNotEmpty ? buyerPhone.value.trim() : null,
+            email: buyerEmail.value.trim().isNotEmpty ? buyerEmail.value.trim() : null,
+          ),
                 totals: TotalsInfo(totalValue: pretaxAmount.toStringAsFixed(2), currency: invoiceCurrency.value),
               );
 
@@ -559,7 +604,17 @@ class InvoiceController extends GetxController {
 
           try {
             final pdfBytes = await ReceiptPdfService.generate(receiptSummary, parent, isWithholding: true);
-            Get.to(() => PdfPreviewScreen(pdfBytes: pdfBytes, title: 'Withholding Tax Receipt'));
+            Get.to(
+              () => PdfPreviewScreen(
+                receipt: receiptSummary,
+                parentInvoice: parent,
+                isWithholding: true,
+                pdfBytes: pdfBytes,
+                title: 'Withholding Tax Receipt',
+                irn: parent.irn,
+                documentNumber: parent.documentNumber,
+              ),
+            );
           } catch (e) {
             Logger().w('Could not open preview for withholding receipt: $e');
             Get.back();
@@ -616,6 +671,8 @@ class InvoiceController extends GetxController {
   }
 
   Future<void> registerFormInvoice(BuildContext context) async {
+    if (!checkActiveSubscriptionOrPromptPayment()) return;
+
     final hoursController = Get.isRegistered<BranchHoursController>()
         ? Get.find<BranchHoursController>()
         : Get.put(BranchHoursController());
@@ -790,8 +847,8 @@ class InvoiceController extends GetxController {
         "HouseNumber": "",
         "IdNumber": "",
         "Tin": buyerTin.value,
-        "Email": "",
-        "Phone": "",
+        "Email": buyerEmail.value.trim(),
+        "Phone": buyerPhone.value.trim(),
         "City": city,
         "Region": "",
         "Country": "",
@@ -825,6 +882,8 @@ class InvoiceController extends GetxController {
   }
 
   Future<void> registerSampleInvoice(BuildContext context) async {
+    if (!checkActiveSubscriptionOrPromptPayment()) return;
+
     final hoursController = Get.isRegistered<BranchHoursController>()
         ? Get.find<BranchHoursController>()
         : Get.put(BranchHoursController());
@@ -1028,7 +1087,12 @@ class InvoiceController extends GetxController {
           documentNumber: request.documentDetails['DocumentNumber'],
           status: 'A',
           signedQr: signedQr,
-          buyer: BuyerInfo(legalName: buyerName.value, tin: buyerTin.value),
+          buyer: BuyerInfo(
+            legalName: buyerName.value,
+            tin: buyerTin.value,
+            phone: buyerPhone.value.trim().isNotEmpty ? buyerPhone.value.trim() : null,
+            email: buyerEmail.value.trim().isNotEmpty ? buyerEmail.value.trim() : null,
+          ),
           totals: TotalsInfo(
             totalValue: grandTotal.toStringAsFixed(2),
             taxValue: totalVat.toStringAsFixed(2),
@@ -1193,8 +1257,12 @@ class InvoiceController extends GetxController {
 
       Get.to(
         () => PdfPreviewScreen(
+          invoice: invoice,
+          receipt: receipt,
           pdfBytes: previewBytes,
           title: screenTitle,
+          irn: invoice.irn,
+          documentNumber: invoice.documentNumber,
         ),
       );
     } catch (e) {
@@ -1365,134 +1433,7 @@ class InvoiceController extends GetxController {
 
   String? _parseMessage(dynamic data) {
     if (data == null) return null;
-
-    if (data is String) {
-      final trimmed = data.trim();
-      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
-          (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
-        try {
-          data = jsonDecode(trimmed);
-        } catch (_) {
-          return data;
-        }
-      } else {
-        return data;
-      }
-    }
-
-    const genericHeaders = {
-      'SCHEMA ERROR',
-      'RULE VALIDATION ERROR',
-      'VALIDATION ERROR',
-      'SERVER ERROR',
-      'INTERNAL SERVER ERROR',
-      'GATEWAY ERROR',
-      'BAD REQUEST',
-      'UNPROCESSABLE ENTITY',
-      'ERROR',
-      'FAILED',
-      'AN ERROR OCCURRED',
-    };
-
-    if (data is Map || data is List) {
-      final List<String> extractedErrors = [];
-
-      void findErrors(dynamic obj) {
-        if (obj is Map) {
-          // If stringified nested JSON in any field (like 'body' or 'data')
-          for (final entry in obj.entries) {
-            final val = entry.value;
-            if (val is String) {
-              final t = val.trim();
-              if ((t.startsWith('{') && t.endsWith('}')) ||
-                  (t.startsWith('[') && t.endsWith(']'))) {
-                try {
-                  findErrors(jsonDecode(t));
-                  continue;
-                } catch (_) {}
-              }
-            }
-          }
-
-          // Look for common error fields
-          final msg = obj['message'] ??
-              obj['error'] ??
-              obj['detail'] ??
-              obj['reason'] ??
-              obj['description'];
-          if (msg != null && msg is String && msg.trim().isNotEmpty) {
-            final trimmedMsg = msg.trim();
-            if (!genericHeaders.contains(trimmedMsg.toUpperCase())) {
-              extractedErrors.add(trimmedMsg);
-            }
-          }
-
-          final errorMsgField = obj['errorMessage'] ??
-              obj['error_message'] ??
-              obj['errorMessages'];
-          if (errorMsgField is String && errorMsgField.trim().isNotEmpty) {
-            final trimmed = errorMsgField.trim();
-            if (!genericHeaders.contains(trimmed.toUpperCase())) {
-              extractedErrors.add(trimmed);
-            }
-          } else if (errorMsgField is List) {
-            for (var m in errorMsgField) {
-              if (m != null && m is String && m.trim().isNotEmpty) {
-                final trimmed = m.trim();
-                if (!genericHeaders.contains(trimmed.toUpperCase())) {
-                  extractedErrors.add(trimmed);
-                }
-              }
-            }
-          }
-
-          // Recurse into body or other nested structures
-          obj.forEach((key, value) {
-            if (value is Map || value is List) {
-              findErrors(value);
-            }
-          });
-        } else if (obj is List) {
-          for (var item in obj) {
-            if (item is String) {
-              final t = item.trim();
-              if ((t.startsWith('{') && t.endsWith('}')) ||
-                  (t.startsWith('[') && t.endsWith(']'))) {
-                try {
-                  findErrors(jsonDecode(t));
-                  continue;
-                } catch (_) {}
-              }
-            }
-            findErrors(item);
-          }
-        }
-      }
-
-      findErrors(data);
-
-      if (extractedErrors.isNotEmpty) {
-        // Prioritize specific rule errors (e.g. "7030: ...")
-        final ruleErrors = extractedErrors
-            .where((e) => RegExp(r'^\d{4}:').hasMatch(e.trim()))
-            .toList();
-        if (ruleErrors.isNotEmpty) {
-          return ruleErrors.toSet().join('\n');
-        }
-        return extractedErrors.toSet().join('\n');
-      }
-
-      // Fallback to top-level message
-      if (data is Map) {
-        final dynamic topMessage = data['message'] ?? data['messages'];
-        if (topMessage != null) {
-          if (topMessage is List) return topMessage.join('\n');
-          return topMessage.toString();
-        }
-      }
-    }
-
-    return data.toString();
+    return DioConfig.extractErrorMessage(data) ?? data.toString();
   }
 }
 

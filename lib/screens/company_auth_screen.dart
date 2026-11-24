@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 
 import '../config/config_preference.dart';
 import '../controllers/auth_controller.dart';
+import '../utils/phone_utils.dart';
+import 'branch_certificate_screen.dart';
 import 'branch_setup_screen.dart';
 
 class CompanyAuthScreen extends StatefulWidget {
@@ -121,6 +123,84 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
     );
   }
 
+  Widget _phoneField(
+    TextEditingController controller, {
+    String label = 'Phone number',
+  }) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: TextField(
+        controller: controller,
+        keyboardType: TextInputType.phone,
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'[\d+]')),
+          LengthLimitingTextInputFormatter(13),
+        ],
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: '09xxxx or 9xxxxx',
+          hintStyle: TextStyle(
+            fontSize: 13,
+            color: theme.hintColor.withValues(alpha: 0.5),
+          ),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 14, right: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.phone_outlined,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '+',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: theme.textTheme.bodyMedium?.color,
+                  ),
+                ),
+                Text(
+                  '251',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: theme.textTheme.bodyMedium?.color,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  height: 20,
+                  width: 1,
+                  color: theme.dividerColor.withValues(alpha: 0.5),
+                ),
+              ],
+            ),
+          ),
+          filled: true,
+          fillColor: theme.inputDecorationTheme.fillColor,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          counterText: '',
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: theme.dividerColor.withOpacity(.35)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _submit() async {
     if (register) {
       if (name.text.trim().isEmpty) {
@@ -139,6 +219,14 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
         Get.snackbar('Missing details', 'Please enter phone number.');
         return;
       }
+      if (!PhoneUtils.isValidEthiopianPhone(phone.text.trim())) {
+        Get.snackbar(
+          'Invalid Phone',
+          'Please enter a valid phone number (09xxxx or 9xxxxx).',
+        );
+        return;
+      }
+      final authPhone = PhoneUtils.formatForAuth(phone.text.trim());
       if (password.text.trim().isEmpty) {
         Get.snackbar('Missing details', 'Please enter a password.');
         return;
@@ -153,7 +241,7 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
         name.text.trim(),
         tin.text.trim(),
         owner.text.trim(),
-        phone.text.trim(),
+        authPhone,
         password.text.trim(),
         email.text.trim(),
         website.text.trim(),
@@ -167,13 +255,23 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
         Get.snackbar('Missing details', 'Please enter phone number.');
         return;
       }
+      if (!PhoneUtils.isValidEthiopianPhone(loginPhone.text.trim())) {
+        Get.snackbar(
+          'Invalid Phone',
+          'Please enter a valid phone number (09xxxx or 9xxxxx).',
+        );
+        return;
+      }
+      final authLoginPhone = PhoneUtils.getExceptionPhoneNumber(
+              loginPhone.text.trim(), loginPassword.text.trim()) ??
+          PhoneUtils.formatForAuth(loginPhone.text.trim());
       if (loginPassword.text.trim().isEmpty) {
         Get.snackbar('Missing details', 'Please enter password.');
         return;
       }
 
       await controller.performBranchLogin(
-        loginPhone.text.trim(),
+        authLoginPhone,
         loginPassword.text.trim(),
       );
     }
@@ -238,7 +336,21 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
                     child: ElevatedButton(
                       onPressed: () {
                         Get.back();
-                        Get.to(() => const BranchSetupScreen());
+                        final branchIdStr = ConfigPreference.getBranchId();
+                        final branchId = int.tryParse(branchIdStr ?? '');
+                        if (branchId != null && branchId > 0) {
+                          Get.to(() => BranchCertificateScreen(
+                                branchId: branchId,
+                                tin: tin.text.trim(),
+                                organizationName: name.text.trim(),
+                                email: email.text.trim(),
+                                ownerName: owner.text.trim(),
+                                phone: phone.text.trim(),
+                                isFromRegistration: true,
+                              ));
+                        } else {
+                          Get.to(() => const BranchSetupScreen());
+                        }
                       },
                       child: const Text('Set Up Branch'),
                     ),
@@ -348,11 +460,9 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
                           maxLength: 10,
                         ),
                         _field(owner, 'Owner name', icon: Icons.person_outline),
-                        _field(
+                        _phoneField(
                           phone,
-                          'Phone number',
-                          icon: Icons.phone_outlined,
-                          keyboardType: TextInputType.phone,
+                          label: 'Phone number',
                         ),
                         _field(
                           password,
@@ -375,11 +485,9 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
                           icon: Icons.language_outlined,
                         ),
                       ] else ...[
-                        _field(
+                        _phoneField(
                           loginPhone,
-                          'Phone number',
-                          icon: Icons.phone_outlined,
-                          keyboardType: TextInputType.phone,
+                          label: 'Phone number',
                         ),
                         _field(
                           loginPassword,

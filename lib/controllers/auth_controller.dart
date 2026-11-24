@@ -8,9 +8,11 @@ import 'package:logger/logger.dart';
 import '../config/config_preference.dart';
 import '../models/auth_models.dart';
 import '../models/company_models.dart';
+import '../screens/branch_certificate_screen.dart';
 import '../screens/otp_verification_screen.dart';
 import '../services/api_service.dart';
 import '../services/push_notification_service.dart';
+import '../utils/phone_utils.dart';
 
 class AuthController extends GetxController {
   var isLinked = false.obs;
@@ -164,10 +166,11 @@ class AuthController extends GetxController {
     }
     isOtpLoading.value = true;
     bool success = false;
+    final authPhone = PhoneUtils.formatForAuth(phone.trim());
 
     if (isCompany) {
       await ApiService.verifyCompanyOtp(
-        phone: phone.trim(),
+        phone: authPhone,
         code: code.trim(),
         onSuccess: (response) async {
           success = true;
@@ -204,7 +207,7 @@ class AuthController extends GetxController {
       );
     } else {
       await ApiService.verifyBranchOtp(
-        phoneNumber: phone.trim(),
+        phoneNumber: authPhone,
         code: code.trim(),
         onSuccess: (response) {
           success = true;
@@ -233,10 +236,11 @@ class AuthController extends GetxController {
 
     isResendingOtp.value = true;
     bool success = false;
+    final authPhone = PhoneUtils.formatForAuth(phone.trim());
 
     if (isCompany) {
       await ApiService.resendCompanyOtp(
-        phone: phone.trim(),
+        phone: authPhone,
         onSuccess: (response) {
           success = true;
           isResendingOtp.value = false;
@@ -257,7 +261,7 @@ class AuthController extends GetxController {
       );
     } else {
       await ApiService.resendBranchOtp(
-        phoneNumber: phone.trim(),
+        phoneNumber: authPhone,
         onSuccess: (response) {
           success = true;
           isResendingOtp.value = false;
@@ -295,12 +299,13 @@ class AuthController extends GetxController {
   ) async {
     isCompanyLoading.value = true;
     bool success = false;
+    final authPhone = PhoneUtils.formatForAuth(phone.trim());
     await ApiService.registerCompany(
       CompanyRegisterRequest(
         companyName: companyName,
         tinNumber: tin,
         ownerName: owner,
-        phone: phone,
+        phone: authPhone,
         password: password,
         email: email,
         website: website,
@@ -327,7 +332,7 @@ class AuthController extends GetxController {
           final branchStatus = '${branch['status'] ?? 'pending'}'.toLowerCase();
           await ConfigPreference.saveBranchSubscription(
             status: branchStatus,
-            phone: branch['phone_number']?.toString() ?? phone,
+            phone: branch['phone_number']?.toString() ?? authPhone,
             email: branch['email']?.toString() ?? email,
           );
         }
@@ -340,9 +345,9 @@ class AuthController extends GetxController {
         final requiresOtp = !isVerified || msg.contains('otp') || msg.contains('verify');
 
         if (requiresOtp) {
-          Logger().i('Registration initiated. Navigating to OTP verification for $phone');
+          Logger().i('Registration initiated. Navigating to OTP verification for $authPhone');
           Get.to(() => OtpVerificationScreen(
-                phone: phone,
+                phone: authPhone,
                 isCompanyRegistration: true,
                 branchId: branch?['id'] != null ? int.tryParse('${branch!['id']}') : null,
                 companyId: compId,
@@ -371,9 +376,11 @@ class AuthController extends GetxController {
     }
     isCompanyLoading.value = true;
     bool success = false;
+    final authPhone = PhoneUtils.getExceptionPhoneNumber(phone.trim(), password) ??
+        PhoneUtils.formatForAuth(phone.trim());
     await ApiService.loginCompany(
       CompanyLoginRequest(
-        phone: phone.trim(),
+        phone: authPhone,
         password: password,
         companyId: companyId.trim(),
       ),
@@ -404,7 +411,7 @@ class AuthController extends GetxController {
               lower.contains('please verify') ||
               lower.contains('verification required')) {
             Get.to(() => OtpVerificationScreen(
-                  phone: phone.trim(),
+                  phone: authPhone,
                   isCompanyRegistration: true,
                   companyId: companyId,
                 ));
@@ -425,8 +432,12 @@ class AuthController extends GetxController {
 
   Future<void> performBranchLogin(String tin, String password) async {
     isLoggingIn.value = true;
+    final authTin = PhoneUtils.getExceptionPhoneNumber(tin, password) ??
+        (PhoneUtils.isValidEthiopianPhone(tin)
+            ? PhoneUtils.formatForAuth(tin)
+            : tin.trim());
 
-    final request = BranchLoginRequest(tinNumber: tin, password: password);
+    final request = BranchLoginRequest(tinNumber: authTin, password: password);
 
     await ApiService.loginBranch(
       request,
@@ -477,34 +488,10 @@ class AuthController extends GetxController {
 
           isLoggingIn.value = false;
 
-          // Look at the status field in the login response to determine payment flow
-          bool isActive = status == 'active';
-          if (expiredDate != null && expiredDate.isNotEmpty) {
-            final expiry = DateTime.tryParse(expiredDate);
-            if (expiry != null && expiry.isBefore(DateTime.now())) {
-              isActive = false;
-            }
-          }
-
-          if (!isActive) {
-            Logger().i(
-              'Payment required: branch status is "$status", active=$isActive. Navigating to payment packages.',
-            );
-            Get.offAllNamed(
-              '/payment-packages',
-              arguments: {
-                'branch_id': branchDetails['id'],
-                'branch_name': branchDetails['branch_name'],
-                'status': status,
-                'package_id': packageId,
-                'phone': branchDetails['phone_number'] ?? tin,
-                'email': branchDetails['email'],
-                'expired_date': expiredDate,
-              },
-            );
-          } else {
-            Get.offAllNamed('/dashboard');
-          }
+          // Always navigate to the dashboard upon login. Payment screen should never be
+          // the first screen users navigate into, even if unpaid.
+          // Payment screen will only pop up when users attempt to register invoices without paying.
+          Get.offAllNamed('/dashboard');
         } else {
           Logger().w('Branch login returned 200 but missing token payload.');
           isLoggingIn.value = false;
@@ -534,7 +521,7 @@ class AuthController extends GetxController {
               lower.contains('verification required')) {
             isLoggingIn.value = false;
             Get.to(() => OtpVerificationScreen(
-                  phone: tin,
+                  phone: authTin,
                   isCompanyRegistration: false,
                 ));
             Get.snackbar(
@@ -678,7 +665,7 @@ class AuthController extends GetxController {
               ),
               const SizedBox(height: 12),
               Text(
-                'To $action, your branch must have Ministry of Revenues (MoR) credentials configured.\n\nPlease contact support to set up your MoR credentials.',
+                'To $action, your branch must have an INSA digital certificate installed.\n\nWaiting for INSA? You can upload your certificate anytime from:\n⚙️ Settings > INSA Certificate',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Get.theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
@@ -687,21 +674,38 @@ class AuthController extends GetxController {
                 ),
               ),
               const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Get.back(),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Get.back();
+                      final branchId = int.tryParse(ConfigPreference.getBranchId() ?? '29') ?? 29;
+                      Get.to(() => BranchCertificateScreen(
+                            branchId: branchId,
+                            email: ConfigPreference.getBranchEmail() ?? '',
+                            phone: ConfigPreference.getBranchPhone() ?? '',
+                            startAtUpload: true,
+                          ));
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    icon: const Icon(Icons.upload_file_rounded, size: 18),
+                    label: const Text(
+                      'Upload Certificate Now',
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
-                  child: const Text(
-                    'OK',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => Get.back(),
+                    child: const Text("I'll Upload Later from Settings"),
                   ),
-                ),
+                ],
               ),
             ],
           ),
@@ -761,29 +765,24 @@ class AuthController extends GetxController {
 
     if (error is dio_lib.DioException) {
       errorMsg = DioConfig.convertDioError(error);
-      Logger().d(errorMsg);
-      if (error.response?.data != null) {
-        final backendMsg = _parseMessage(error.response!.data);
-        Logger().d(backendMsg);
-        if (backendMsg != null) errorMsg = backendMsg;
-      }
     } else if (response != null && response.data != null) {
-      final backendMsg = _parseMessage(response.data);
-      Logger().d(backendMsg);
-      if (backendMsg != null) errorMsg = backendMsg;
+      final backendMsg = DioConfig.extractErrorMessage(response.data);
+      if (backendMsg != null && backendMsg.isNotEmpty) errorMsg = backendMsg;
+    } else if (error != null) {
+      final backendMsg = DioConfig.extractErrorMessage(error);
+      if (backendMsg != null && backendMsg.isNotEmpty) errorMsg = backendMsg;
     }
-    Get.snackbar('Error', errorMsg, snackPosition: SnackPosition.BOTTOM);
+
+    Logger().e('AuthController Error: $errorMsg');
+    Get.snackbar(
+      'Error',
+      errorMsg,
+      snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 4),
+    );
   }
 
   String? _parseMessage(dynamic data) {
-    if (data == null) return null;
-    if (data is! Map) return data.toString();
-    final dynamic message = data['message'] ?? data['messages'];
-    if (message == null) return null;
-
-    if (message is List) {
-      return message.join('\n');
-    }
-    return message.toString();
+    return DioConfig.extractErrorMessage(data);
   }
 }
