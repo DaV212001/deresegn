@@ -266,16 +266,6 @@ class BranchCertificateController extends GetxController {
   }
 
   Future<void> checkCertificateStatus() async {
-    if (ConfigPreference.isTestAccount()) {
-      isStatusLoaded.value = true;
-      hasPrivateKey.value = true;
-      hasCertificate.value = true;
-      certificateMatchesKey.value = true;
-      isCertificateInstalled.value = true;
-      await ConfigPreference.saveBranchCertificateInstalled(true);
-      await loadCachedCsrAndFiles();
-      return;
-    }
     if (branchId <= 0) return;
     await ApiService.getBranchCertificateStatus(
       branchId: branchId,

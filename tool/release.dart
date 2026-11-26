@@ -415,8 +415,18 @@ Future<void> uploadToPlayStore({
 
     // 4. Commit edit
     printStep('Committing the edit to Google Play...');
-    await api.edits.commit(packageName, editId);
-    printSuccess('Google Play edit committed successfully! Release is now live on "$trackName" track.');
+    try {
+      await api.edits.commit(packageName, editId);
+    } catch (e) {
+      if (e.toString().contains('changesNotSentForReview') ||
+          e.toString().contains('cannot be sent for review automatically')) {
+        printStep('Commit requires changesNotSentForReview=true (managed publishing active). Retrying with flag...');
+        await api.edits.commit(packageName, editId, changesNotSentForReview: true);
+      } else {
+        rethrow;
+      }
+    }
+    printSuccess('Google Play edit committed successfully! Release is now on "$trackName" track.');
   } catch (e) {
     if (createdEditId != null) {
       try {

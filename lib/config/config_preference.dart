@@ -125,32 +125,15 @@ class ConfigPreference {
   static String? getBranchSystemNumber() => _branchSystemNumber;
   static String? getLoggedInPhone() => _loggedInPhone;
 
-  /// Returns true when the currently logged-in user is the test account (e.g. 0930549842).
-  static bool isTestAccount() {
-    final candidates = [_loggedInPhone, _branchPhone];
-    for (final phone in candidates) {
-      if (phone == null || phone.isEmpty) continue;
-      final digits = phone.replaceAll(RegExp(r'\D'), '');
-      if (digits == '0930549842' ||
-          digits == '251930549842' ||
-          digits == '930549842') {
-        return true;
-      }
-    }
-    return false;
-  }
-
   static bool isBranchCertificateInstalled() {
-    if (isTestAccount()) return true;
     return _isBranchCertificateInstalled ?? false;
   }
 
   static Future<void> saveBranchCertificateInstalled(bool installed) async {
-    final effectiveInstalled = isTestAccount() ? true : installed;
-    _isBranchCertificateInstalled = effectiveInstalled;
+    _isBranchCertificateInstalled = installed;
     await _storage.write(
       key: keyBranchCertificateInstalled,
-      value: effectiveInstalled ? 'true' : 'false',
+      value: installed ? 'true' : 'false',
     );
   }
 
