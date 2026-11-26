@@ -26,6 +26,7 @@ class AuthController extends GetxController {
   var isResendingOtp = false.obs;
   var otpCooldownSeconds = 0.obs;
   Timer? _otpCooldownTimer;
+  bool registrationRequiresOtp = false;
 
   // Lockout countdown timer
   var lockoutSeconds = 0.obs;
@@ -191,14 +192,34 @@ class AuthController extends GetxController {
             if (branch['id'] != null) {
               await ConfigPreference.saveBranchId(branch['id'].toString());
             }
+            final rawPkgId = branch['package_id'] ?? branch['packageId'] ?? body['package_id'];
+            final packageId = rawPkgId != null ? int.tryParse('$rawPkgId') : null;
+            final expiry = branch['expired_date'] ??
+                branch['expiredDate'] ??
+                branch['expiry_date'] ??
+                body['expired_date'];
+            final paid = branch['payment_date'] ??
+                branch['paid_date'] ??
+                branch['paid_at'] ??
+                body['payment_date'] ??
+                body['paid_date'] ??
+                body['paid_at'];
+
             await ConfigPreference.saveBranchSubscription(
               status: branch['status']?.toString() ?? 'pending',
-              packageId: branch['package_id'] is int ? branch['package_id'] as int : null,
-              expiredDate: branch['expired_date']?.toString(),
+              packageId: packageId,
+              expiredDate: expiry?.toString(),
+              paidDate: paid?.toString(),
               phone: branch['phone_number']?.toString(),
               email: branch['email']?.toString(),
             );
           }
+          await _persistCompanyProfileFromMaps(
+            root: body,
+            branch: branch,
+            user: user,
+            fallbackPhone: authPhone,
+          );
         },
         onFailure: (error, response) {
           isOtpLoading.value = false;
@@ -330,12 +351,39 @@ class AuthController extends GetxController {
 
         if (branch != null) {
           final branchStatus = '${branch['status'] ?? 'pending'}'.toLowerCase();
+          final rawPkgId = branch['package_id'] ?? branch['packageId'] ?? body['package_id'];
+          final packageId = rawPkgId != null ? int.tryParse('$rawPkgId') : null;
+          final expiry = branch['expired_date'] ??
+              branch['expiredDate'] ??
+              branch['expiry_date'] ??
+              body['expired_date'];
+          final paid = branch['payment_date'] ??
+              branch['paid_date'] ??
+              branch['paid_at'] ??
+              body['payment_date'] ??
+              body['paid_date'] ??
+              body['paid_at'];
+
           await ConfigPreference.saveBranchSubscription(
             status: branchStatus,
+            packageId: packageId,
+            expiredDate: expiry?.toString(),
+            paidDate: paid?.toString(),
             phone: branch['phone_number']?.toString() ?? authPhone,
             email: branch['email']?.toString() ?? email,
           );
         }
+
+        await _persistCompanyProfileFromMaps(
+          root: body,
+          branch: branch,
+          user: user,
+          fallbackCompanyName: companyName,
+          fallbackTin: tin,
+          fallbackOwnerName: owner,
+          fallbackPhone: authPhone,
+          fallbackEmail: email,
+        );
 
         success = true;
 
@@ -343,6 +391,7 @@ class AuthController extends GetxController {
         final isVerified = user?['is_verified'] == true;
         final msg = '${body['message'] ?? ''}'.toLowerCase();
         final requiresOtp = !isVerified || msg.contains('otp') || msg.contains('verify');
+        registrationRequiresOtp = requiresOtp;
 
         if (requiresOtp) {
           Logger().i('Registration initiated. Navigating to OTP verification for $authPhone');
@@ -400,6 +449,12 @@ class AuthController extends GetxController {
         await ConfigPreference.saveCompanyContext(
           companyId: '${data['company_id'] ?? data['companyId'] ?? companyId}',
         );
+        await _persistCompanyProfileFromMaps(
+          root: body,
+          branch: data['branch'] is Map ? data['branch'] as Map : null,
+          user: data['user'] is Map ? data['user'] as Map : null,
+          fallbackPhone: authPhone,
+        );
         success = true;
       },
       onFailure: (e, r) {
@@ -449,10 +504,20 @@ class AuthController extends GetxController {
         if (token != null && branchDetails != null) {
           final rawStatus = branchDetails['status'] ?? data['status'];
           final status = (rawStatus != null ? '$rawStatus' : '').toLowerCase();
-          final packageId = branchDetails['package_id'] != null
-              ? int.tryParse('${branchDetails['package_id']}')
-              : null;
-          final expiredDate = branchDetails['expired_date']?.toString();
+          final rawPkgId = branchDetails['package_id'] ?? branchDetails['packageId'] ?? data['package_id'];
+          final packageId = rawPkgId != null ? int.tryParse('$rawPkgId') : null;
+          final expiredDate = (branchDetails['expired_date'] ??
+                  branchDetails['expiredDate'] ??
+                  branchDetails['expiry_date'] ??
+                  data['expired_date'])
+              ?.toString();
+          final paidDate = (branchDetails['payment_date'] ??
+                  branchDetails['paid_date'] ??
+                  branchDetails['paid_at'] ??
+                  data['payment_date'] ??
+                  data['paid_date'] ??
+                  data['paid_at'])
+              ?.toString();
 
           await ConfigPreference.updateBranchToken(token);
           await ConfigPreference.saveBranchId('${branchDetails['id']}');
@@ -461,6 +526,7 @@ class AuthController extends GetxController {
             status: status.isNotEmpty ? status : 'active',
             packageId: packageId,
             expiredDate: expiredDate,
+            paidDate: paidDate,
             phone: branchDetails['phone_number']?.toString() ?? tin,
             email: branchDetails['email']?.toString(),
           );
@@ -476,6 +542,14 @@ class AuthController extends GetxController {
             clientSecret: '',
             apiKey: '',
             tin: branchDetails['tin_number'] ?? tin,
+          );
+          await _persistCompanyProfileFromMaps(
+            root: data is Map ? data : null,
+            branch: branchDetails is Map ? branchDetails : null,
+            user: data is Map && data['user'] is Map ? data['user'] as Map : null,
+            fallbackTin: '${branchDetails['tin_number'] ?? tin}',
+            fallbackPhone: branchDetails['phone_number']?.toString() ?? authTin,
+            fallbackEmail: branchDetails['email']?.toString(),
           );
 
           // Eagerly authenticate with MoR upon branch login so subsequent invoice registrations
@@ -784,5 +858,136 @@ class AuthController extends GetxController {
 
   String? _parseMessage(dynamic data) {
     return DioConfig.extractErrorMessage(data);
+  }
+
+  Future<void> _persistCompanyProfileFromMaps({
+    Map? root,
+    Map? branch,
+    Map? user,
+    String? fallbackCompanyName,
+    String? fallbackTin,
+    String? fallbackOwnerName,
+    String? fallbackPhone,
+    String? fallbackEmail,
+  }) async {
+    String? pick(List<dynamic> candidates) {
+      for (final c in candidates) {
+        if (c != null && c.toString().trim().isNotEmpty && c.toString().trim() != 'null') {
+          return c.toString().trim();
+        }
+      }
+      return null;
+    }
+
+    final Map? dataMap = root?['data'] is Map ? root!['data'] as Map : null;
+    final Map? companyMap = (branch?['company'] is Map
+            ? branch!['company'] as Map
+            : null) ??
+        (root?['company'] is Map ? root!['company'] as Map : null) ??
+        (dataMap?['company'] is Map ? dataMap!['company'] as Map : null) ??
+        (user?['company'] is Map ? user!['company'] as Map : null);
+
+    final resolvedCompanyName = pick([
+      companyMap?['company_name'],
+      companyMap?['legal_name'],
+      companyMap?['trade_name'],
+      companyMap?['name'],
+      branch?['company_name'],
+      branch?['legal_name'],
+      branch?['trade_name'],
+      root?['company_name'],
+      dataMap?['company_name'],
+      fallbackCompanyName,
+      branch?['name'],
+      branch?['branch_name'],
+    ]);
+
+    final resolvedBranchName = pick([
+      branch?['branch_name'],
+      branch?['name'],
+    ]);
+
+    final resolvedTin = pick([
+      branch?['tin_number'],
+      branch?['tin'],
+      companyMap?['tin_number'],
+      companyMap?['tin'],
+      user?['tin_number'],
+      user?['tin'],
+      fallbackTin,
+    ]);
+
+    final resolvedOwnerName = pick([
+      companyMap?['owner_name'],
+      user?['owner_name'],
+      user?['full_name'],
+      user?['name'],
+      branch?['owner_name'],
+      branch?['manager_name'],
+      branch?['cashier_name'],
+      fallbackOwnerName,
+    ]);
+
+    final resolvedCity = pick([
+      branch?['city'],
+      companyMap?['city'],
+    ]);
+
+    final resolvedWoreda = pick([
+      branch?['woreda'],
+      branch?['wereda'],
+      companyMap?['woreda'],
+      companyMap?['wereda'],
+    ]);
+
+    final resolvedRegion = pick([
+      branch?['region'],
+      companyMap?['region'],
+    ]);
+
+    final resolvedVat = pick([
+      branch?['vat_number'],
+      branch?['vatNumber'],
+      companyMap?['vat_number'],
+      companyMap?['vatNumber'],
+    ]);
+
+    final resolvedSystemNumber = pick([
+      branch?['system_number'],
+      branch?['systemNumber'],
+      companyMap?['system_number'],
+    ]);
+
+    final resolvedPhone = pick([
+      branch?['phone_number'],
+      branch?['phone'],
+      companyMap?['phone'],
+      companyMap?['phone_number'],
+      user?['phone'],
+      user?['phone_number'],
+      fallbackPhone,
+    ]);
+
+    final resolvedEmail = pick([
+      branch?['email'],
+      companyMap?['email'],
+      user?['email'],
+      fallbackEmail,
+    ]);
+
+    await ConfigPreference.saveCompanyProfile(
+      companyName: resolvedCompanyName,
+      tin: resolvedTin,
+      ownerName: resolvedOwnerName,
+      branchName: resolvedBranchName,
+      city: resolvedCity,
+      woreda: resolvedWoreda,
+      region: resolvedRegion,
+      vatNumber: resolvedVat,
+      systemNumber: resolvedSystemNumber,
+      phone: resolvedPhone,
+      email: resolvedEmail,
+      loggedInPhone: fallbackPhone ?? resolvedPhone,
+    );
   }
 }

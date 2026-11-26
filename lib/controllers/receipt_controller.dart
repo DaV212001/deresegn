@@ -44,7 +44,9 @@ class ReceiptController extends GetxController {
             duration: const Duration(seconds: 4),
           );
         }
-        Get.to(() => const PaymentPackagesScreen());
+        Get.to(() => PaymentPackagesScreen(
+              currentStatus: ConfigPreference.getBranchStatus() ?? 'pending',
+            ));
         return null;
       }
 
@@ -158,7 +160,9 @@ class ReceiptController extends GetxController {
           icon: const Icon(Icons.payment_rounded, color: Colors.white),
           duration: const Duration(seconds: 4),
         );
-        Get.to(() => const PaymentPackagesScreen());
+        Get.to(() => PaymentPackagesScreen(
+              currentStatus: ConfigPreference.getBranchStatus() ?? 'pending',
+            ));
         return;
       }
 

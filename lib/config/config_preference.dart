@@ -30,11 +30,23 @@ class ConfigPreference {
   static const String keyBranchStatus = 'branch_status';
   static const String keyPackageId = 'package_id';
   static const String keyExpiredDate = 'expired_date';
+  static const String keyPaidDate = 'paid_date';
   static const String keyBranchPhone = 'branch_phone';
   static const String keyBranchEmail = 'branch_email';
   static const String keyBranchWorkingHours = 'branch_working_hours';
   static const String keyFcmToken = 'fcm_token';
   static const String keyBranchCertificateInstalled = 'branch_certificate_installed';
+
+  // Company & Branch Profile Keys
+  static const String keyCompanyName = 'company_name';
+  static const String keyOwnerName = 'owner_name';
+  static const String keyBranchName = 'branch_name';
+  static const String keyBranchCity = 'branch_city';
+  static const String keyBranchWoreda = 'branch_woreda';
+  static const String keyBranchRegion = 'branch_region';
+  static const String keyBranchVatNumber = 'branch_vat_number';
+  static const String keyBranchSystemNumber = 'branch_system_number';
+  static const String keyLoggedInPhone = 'logged_in_phone';
 
   // Theme Keys
   static const String keyIsDarkMode = 'is_dark_mode';
@@ -53,12 +65,23 @@ class ConfigPreference {
     _branchStatus = await _storage.read(key: keyBranchStatus);
     _packageId = await _storage.read(key: keyPackageId);
     _expiredDate = await _storage.read(key: keyExpiredDate);
+    _paidDate = await _storage.read(key: keyPaidDate);
     _branchPhone = await _storage.read(key: keyBranchPhone);
     _branchEmail = await _storage.read(key: keyBranchEmail);
     _branchWorkingHoursJson = await _storage.read(key: keyBranchWorkingHours);
     _fcmToken = await _storage.read(key: keyFcmToken);
     final certVal = await _storage.read(key: keyBranchCertificateInstalled);
     _isBranchCertificateInstalled = certVal == 'true';
+    _tin = await _storage.read(key: keyTin);
+    _companyName = await _storage.read(key: keyCompanyName);
+    _ownerName = await _storage.read(key: keyOwnerName);
+    _branchName = await _storage.read(key: keyBranchName);
+    _branchCity = await _storage.read(key: keyBranchCity);
+    _branchWoreda = await _storage.read(key: keyBranchWoreda);
+    _branchRegion = await _storage.read(key: keyBranchRegion);
+    _branchVatNumber = await _storage.read(key: keyBranchVatNumber);
+    _branchSystemNumber = await _storage.read(key: keyBranchSystemNumber);
+    _loggedInPhone = await _storage.read(key: keyLoggedInPhone);
   }
 
   static String? _companyId;
@@ -66,27 +89,133 @@ class ConfigPreference {
   static String? _branchStatus;
   static String? _packageId;
   static String? _expiredDate;
+  static String? _paidDate;
   static String? _branchPhone;
   static String? _branchEmail;
   static String? _branchWorkingHoursJson;
   static String? _fcmToken;
   static bool? _isBranchCertificateInstalled;
+  static String? _tin;
+  static String? _companyName;
+  static String? _ownerName;
+  static String? _branchName;
+  static String? _branchCity;
+  static String? _branchWoreda;
+  static String? _branchRegion;
+  static String? _branchVatNumber;
+  static String? _branchSystemNumber;
+  static String? _loggedInPhone;
 
   static String? getCompanyId() => _companyId;
   static String? getBranchId() => _branchId;
   static String? getBranchStatus() => _branchStatus;
   static String? getPackageId() => _packageId;
   static String? getExpiredDate() => _expiredDate;
+  static String? getPaidDate() => _paidDate;
   static String? getBranchPhone() => _branchPhone;
   static String? getBranchEmail() => _branchEmail;
-  static bool isBranchCertificateInstalled() => _isBranchCertificateInstalled ?? false;
+  static String? getCachedTin() => _tin;
+  static String? getCompanyName() => _companyName;
+  static String? getOwnerName() => _ownerName;
+  static String? getBranchName() => _branchName;
+  static String? getBranchCity() => _branchCity;
+  static String? getBranchWoreda() => _branchWoreda;
+  static String? getBranchRegion() => _branchRegion;
+  static String? getBranchVatNumber() => _branchVatNumber;
+  static String? getBranchSystemNumber() => _branchSystemNumber;
+  static String? getLoggedInPhone() => _loggedInPhone;
+
+  /// Returns true when the currently logged-in user is the test account (e.g. 0930549842).
+  static bool isTestAccount() {
+    final candidates = [_loggedInPhone, _branchPhone];
+    for (final phone in candidates) {
+      if (phone == null || phone.isEmpty) continue;
+      final digits = phone.replaceAll(RegExp(r'\D'), '');
+      if (digits == '0930549842' ||
+          digits == '251930549842' ||
+          digits == '930549842') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  static bool isBranchCertificateInstalled() {
+    if (isTestAccount()) return true;
+    return _isBranchCertificateInstalled ?? false;
+  }
 
   static Future<void> saveBranchCertificateInstalled(bool installed) async {
-    _isBranchCertificateInstalled = installed;
+    final effectiveInstalled = isTestAccount() ? true : installed;
+    _isBranchCertificateInstalled = effectiveInstalled;
     await _storage.write(
       key: keyBranchCertificateInstalled,
-      value: installed ? 'true' : 'false',
+      value: effectiveInstalled ? 'true' : 'false',
     );
+  }
+
+  static Future<void> saveCompanyProfile({
+    String? companyName,
+    String? tin,
+    String? ownerName,
+    String? branchName,
+    String? city,
+    String? woreda,
+    String? region,
+    String? vatNumber,
+    String? systemNumber,
+    String? phone,
+    String? email,
+    String? loggedInPhone,
+  }) async {
+    if (companyName != null && companyName.trim().isNotEmpty) {
+      _companyName = companyName.trim();
+      await _storage.write(key: keyCompanyName, value: _companyName!);
+    }
+    if (tin != null && tin.trim().isNotEmpty) {
+      _tin = tin.trim();
+      await _storage.write(key: keyTin, value: _tin!);
+    }
+    if (ownerName != null && ownerName.trim().isNotEmpty) {
+      _ownerName = ownerName.trim();
+      await _storage.write(key: keyOwnerName, value: _ownerName!);
+    }
+    if (branchName != null && branchName.trim().isNotEmpty) {
+      _branchName = branchName.trim();
+      await _storage.write(key: keyBranchName, value: _branchName!);
+    }
+    if (city != null && city.trim().isNotEmpty) {
+      _branchCity = city.trim();
+      await _storage.write(key: keyBranchCity, value: _branchCity!);
+    }
+    if (woreda != null && woreda.trim().isNotEmpty) {
+      _branchWoreda = woreda.trim();
+      await _storage.write(key: keyBranchWoreda, value: _branchWoreda!);
+    }
+    if (region != null && region.trim().isNotEmpty) {
+      _branchRegion = region.trim();
+      await _storage.write(key: keyBranchRegion, value: _branchRegion!);
+    }
+    if (vatNumber != null && vatNumber.trim().isNotEmpty) {
+      _branchVatNumber = vatNumber.trim();
+      await _storage.write(key: keyBranchVatNumber, value: _branchVatNumber!);
+    }
+    if (systemNumber != null && systemNumber.trim().isNotEmpty) {
+      _branchSystemNumber = systemNumber.trim();
+      await _storage.write(key: keyBranchSystemNumber, value: _branchSystemNumber!);
+    }
+    if (phone != null && phone.trim().isNotEmpty) {
+      _branchPhone = phone.trim();
+      await _storage.write(key: keyBranchPhone, value: _branchPhone!);
+    }
+    if (email != null && email.trim().isNotEmpty) {
+      _branchEmail = email.trim();
+      await _storage.write(key: keyBranchEmail, value: _branchEmail!);
+    }
+    if (loggedInPhone != null && loggedInPhone.trim().isNotEmpty) {
+      _loggedInPhone = loggedInPhone.trim();
+      await _storage.write(key: keyLoggedInPhone, value: _loggedInPhone!);
+    }
   }
 
   static final Map<int, String> _branchCsrCache = {};
@@ -125,16 +254,35 @@ class ConfigPreference {
     } catch (_) {}
   }
 
+  /// Returns true ONLY when the branch has a confirmed, paid, unexpired package subscription.
+  ///
+  /// Note: The backend status may return "active" even for newly registered accounts
+  /// that have not paid yet. Therefore, payment validity strictly requires:
+  /// 1. Status is 'active' (not pending, inactive, or cancelled)
+  /// 2. Valid package ID (must be > 0)
+  /// 3. Valid future expiry date (expired_date > now)
+  /// 4. Valid payment date (paid_date / payment_date is present)
   static bool isBranchActive() {
+    // 1. Status check
     if (_branchStatus == null) return false;
     final status = _branchStatus!.toLowerCase();
     if (status != 'active') return false;
-    if (_expiredDate != null && _expiredDate!.isNotEmpty) {
-      final expiry = DateTime.tryParse(_expiredDate!);
-      if (expiry != null && expiry.isBefore(DateTime.now())) {
-        return false;
-      }
+
+    // 2. Package ID check: A paid subscription MUST have an assigned package ID (> 0)
+    if (_packageId == null || _packageId!.trim().isEmpty) return false;
+    final pkgId = int.tryParse(_packageId!.trim());
+    if (pkgId == null || pkgId <= 0) return false;
+
+    // 3. Expiry date check: An active subscription MUST have an expiry date in the future
+    if (_expiredDate == null || _expiredDate!.trim().isEmpty) return false;
+    final expiry = DateTime.tryParse(_expiredDate!.trim());
+    if (expiry == null || expiry.isBefore(DateTime.now())) {
+      return false;
     }
+
+    // 4. Paid date check: An active subscription MUST have a payment/paid date
+    if (_paidDate == null || _paidDate!.trim().isEmpty) return false;
+
     return true;
   }
 
@@ -142,20 +290,37 @@ class ConfigPreference {
     required String status,
     int? packageId,
     String? expiredDate,
+    String? paidDate,
     String? phone,
     String? email,
   }) async {
     _branchStatus = status;
     await _storage.write(key: keyBranchStatus, value: status);
 
-    if (packageId != null) {
+    if (packageId != null && packageId > 0) {
       _packageId = packageId.toString();
       await _storage.write(key: keyPackageId, value: packageId.toString());
+    } else {
+      _packageId = null;
+      await _storage.delete(key: keyPackageId);
     }
-    if (expiredDate != null) {
-      _expiredDate = expiredDate;
-      await _storage.write(key: keyExpiredDate, value: expiredDate);
+
+    if (expiredDate != null && expiredDate.trim().isNotEmpty) {
+      _expiredDate = expiredDate.trim();
+      await _storage.write(key: keyExpiredDate, value: _expiredDate!);
+    } else {
+      _expiredDate = null;
+      await _storage.delete(key: keyExpiredDate);
     }
+
+    if (paidDate != null && paidDate.trim().isNotEmpty) {
+      _paidDate = paidDate.trim();
+      await _storage.write(key: keyPaidDate, value: _paidDate!);
+    } else {
+      _paidDate = null;
+      await _storage.delete(key: keyPaidDate);
+    }
+
     if (phone != null) {
       _branchPhone = phone;
       await _storage.write(key: keyBranchPhone, value: phone);
@@ -258,9 +423,11 @@ class ConfigPreference {
     _companyAccessToken = null;
     _accessToken = null;
     _isBranchCertificateInstalled = null;
+    _loggedInPhone = null;
     await _storage.delete(key: keyCompanyAccessToken);
     await _storage.delete(key: keyAccessToken);
     await _storage.delete(key: keyBranchCertificateInstalled);
+    await _storage.delete(key: keyLoggedInPhone);
     await InvoiceCacheService.clearCache();
   }
 
@@ -284,6 +451,9 @@ class ConfigPreference {
     required String apiKey,
     required String tin,
   }) async {
+    if (tin.trim().isNotEmpty) {
+      _tin = tin.trim();
+    }
     await _storage.write(key: keyClientId, value: clientId);
     await _storage.write(key: keyClientSecret, value: clientSecret);
     await _storage.write(key: keyApiKey, value: apiKey);
@@ -343,6 +513,25 @@ class ConfigPreference {
   _morToken = null;
   _companyId = null;
   _branchId = null;
+  _branchStatus = null;
+  _packageId = null;
+  _expiredDate = null;
+  _paidDate = null;
+  _branchPhone = null;
+  _branchEmail = null;
+  _branchWorkingHoursJson = null;
+  _fcmToken = null;
+  _isBranchCertificateInstalled = null;
+  _tin = null;
+  _companyName = null;
+  _ownerName = null;
+  _branchName = null;
+  _branchCity = null;
+  _branchWoreda = null;
+  _branchRegion = null;
+  _branchVatNumber = null;
+  _branchSystemNumber = null;
+  _loggedInPhone = null;
   await InvoiceCacheService.clearCache();
 }
 }

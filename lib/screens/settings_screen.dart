@@ -471,33 +471,33 @@ class SettingsScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            ListTile(
-              title: const Text(
-                'Sample Invoice PDF (Letterhead)',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: const Text(
-                'Preview PDF with official header, watermark & footer',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.indigo.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.picture_as_pdf_outlined, color: Colors.indigo, size: 20),
-              ),
-              trailing: const Icon(
-                Icons.chevron_right,
-                size: 18,
-                color: Colors.grey,
-              ),
-              onTap: () => _previewSampleInvoice(context),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
+            // ListTile(
+            //   title: const Text(
+            //     'Sample Invoice PDF (Letterhead)',
+            //     style: TextStyle(fontWeight: FontWeight.w600),
+            //   ),
+            //   subtitle: const Text(
+            //     'Preview PDF with official header, watermark & footer',
+            //     style: TextStyle(fontSize: 12, color: Colors.grey),
+            //   ),
+            //   leading: Container(
+            //     padding: const EdgeInsets.all(8),
+            //     decoration: BoxDecoration(
+            //       color: Colors.indigo.withOpacity(0.1),
+            //       borderRadius: BorderRadius.circular(10),
+            //     ),
+            //     child: const Icon(Icons.picture_as_pdf_outlined, color: Colors.indigo, size: 20),
+            //   ),
+            //   trailing: const Icon(
+            //     Icons.chevron_right,
+            //     size: 18,
+            //     color: Colors.grey,
+            //   ),
+            //   onTap: () => _previewSampleInvoice(context),
+            //   shape: RoundedRectangleBorder(
+            //     borderRadius: BorderRadius.circular(16),
+            //   ),
+            // ),
             Divider(
               height: 1,
               indent: 56,
@@ -540,71 +540,71 @@ class SettingsScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            Divider(
-              height: 1,
-              indent: 56,
-              endIndent: 16,
-              color: theme.dividerColor.withOpacity(0.5),
-            ),
-            ListTile(
-              title: const Text(
-                'FCM Push Device Token',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: () {
-                final token = ConfigPreference.getFcmToken();
-                if (token != null && token.isNotEmpty) {
-                  final preview = token.length > 28
-                      ? '${token.substring(0, 14)}...${token.substring(token.length - 10)}'
-                      : token;
-                  return Text(
-                    'Token: $preview\nTap to copy full token for backend testing',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  );
-                }
-                return const Text(
-                  'Tap to retrieve token',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                );
-              }(),
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.notifications_active_outlined, color: Colors.orange, size: 20),
-              ),
-              trailing: const Icon(Icons.copy_rounded, size: 18, color: Colors.grey),
-              isThreeLine: true,
-              onTap: () async {
-                final token = await PushNotificationService.getOrRefreshToken();
-                if (token != null && token.isNotEmpty) {
-                  await Clipboard.setData(ClipboardData(text: token));
-                  Get.snackbar(
-                    'Copied to Clipboard',
-                    'FCM Device Token copied! Send this to your backend developer.',
-                    snackPosition: SnackPosition.BOTTOM,
-                    duration: const Duration(seconds: 4),
-                    backgroundColor: Colors.black87,
-                    colorText: Colors.white,
-                    margin: const EdgeInsets.all(16),
-                  );
-                } else {
-                  Get.snackbar(
-                    'Token Not Available',
-                    'FCM token is not generated yet. Ensure device has Google Play Services and internet.',
-                    snackPosition: SnackPosition.BOTTOM,
-                    backgroundColor: Colors.red.shade800,
-                    colorText: Colors.white,
-                    margin: const EdgeInsets.all(16),
-                  );
-                }
-              },
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
+            // Divider(
+            //   height: 1,
+            //   indent: 56,
+            //   endIndent: 16,
+            //   color: theme.dividerColor.withOpacity(0.5),
+            // ),
+            // ListTile(
+            //   title: const Text(
+            //     'FCM Push Device Token',
+            //     style: TextStyle(fontWeight: FontWeight.w600),
+            //   ),
+            //   subtitle: () {
+            //     final token = ConfigPreference.getFcmToken();
+            //     if (token != null && token.isNotEmpty) {
+            //       final preview = token.length > 28
+            //           ? '${token.substring(0, 14)}...${token.substring(token.length - 10)}'
+            //           : token;
+            //       return Text(
+            //         'Token: $preview\nTap to copy full token for backend testing',
+            //         style: const TextStyle(fontSize: 12, color: Colors.grey),
+            //       );
+            //     }
+            //     return const Text(
+            //       'Tap to retrieve token',
+            //       style: TextStyle(fontSize: 12, color: Colors.grey),
+            //     );
+            //   }(),
+            //   leading: Container(
+            //     padding: const EdgeInsets.all(8),
+            //     decoration: BoxDecoration(
+            //       color: Colors.orange.withOpacity(0.1),
+            //       borderRadius: BorderRadius.circular(10),
+            //     ),
+            //     child: const Icon(Icons.notifications_active_outlined, color: Colors.orange, size: 20),
+            //   ),
+            //   trailing: const Icon(Icons.copy_rounded, size: 18, color: Colors.grey),
+            //   isThreeLine: true,
+            //   onTap: () async {
+            //     final token = await PushNotificationService.getOrRefreshToken();
+            //     if (token != null && token.isNotEmpty) {
+            //       await Clipboard.setData(ClipboardData(text: token));
+            //       Get.snackbar(
+            //         'Copied to Clipboard',
+            //         'FCM Device Token copied! Send this to your backend developer.',
+            //         snackPosition: SnackPosition.BOTTOM,
+            //         duration: const Duration(seconds: 4),
+            //         backgroundColor: Colors.black87,
+            //         colorText: Colors.white,
+            //         margin: const EdgeInsets.all(16),
+            //       );
+            //     } else {
+            //       Get.snackbar(
+            //         'Token Not Available',
+            //         'FCM token is not generated yet. Ensure device has Google Play Services and internet.',
+            //         snackPosition: SnackPosition.BOTTOM,
+            //         backgroundColor: Colors.red.shade800,
+            //         colorText: Colors.white,
+            //         margin: const EdgeInsets.all(16),
+            //       );
+            //     }
+            //   },
+            //   shape: RoundedRectangleBorder(
+            //     borderRadius: BorderRadius.circular(16),
+            //   ),
+            // ),
             Divider(
               height: 1,
               indent: 56,
@@ -782,24 +782,38 @@ class SettingsScreen extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: theme.cardColor,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 14),
+                    decoration: BoxDecoration(
+                      color: theme.dividerColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
                 Row(
                   children: [
                     Icon(Icons.print_outlined, color: theme.colorScheme.primary),
                     const SizedBox(width: 10),
-                    const Text(
-                      'Default Receipt Print Format',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    const Expanded(
+                      child: Text(
+                        'Default Receipt Print Format',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ],
                 ),

@@ -449,7 +449,9 @@ class InvoiceController extends GetxController {
       );
     }
 
-    Get.to(() => const PaymentPackagesScreen());
+    Get.to(() => PaymentPackagesScreen(
+          currentStatus: ConfigPreference.getBranchStatus() ?? 'pending',
+        ));
     return false;
   }
 

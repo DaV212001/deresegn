@@ -44,8 +44,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Firebase Service Account Private Keys
+# Google Play & Firebase Service Account Private Keys
 *firebase-adminsdk*.json
+*play-service-account*.json
+*service-account*.json
 
 
 # Temporary testing & debug artifacts

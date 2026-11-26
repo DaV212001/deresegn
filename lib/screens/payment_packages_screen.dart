@@ -2,8 +2,6 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Response;
-import 'package:logger/logger.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../config/config_preference.dart';
 import '../config/dio_config.dart';
@@ -22,6 +20,7 @@ class PaymentPackagesScreen extends StatefulWidget {
   final String? lastName;
   final String? currentStatus;
   final String? expiredDate;
+  final bool isFromRegistration;
 
   const PaymentPackagesScreen({
     super.key,
@@ -33,6 +32,7 @@ class PaymentPackagesScreen extends StatefulWidget {
     this.lastName,
     this.currentStatus,
     this.expiredDate,
+    this.isFromRegistration = false,
   });
 
   @override
@@ -52,6 +52,7 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
   late String _firstName;
   late String _lastName;
   late String _status;
+  late bool _isFromRegistration;
 
   bool _isProcessingPayment = false;
   Timer? _pollingTimer;
@@ -71,6 +72,9 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
 
   void _resolveParameters() {
     final args = Get.arguments is Map ? Get.arguments as Map : {};
+
+    _isFromRegistration = widget.isFromRegistration ||
+        (args['is_from_registration'] == true);
 
     final rawBranchId = widget.branchId ??
         args['branch_id'] ??
@@ -392,11 +396,17 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
               final newPkgId = branchData?['package_id'] != null
                   ? int.tryParse('${branchData!['package_id']}')
                   : _selectedPackage?.id;
+              final paidDate = branchData?['payment_date']?.toString() ??
+                  branchData?['paid_date']?.toString() ??
+                  branchData?['paid_at']?.toString() ??
+                  statusRes.paidAt ??
+                  DateTime.now().toIso8601String();
 
               await ConfigPreference.saveBranchSubscription(
                 status: 'active',
                 packageId: newPkgId,
                 expiredDate: newExpiry,
+                paidDate: paidDate,
                 phone: _phone,
                 email: _email,
               );
@@ -442,11 +452,17 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
             final newPkgId = branchData?['package_id'] != null
                 ? int.tryParse('${branchData!['package_id']}')
                 : _selectedPackage?.id;
+            final paidDate = branchData?['payment_date']?.toString() ??
+                branchData?['paid_date']?.toString() ??
+                branchData?['paid_at']?.toString() ??
+                statusRes.paidAt ??
+                DateTime.now().toIso8601String();
 
             await ConfigPreference.saveBranchSubscription(
               status: 'active',
               packageId: newPkgId,
               expiredDate: newExpiry,
+              paidDate: paidDate,
               phone: _phone,
               email: _email,
             );
@@ -454,7 +470,7 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
             _showPaymentSuccessDialog(statusRes);
           }
         },
-        onFailure: (_, __) {},
+        onFailure: (err, res) {},
       );
     });
 
@@ -462,7 +478,7 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
 
     Get.bottomSheet(
       PopScope(
-        onPopInvoked: (_) => _pollingTimer?.cancel(),
+        onPopInvokedWithResult: (didPop, result) => _pollingTimer?.cancel(),
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
@@ -611,12 +627,12 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
                     final branchId = widget.branchId != null && widget.branchId != 0
                         ? widget.branchId!
                         : (int.tryParse(ConfigPreference.getBranchId() ?? '') ?? 0);
-                    if (!ConfigPreference.isBranchCertificateInstalled()) {
+                    if (!ConfigPreference.isBranchCertificateInstalled() && branchId != 0) {
                       Get.off(() => BranchCertificateScreen(
                             branchId: branchId,
-                            email: widget.email ?? '',
-                            ownerName: '${widget.firstName ?? ''} ${widget.lastName ?? ''}'.trim(),
-                            phone: widget.phone ?? '',
+                            email: _email,
+                            ownerName: '$_firstName $_lastName'.trim(),
+                            phone: _phone,
                             isFromRegistration: true,
                           ));
                     } else {
@@ -643,28 +659,38 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
     );
   }
 
-  Future<void> _handleBackNavigation() async {
+  void _handleSkip() {
     _pollingTimer?.cancel();
+    if (_isFromRegistration) {
+      final branchId = _branchId != 0
+          ? _branchId
+          : (int.tryParse(ConfigPreference.getBranchId() ?? '') ?? 0);
+      if (!ConfigPreference.isBranchCertificateInstalled() && branchId != 0) {
+        Get.off(() => BranchCertificateScreen(
+              branchId: branchId,
+              email: _email,
+              ownerName: '$_firstName $_lastName'.trim(),
+              phone: _phone,
+              isFromRegistration: true,
+            ));
+      } else {
+        Get.offAllNamed('/dashboard');
+      }
+      return;
+    }
+
     if (Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
       return;
     }
 
-    final isActive = _status.toLowerCase() == 'active';
-    if (isActive) {
-      Get.offAllNamed('/dashboard');
-    } else {
-      // User is unpaid/inactive and has no backstack: return to login screen.
-      // Clear tokens so they are not trapped in a redirect loop on app relaunch.
-      await ConfigPreference.clearTokens();
-      Get.offAllNamed('/company-auth');
-    }
+    // Default skip/back without backstack navigates to dashboard without clearing session
+    Get.offAllNamed('/dashboard');
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final isActive = _status.toLowerCase() == 'active';
     final canPop = Navigator.canPop(context);
 
@@ -672,7 +698,7 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        _handleBackNavigation();
+        _handleSkip();
       },
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
@@ -684,27 +710,29 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
           leading: IconButton(
             key: const Key('payment_back_button'),
             icon: const Icon(Icons.arrow_back_rounded),
-            tooltip: canPop ? 'Back' : (isActive ? 'Dashboard' : 'Back to Login'),
-            onPressed: _handleBackNavigation,
+            tooltip: canPop ? 'Back' : 'Skip',
+            onPressed: _handleSkip,
           ),
           actions: [
+            if (!isActive)
+              TextButton(
+                key: const Key('payment_skip_button'),
+                onPressed: _handleSkip,
+                child: Text(
+                  'Skip',
+                  style: TextStyle(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
             if (canPop || isActive)
               IconButton(
                 key: const Key('payment_close_button'),
                 icon: const Icon(Icons.close_rounded),
                 tooltip: 'Close',
-                onPressed: _handleBackNavigation,
-              )
-            else
-              TextButton.icon(
-                key: const Key('payment_login_action_button'),
-                onPressed: _handleBackNavigation,
-                icon: const Icon(Icons.logout_rounded, size: 16),
-                label: const Text('Login'),
-                style: TextButton.styleFrom(
-                  foregroundColor: theme.colorScheme.primary,
-                  textStyle: const TextStyle(fontWeight: FontWeight.w600),
-                ),
+                onPressed: _handleSkip,
               ),
           ],
         ),
@@ -728,15 +756,13 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
                               icon: const Icon(Icons.refresh_rounded),
                               label: const Text('Retry'),
                             ),
-                            if (!isActive) ...[
-                              const SizedBox(height: 12),
-                              OutlinedButton.icon(
-                                key: const Key('payment_error_back_to_login_button'),
-                                onPressed: _handleBackNavigation,
-                                icon: const Icon(Icons.arrow_back_rounded),
-                                label: const Text('Back to Login Screen'),
-                              ),
-                            ],
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              key: const Key('payment_error_skip_button'),
+                              onPressed: _handleSkip,
+                              icon: const Icon(Icons.arrow_forward_rounded),
+                              label: const Text('Skip for Now'),
+                            ),
                           ],
                         ),
                       ),
@@ -813,7 +839,7 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 8),
                           itemCount: _packages.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          separatorBuilder: (context, index) => const SizedBox(height: 12),
                           itemBuilder: (context, index) {
                             final pkg = _packages[index];
                             final isSelected = _selectedPackage?.id == pkg.id;
@@ -1041,7 +1067,7 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
                                 const SizedBox(height: 6),
                                 TextButton.icon(
                                   key: const Key('payment_bottom_back_button'),
-                                  onPressed: _handleBackNavigation,
+                                  onPressed: _handleSkip,
                                   icon: const Icon(Icons.arrow_back_rounded, size: 16),
                                   label: const Text('Back to Invoices'),
                                   style: TextButton.styleFrom(
@@ -1049,13 +1075,13 @@ class _PaymentPackagesScreenState extends State<PaymentPackagesScreen> {
                                     foregroundColor: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
                                   ),
                                 ),
-                              ] else if (!isActive) ...[
+                              ] else ...[
                                 const SizedBox(height: 6),
                                 TextButton.icon(
-                                  key: const Key('payment_bottom_back_to_login_button'),
-                                  onPressed: _handleBackNavigation,
-                                  icon: const Icon(Icons.arrow_back_rounded, size: 16),
-                                  label: const Text('Return to Login Screen'),
+                                  key: const Key('payment_bottom_skip_button'),
+                                  onPressed: _handleSkip,
+                                  icon: const Icon(Icons.skip_next_rounded, size: 16),
+                                  label: const Text('Skip for now'),
                                   style: TextButton.styleFrom(
                                     visualDensity: VisualDensity.compact,
                                     foregroundColor: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),

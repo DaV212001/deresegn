@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../config/app_settings.dart';
 import '../config/config_preference.dart';
 import '../models/branch_certificate_models.dart';
 import '../screens/pdf_preview_screen.dart';
@@ -101,23 +102,75 @@ class BranchCertificateController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    tinController = TextEditingController(text: initialTin);
+    final savedTin = ConfigPreference.getCachedTin() ?? '';
+    final savedOrgName = ConfigPreference.getCompanyName() ?? '';
+    final savedBranchName = ConfigPreference.getBranchName() ?? '';
+    final savedEmail = ConfigPreference.getBranchEmail() ?? '';
+    final savedOwnerName = ConfigPreference.getOwnerName() ?? '';
+    final savedPhone = ConfigPreference.getBranchPhone() ?? '';
+    final savedCity = ConfigPreference.getBranchCity() ?? '';
+    final savedSystemNumber = ConfigPreference.getBranchSystemNumber() ?? '';
+
+    tinController = TextEditingController(
+      text: initialTin.isNotEmpty ? initialTin : savedTin,
+    );
     systemNumberController = TextEditingController(
-      text: initialSystemNumber.isNotEmpty ? initialSystemNumber : 'SYS-0001',
+      text: (initialSystemNumber.isNotEmpty && initialSystemNumber != 'SYS-0001')
+          ? initialSystemNumber
+          : (savedSystemNumber.isNotEmpty ? savedSystemNumber : 'SYS-0001'),
     );
-    orgNameController = TextEditingController(text: initialOrgName);
+    orgNameController = TextEditingController(
+      text: initialOrgName.isNotEmpty ? initialOrgName : savedOrgName,
+    );
     orgUnitController = TextEditingController(
-      text: initialOrgUnit.isNotEmpty ? initialOrgUnit : 'Head Office',
+      text: (initialOrgUnit.isNotEmpty && initialOrgUnit != 'Head Office')
+          ? initialOrgUnit
+          : (savedBranchName.isNotEmpty ? savedBranchName : 'Head Office'),
     );
-    emailController = TextEditingController(text: initialEmail);
-    ownerNameController = TextEditingController(text: initialOwnerName);
-    phoneController = TextEditingController(text: initialPhone);
-    addressController = TextEditingController(text: 'Addis Ababa');
+    emailController = TextEditingController(
+      text: initialEmail.isNotEmpty ? initialEmail : savedEmail,
+    );
+    ownerNameController = TextEditingController(
+      text: initialOwnerName.isNotEmpty ? initialOwnerName : savedOwnerName,
+    );
+    phoneController = TextEditingController(
+      text: initialPhone.isNotEmpty ? initialPhone : savedPhone,
+    );
+    addressController = TextEditingController(
+      text: savedCity.isNotEmpty ? savedCity : 'Addis Ababa',
+    );
     certManualInputController = TextEditingController();
 
     isCertificateInstalled.value = ConfigPreference.isBranchCertificateInstalled();
+    _hydrateFormFromPrefs();
     loadCachedCsrAndFiles();
     checkCertificateStatus();
+  }
+
+  Future<void> _hydrateFormFromPrefs() async {
+    try {
+      if (tinController.text.trim().isEmpty) {
+        final tin = await ConfigPreference.getTin();
+        if (tin.trim().isNotEmpty) tinController.text = tin.trim();
+      }
+      if (orgNameController.text.trim().isEmpty) {
+        final trade = await AppSettings.getTradeName();
+        if (trade.trim().isNotEmpty) orgNameController.text = trade.trim();
+      }
+      if (systemNumberController.text.trim().isEmpty ||
+          systemNumberController.text.trim() == 'SYS-0001') {
+        final sys = await AppSettings.getSystemNumber();
+        if (sys.trim().isNotEmpty && sys.trim() != 'SYS-0001') {
+          systemNumberController.text = sys.trim();
+        }
+      }
+      if (ownerNameController.text.trim().isEmpty) {
+        final cashier = await AppSettings.getCashierName();
+        if (cashier.trim().isNotEmpty && cashier.trim() != 'Default Cashier') {
+          ownerNameController.text = cashier.trim();
+        }
+      }
+    } catch (_) {}
   }
 
   /// Looks up cached CSR text and files from preferences, in-app cache, and public directory
@@ -213,6 +266,16 @@ class BranchCertificateController extends GetxController {
   }
 
   Future<void> checkCertificateStatus() async {
+    if (ConfigPreference.isTestAccount()) {
+      isStatusLoaded.value = true;
+      hasPrivateKey.value = true;
+      hasCertificate.value = true;
+      certificateMatchesKey.value = true;
+      isCertificateInstalled.value = true;
+      await ConfigPreference.saveBranchCertificateInstalled(true);
+      await loadCachedCsrAndFiles();
+      return;
+    }
     if (branchId <= 0) return;
     await ApiService.getBranchCertificateStatus(
       branchId: branchId,

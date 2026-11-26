@@ -161,12 +161,32 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         icon: const Icon(Icons.check_circle_rounded, color: Colors.white),
       );
 
-      // Payment screen should never be the first screen users navigate into.
-      // Navigate to certificate setup if not installed, or directly to the dashboard.
+      // Check payment status upon initial registration & verification.
+      // If inactive/unpaid, lead user to payment page.
       if (widget.isCompanyRegistration) {
         final branchId = widget.branchId ??
             int.tryParse(ConfigPreference.getBranchId() ?? '') ??
             0;
+
+        if (!ConfigPreference.isBranchActive()) {
+          Get.off(() => PaymentPackagesScreen(
+                branchId: branchId != 0 ? branchId : null,
+                phone: widget.phone.isNotEmpty
+                    ? widget.phone
+                    : (ConfigPreference.getBranchPhone() ?? ''),
+                email: widget.email?.isNotEmpty == true
+                    ? widget.email
+                    : (ConfigPreference.getBranchEmail() ?? ''),
+                firstName: widget.ownerName?.split(' ').first ?? 'Owner',
+                lastName: (widget.ownerName?.split(' ').length ?? 0) > 1
+                    ? widget.ownerName!.split(' ').sublist(1).join(' ')
+                    : 'Account',
+                currentStatus: ConfigPreference.getBranchStatus() ?? 'pending',
+                isFromRegistration: true,
+              ));
+          return;
+        }
+
         if (!ConfigPreference.isBranchCertificateInstalled() && branchId != 0) {
           Get.off(() => BranchCertificateScreen(
                 branchId: branchId,

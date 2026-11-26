@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +13,7 @@ import 'package:deresegn/models/auth_models.dart';
 import 'package:deresegn/models/company_models.dart';
 import 'package:deresegn/models/otp_models.dart';
 import 'package:deresegn/models/payment_package_models.dart';
+import 'package:deresegn/screens/branch_certificate_screen.dart';
 import 'package:deresegn/screens/company_auth_screen.dart';
 import 'package:deresegn/screens/otp_verification_screen.dart';
 import 'package:deresegn/screens/payment_packages_screen.dart';
@@ -608,7 +608,7 @@ void main() {
   });
 
   group('Payment Packages Screen Back Navigation & Session Safety', () {
-    testWidgets('PaymentPackagesScreen shows Back and Login buttons when branch is pending/unpaid', (tester) async {
+    testWidgets('PaymentPackagesScreen shows Back and Skip buttons when branch is pending/unpaid and allows skipping without clearing tokens', (tester) async {
       DioConfig.isTestMode = true;
       final dio = await DioConfig.dio();
       dio.httpClientAdapter = _MockPackagesAdapter();
@@ -626,7 +626,7 @@ void main() {
         GetMaterialApp(
           initialRoute: '/payment-packages',
           getPages: [
-            GetPage(name: '/company-auth', page: () => const Scaffold(body: Text('Login Screen'))),
+            GetPage(name: '/dashboard', page: () => const Scaffold(body: Text('Dashboard Screen'))),
             GetPage(
               name: '/payment-packages',
               page: () => const PaymentPackagesScreen(
@@ -640,16 +640,16 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.byKey(const Key('payment_back_button')), findsOneWidget);
-      expect(find.byKey(const Key('payment_login_action_button')), findsOneWidget);
-      expect(find.text('Login'), findsOneWidget);
+      expect(find.byKey(const Key('payment_skip_button')), findsOneWidget);
+      expect(find.text('Skip'), findsOneWidget);
 
-      // Tap back button
-      await tester.tap(find.byKey(const Key('payment_back_button')));
+      // Tap skip button
+      await tester.tap(find.byKey(const Key('payment_skip_button')));
       await tester.pump(const Duration(milliseconds: 100));
 
-      // Tokens should be cleared so user is not stuck in payment loop
-      expect(ConfigPreference.getAccessToken(), isNull);
-      expect(ConfigPreference.isLoggedIn(), isFalse);
+      // Tokens should NOT be cleared when user skips!
+      expect(ConfigPreference.getAccessToken(), 'mock_pending_token');
+      expect(ConfigPreference.isLoggedIn(), isTrue);
     });
 
     testWidgets('PaymentPackagesScreen shows close button and does NOT clear tokens when active', (tester) async {
@@ -684,7 +684,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.byKey(const Key('payment_close_button')), findsOneWidget);
-      expect(find.byKey(const Key('payment_login_action_button')), findsNothing);
+      expect(find.byKey(const Key('payment_skip_button')), findsNothing);
     });
 
     test('InitialNavigationMiddleware allows pending/unpaid branches to enter dashboard without redirecting to payment screen', () async {
@@ -743,7 +743,12 @@ void main() {
       DioConfig.isTestMode = true;
       await ConfigPreference.updateBranchToken('mock_branch_token');
       await ConfigPreference.saveBranchId('29');
-      await ConfigPreference.saveBranchSubscription(status: 'active', expiredDate: '2099-12-31T00:00:00Z');
+      await ConfigPreference.saveBranchSubscription(
+        status: 'active',
+        packageId: 1,
+        expiredDate: '2099-12-31T00:00:00Z',
+        paidDate: '2026-09-07T08:50:47.000000Z',
+      );
       expect(ConfigPreference.isBranchActive(), isTrue);
 
       final invoiceController = Get.put(InvoiceController());
@@ -812,16 +817,397 @@ void main() {
       expect(ConfigPreference.isLoggedIn(), isTrue);
       expect(ConfigPreference.getAccessToken(), 'mock_branch_token');
     });
+
+    testWidgets('OtpVerificationScreen checks payment status on company registration and leads unpaid user to PaymentPackagesScreen', (tester) async {
+      DioConfig.isTestMode = true;
+      final dio = await DioConfig.dio();
+      dio.httpClientAdapter = _MockPackagesAdapter(branchStatus: 'pending');
+      Get.put(AuthController());
+
+      addTearDown(() {
+        DioConfig.resetDio();
+        DioConfig.isTestMode = false;
+        Get.reset();
+      });
+
+      await tester.pumpWidget(
+        GetMaterialApp(
+          initialRoute: '/otp-verification',
+          getPages: [
+            GetPage(
+              name: '/otp-verification',
+              page: () => const OtpVerificationScreen(
+                phone: '0912345678',
+                isCompanyRegistration: true,
+                branchId: 29,
+                ownerName: 'Abebe Bikila',
+                email: 'abebe@example.com',
+              ),
+            ),
+            GetPage(name: '/dashboard', page: () => const Scaffold(body: Text('Dashboard Screen'))),
+            GetPage(
+              name: '/branch-certificate',
+              page: () => const Scaffold(body: Text('Certificate Screen')),
+            ),
+            GetPage(
+              name: '/payment-packages',
+              page: () => const PaymentPackagesScreen(),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(OtpVerificationScreen), findsOneWidget);
+
+      // Enter 6 digit OTP
+      final textFields = find.byType(TextField);
+      expect(textFields, findsNWidgets(6));
+      for (int i = 0; i < 6; i++) {
+        await tester.enterText(textFields.at(i), '${i + 1}');
+      }
+      await tester.pumpAndSettle();
+
+      // Because branch is pending (unpaid), it must lead user to PaymentPackagesScreen!
+      expect(find.byType(PaymentPackagesScreen), findsOneWidget);
+      expect(find.byKey(const Key('payment_skip_button')), findsOneWidget);
+
+      // Tap Skip on payment packages screen
+      await tester.tap(find.byKey(const Key('payment_skip_button')));
+      await tester.pumpAndSettle();
+
+      // Should advance to certificate screen (or dashboard) without clearing tokens!
+      expect(find.byType(PaymentPackagesScreen), findsNothing);
+      expect(find.byType(BranchCertificateScreen), findsOneWidget);
+    });
+
+    testWidgets('OtpVerificationScreen skips PaymentPackagesScreen if branch payment is already active', (tester) async {
+      DioConfig.isTestMode = true;
+      final dio = await DioConfig.dio();
+      dio.httpClientAdapter = _MockPackagesAdapter(
+        branchStatus: 'active',
+        packageId: 1,
+        expiredDate: '2099-12-31T00:00:00Z',
+        paidDate: '2026-09-07T08:50:47.000000Z',
+      );
+      Get.put(AuthController());
+
+      addTearDown(() {
+        DioConfig.resetDio();
+        DioConfig.isTestMode = false;
+        Get.reset();
+      });
+
+      await tester.pumpWidget(
+        GetMaterialApp(
+          initialRoute: '/otp-verification',
+          getPages: [
+            GetPage(
+              name: '/otp-verification',
+              page: () => const OtpVerificationScreen(
+                phone: '0912345678',
+                isCompanyRegistration: true,
+                branchId: 29,
+                ownerName: 'Abebe Bikila',
+                email: 'abebe@example.com',
+              ),
+            ),
+            GetPage(name: '/dashboard', page: () => const Scaffold(body: Text('Dashboard Screen'))),
+            GetPage(
+              name: '/branch-certificate',
+              page: () => const Scaffold(body: Text('Certificate Screen')),
+            ),
+            GetPage(
+              name: '/payment-packages',
+              page: () => const PaymentPackagesScreen(),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Enter 6 digit OTP
+      final textFields = find.byType(TextField);
+      for (int i = 0; i < 6; i++) {
+        await tester.enterText(textFields.at(i), '${i + 1}');
+      }
+      await tester.pumpAndSettle();
+
+      // Because branch is active, it does NOT lead user to PaymentPackagesScreen!
+      expect(find.byType(PaymentPackagesScreen), findsNothing);
+      expect(find.byType(BranchCertificateScreen), findsOneWidget);
+    });
+
+    testWidgets('PaymentPackagesScreen allows skipping from registration and navigates to certificate screen or dashboard without logout', (tester) async {
+      DioConfig.isTestMode = true;
+      final dio = await DioConfig.dio();
+      dio.httpClientAdapter = _MockPackagesAdapter();
+      Get.put(AuthController());
+      await ConfigPreference.updateCompanyToken('valid_company_token');
+      await ConfigPreference.saveBranchSubscription(status: 'pending');
+
+      addTearDown(() {
+        DioConfig.resetDio();
+        DioConfig.isTestMode = false;
+        Get.reset();
+      });
+
+      await tester.pumpWidget(
+        GetMaterialApp(
+          initialRoute: '/payment-packages',
+          getPages: [
+            GetPage(name: '/dashboard', page: () => const Scaffold(body: Text('Dashboard Screen'))),
+            GetPage(
+              name: '/payment-packages',
+              page: () => const PaymentPackagesScreen(
+                branchId: 29,
+                currentStatus: 'pending',
+                isFromRegistration: true,
+              ),
+            ),
+          ],
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byKey(const Key('payment_skip_button')), findsOneWidget);
+
+      // Tap skip
+      await tester.tap(find.byKey(const Key('payment_skip_button')));
+      await tester.pumpAndSettle();
+
+      // Session must be preserved
+      expect(ConfigPreference.getCompanyAccessToken(), 'valid_company_token');
+      expect(find.byType(PaymentPackagesScreen), findsNothing);
+      expect(find.byType(BranchCertificateScreen), findsOneWidget);
+    });
+
+    testWidgets('Invoice registration payment prompt triggers every time user tries to register an invoice while unpaid', (tester) async {
+      DioConfig.isTestMode = true;
+      final dio = await DioConfig.dio();
+      dio.httpClientAdapter = _MockPackagesAdapter();
+
+      await ConfigPreference.updateBranchToken('mock_branch_token');
+      await ConfigPreference.saveBranchId('29');
+      await ConfigPreference.saveBranchSubscription(status: 'pending');
+      expect(ConfigPreference.isBranchActive(), isFalse);
+
+      final invoiceController = Get.put(InvoiceController());
+      addTearDown(() {
+        DioConfig.resetDio();
+        DioConfig.isTestMode = false;
+        Get.reset();
+      });
+
+      await tester.pumpWidget(
+        GetMaterialApp(
+          initialRoute: '/invoices',
+          getPages: [
+            GetPage(
+              name: '/invoices',
+              page: () => Scaffold(
+                body: Builder(
+                  builder: (ctx) => ElevatedButton(
+                    key: const Key('register_invoice_btn'),
+                    onPressed: () {
+                      if (!invoiceController.checkActiveSubscriptionOrPromptPayment()) {
+                        return;
+                      }
+                    },
+                    child: const Text('Register Invoice'),
+                  ),
+                ),
+              ),
+            ),
+            GetPage(name: '/payment-packages', page: () => const PaymentPackagesScreen(branchId: 29, currentStatus: 'pending')),
+          ],
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Attempt 1 to register invoice
+      await tester.tap(find.byKey(const Key('register_invoice_btn')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(PaymentPackagesScreen), findsOneWidget);
+
+      // User skips payment prompt (tap skip or close/back)
+      await tester.tap(find.byKey(const Key('payment_skip_button')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(PaymentPackagesScreen), findsNothing);
+      expect(find.byKey(const Key('register_invoice_btn')), findsOneWidget);
+
+      // Attempt 2 to register invoice: prompt MUST trigger again!
+      await tester.tap(find.byKey(const Key('register_invoice_btn')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(PaymentPackagesScreen), findsOneWidget);
+
+      // User skips again
+      await tester.tap(find.byKey(const Key('payment_skip_button')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(PaymentPackagesScreen), findsNothing);
+
+      // Attempt 3 to register invoice: prompt MUST trigger again!
+      await tester.tap(find.byKey(const Key('register_invoice_btn')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(PaymentPackagesScreen), findsOneWidget);
+    });
+
+    test('ConfigPreference.isBranchActive requires package_id, future expiry, and paid_date even if status is active', () async {
+      // 1. Status 'active' alone is not enough
+      await ConfigPreference.saveBranchSubscription(status: 'active');
+      expect(ConfigPreference.isBranchActive(), isFalse);
+
+      // 2. Status 'active' with package_id <= 0 is not enough
+      await ConfigPreference.saveBranchSubscription(status: 'active', packageId: 0);
+      expect(ConfigPreference.isBranchActive(), isFalse);
+
+      // 3. Status 'active' with valid package_id but no expiry is not enough
+      await ConfigPreference.saveBranchSubscription(status: 'active', packageId: 2);
+      expect(ConfigPreference.isBranchActive(), isFalse);
+
+      // 4. Status 'active' with package_id and expired date in past is not enough
+      await ConfigPreference.saveBranchSubscription(
+        status: 'active',
+        packageId: 2,
+        expiredDate: '2020-01-01T00:00:00.000000Z',
+      );
+      expect(ConfigPreference.isBranchActive(), isFalse);
+
+      // 5. Status 'active' with package_id, future expiry, but missing paid_date is not enough
+      await ConfigPreference.saveBranchSubscription(
+        status: 'active',
+        packageId: 2,
+        expiredDate: '2099-12-31T00:00:00.000000Z',
+      );
+      expect(ConfigPreference.isBranchActive(), isFalse);
+
+      // 6. Status 'active' with package_id, future expiry, and valid paid_date -> ACTIVE!
+      await ConfigPreference.saveBranchSubscription(
+        status: 'active',
+        packageId: 2,
+        expiredDate: '2099-12-31T00:00:00.000000Z',
+        paidDate: '2026-09-07T08:50:47.000000Z',
+      );
+      expect(ConfigPreference.isBranchActive(), isTrue);
+
+      // 7. Status 'pending' with package_id, future expiry, and paid_date -> Still FALSE because status != 'active'
+      await ConfigPreference.saveBranchSubscription(
+        status: 'pending',
+        packageId: 2,
+        expiredDate: '2099-12-31T00:00:00.000000Z',
+        paidDate: '2026-09-07T08:50:47.000000Z',
+      );
+      expect(ConfigPreference.isBranchActive(), isFalse);
+    });
+
+    testWidgets('OtpVerificationScreen leads user to PaymentPackagesScreen when backend returns status active on new registration but missing package info', (tester) async {
+      DioConfig.isTestMode = true;
+      final dio = await DioConfig.dio();
+      // Backend returns status: "active", but no package_id, expired_date, or paid_date
+      dio.httpClientAdapter = _MockPackagesAdapter(branchStatus: 'active');
+      Get.put(AuthController());
+
+      addTearDown(() {
+        DioConfig.resetDio();
+        DioConfig.isTestMode = false;
+        Get.reset();
+      });
+
+      await tester.pumpWidget(
+        GetMaterialApp(
+          initialRoute: '/otp-verification',
+          getPages: [
+            GetPage(
+              name: '/otp-verification',
+              page: () => const OtpVerificationScreen(
+                phone: '0912345678',
+                isCompanyRegistration: true,
+                branchId: 29,
+                ownerName: 'Abebe Bikila',
+                email: 'abebe@example.com',
+              ),
+            ),
+            GetPage(name: '/dashboard', page: () => const Scaffold(body: Text('Dashboard Screen'))),
+            GetPage(
+              name: '/branch-certificate',
+              page: () => const Scaffold(body: Text('Certificate Screen')),
+            ),
+            GetPage(
+              name: '/payment-packages',
+              page: () => const PaymentPackagesScreen(),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Enter 6 digit OTP
+      final textFields = find.byType(TextField);
+      for (int i = 0; i < 6; i++) {
+        await tester.enterText(textFields.at(i), '${i + 1}');
+      }
+      await tester.pumpAndSettle();
+
+      // Because backend returned active status without package/paid date, branch is NOT active
+      expect(ConfigPreference.isBranchActive(), isFalse);
+      // User MUST be led to PaymentPackagesScreen
+      expect(find.byType(PaymentPackagesScreen), findsOneWidget);
+    });
   });
 }
 
 class _MockPackagesAdapter implements HttpClientAdapter {
+  final String branchStatus;
+  final int? packageId;
+  final String? expiredDate;
+  final String? paidDate;
+
+  _MockPackagesAdapter({
+    this.branchStatus = 'pending',
+    this.packageId,
+    this.expiredDate,
+    this.paidDate,
+  });
+
   @override
   Future<ResponseBody> fetch(
     RequestOptions options,
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async {
+    if (options.path.contains('/verify-phone') || options.path.contains('/verify')) {
+      final jsonStr = jsonEncode({
+        "status": "success",
+        "token": "verified_company_token",
+        "user": {
+          "company_id": 41,
+          "name": "Owner",
+          "is_verified": true,
+        },
+        "branch": {
+          "id": 29,
+          "status": branchStatus,
+          if (packageId != null) "package_id": packageId,
+          if (expiredDate != null) "expired_date": expiredDate,
+          if (paidDate != null) "payment_date": paidDate,
+          "phone_number": "0912345678",
+          "email": "test@example.com",
+        }
+      });
+      return ResponseBody.fromString(
+        jsonStr,
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    }
+
     final jsonStr = jsonEncode([
       {
         "id": 1,
