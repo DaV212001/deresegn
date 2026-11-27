@@ -15,7 +15,6 @@ import 'screens/branch_certificate_screen.dart';
 import 'screens/branch_setup_screen.dart';
 import 'screens/delete_account_screen.dart';
 import 'screens/otp_verification_screen.dart';
-import 'screens/payment_packages_screen.dart';
 import 'screens/security_alert_screen.dart';
 import 'services/security_service.dart';
 import 'theme/app_theme.dart';
@@ -117,10 +116,6 @@ class _DeresegnAppState extends State<DeresegnApp> with WidgetsBindingObserver {
         GetPage(
           name: '/branch-certificate',
           page: () => const BranchCertificateScreen(branchId: 0),
-        ),
-        GetPage(
-          name: '/payment-packages',
-          page: () => const PaymentPackagesScreen(),
         ),
       ],
     );

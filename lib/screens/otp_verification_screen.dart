@@ -7,7 +7,6 @@ import '../config/config_preference.dart';
 import '../controllers/auth_controller.dart';
 import '../utils/phone_utils.dart';
 import 'branch_certificate_screen.dart';
-import 'payment_packages_screen.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String phone;
@@ -161,31 +160,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         icon: const Icon(Icons.check_circle_rounded, color: Colors.white),
       );
 
-      // Check payment status upon initial registration & verification.
-      // If inactive/unpaid, lead user to payment page.
+      // TEMPORARY (App Store review): skip payment redirect on registration.
       if (widget.isCompanyRegistration) {
         final branchId = widget.branchId ??
             int.tryParse(ConfigPreference.getBranchId() ?? '') ??
             0;
-
-        if (!ConfigPreference.isBranchActive()) {
-          Get.off(() => PaymentPackagesScreen(
-                branchId: branchId != 0 ? branchId : null,
-                phone: widget.phone.isNotEmpty
-                    ? widget.phone
-                    : (ConfigPreference.getBranchPhone() ?? ''),
-                email: widget.email?.isNotEmpty == true
-                    ? widget.email
-                    : (ConfigPreference.getBranchEmail() ?? ''),
-                firstName: widget.ownerName?.split(' ').first ?? 'Owner',
-                lastName: (widget.ownerName?.split(' ').length ?? 0) > 1
-                    ? widget.ownerName!.split(' ').sublist(1).join(' ')
-                    : 'Account',
-                currentStatus: ConfigPreference.getBranchStatus() ?? 'pending',
-                isFromRegistration: true,
-              ));
-          return;
-        }
 
         if (!ConfigPreference.isBranchCertificateInstalled() && branchId != 0) {
           Get.off(() => BranchCertificateScreen(

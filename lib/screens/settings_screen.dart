@@ -18,7 +18,6 @@ import 'branch_certificate_screen.dart';
 import 'branch_hours_screen.dart';
 import 'branch_setup_screen.dart';
 import 'delete_account_screen.dart';
-import 'payment_packages_screen.dart';
 import 'pdf_preview_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -169,45 +168,6 @@ class SettingsScreen extends StatelessWidget {
                 color: Colors.grey,
               ),
               onTap: () => _handleCreateBranch(context),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            Divider(
-              height: 1,
-              indent: 56,
-              endIndent: 16,
-              color: theme.dividerColor.withValues(alpha: 0.5),
-            ),
-            ListTile(
-              title: const Text(
-                'Subscription & Packages',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(
-                ConfigPreference.getBranchStatus() != null
-                    ? 'Status: ${ConfigPreference.getBranchStatus()!.toUpperCase()}'
-                    : 'Manage branch subscription and packages',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: theme.primaryColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.card_membership_rounded,
-                  color: theme.primaryColor,
-                  size: 20,
-                ),
-              ),
-              trailing: const Icon(
-                Icons.chevron_right,
-                size: 18,
-                color: Colors.grey,
-              ),
-              onTap: () => Get.to(() => const PaymentPackagesScreen()),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),

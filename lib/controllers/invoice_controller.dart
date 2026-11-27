@@ -17,7 +17,6 @@ import '../models/invoice_history_model.dart';
 import '../models/invoice_models.dart';
 import '../models/receipt_models.dart';
 import '../screens/invoice_detail_screen.dart';
-import '../screens/payment_packages_screen.dart';
 import '../screens/pdf_preview_screen.dart';
 import '../services/api_service.dart';
 import '../services/cancelled_invoices_storage.dart';
@@ -427,31 +426,28 @@ class InvoiceController extends GetxController {
     return DateFormat("dd-MM-yyyy'T'HH:mm:ss").format(utc);
   }
 
-  /// Verifies whether the branch has an active package subscription.
-  /// If unpaid or expired, pops up the PaymentPackagesScreen and prevents invoice submission.
+  /// Verifies whether the branch status is active.
+  /// TEMPORARY (App Store review): Payment prompt is disabled.
   bool checkActiveSubscriptionOrPromptPayment() {
     if (ConfigPreference.isBranchActive()) {
       return true;
     }
 
     Logger().i(
-      'Invoice registration blocked: branch subscription is inactive/unpaid. Prompting payment screen.',
+      'Invoice registration blocked: branch status is inactive.',
     );
     if (!DioConfig.isTestMode) {
       Get.snackbar(
-        'Subscription Required',
-        'An active package is required to register invoices. Please select a package to proceed.',
+        'Branch Inactive',
+        'Your branch account is currently inactive. Please contact support.',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.amber.shade900,
         colorText: Colors.white,
-        icon: const Icon(Icons.payment_rounded, color: Colors.white),
+        icon: const Icon(Icons.info_outline_rounded, color: Colors.white),
         duration: const Duration(seconds: 4),
       );
     }
 
-    Get.to(() => PaymentPackagesScreen(
-          currentStatus: ConfigPreference.getBranchStatus() ?? 'pending',
-        ));
     return false;
   }
 

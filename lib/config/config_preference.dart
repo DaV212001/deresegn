@@ -237,36 +237,13 @@ class ConfigPreference {
     } catch (_) {}
   }
 
-  /// Returns true ONLY when the branch has a confirmed, paid, unexpired package subscription.
+  /// Returns true when the branch status is 'active'.
   ///
-  /// Note: The backend status may return "active" even for newly registered accounts
-  /// that have not paid yet. Therefore, payment validity strictly requires:
-  /// 1. Status is 'active' (not pending, inactive, or cancelled)
-  /// 2. Valid package ID (must be > 0)
-  /// 3. Valid future expiry date (expired_date > now)
-  /// 4. Valid payment date (paid_date / payment_date is present)
+  /// TEMPORARY (App Store review): Only checks the `status` field instead of
+  /// requiring package_id, expired_date, and paid_date.
   static bool isBranchActive() {
-    // 1. Status check
     if (_branchStatus == null) return false;
-    final status = _branchStatus!.toLowerCase();
-    if (status != 'active') return false;
-
-    // 2. Package ID check: A paid subscription MUST have an assigned package ID (> 0)
-    if (_packageId == null || _packageId!.trim().isEmpty) return false;
-    final pkgId = int.tryParse(_packageId!.trim());
-    if (pkgId == null || pkgId <= 0) return false;
-
-    // 3. Expiry date check: An active subscription MUST have an expiry date in the future
-    if (_expiredDate == null || _expiredDate!.trim().isEmpty) return false;
-    final expiry = DateTime.tryParse(_expiredDate!.trim());
-    if (expiry == null || expiry.isBefore(DateTime.now())) {
-      return false;
-    }
-
-    // 4. Paid date check: An active subscription MUST have a payment/paid date
-    if (_paidDate == null || _paidDate!.trim().isEmpty) return false;
-
-    return true;
+    return _branchStatus!.toLowerCase() == 'active';
   }
 
   static Future<void> saveBranchSubscription({

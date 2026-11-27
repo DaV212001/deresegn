@@ -7,7 +7,6 @@ import '../controllers/auth_controller.dart';
 import '../utils/phone_utils.dart';
 import 'branch_certificate_screen.dart';
 import 'branch_setup_screen.dart';
-import 'payment_packages_screen.dart';
 
 class CompanyAuthScreen extends StatefulWidget {
   const CompanyAuthScreen({super.key});
@@ -250,22 +249,7 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
 
       if (success && ConfigPreference.getCompanyAccessToken() != null) {
         if (!controller.registrationRequiresOtp) {
-          final branchIdStr = ConfigPreference.getBranchId();
-          final branchId = int.tryParse(branchIdStr ?? '');
-          if (!ConfigPreference.isBranchActive()) {
-            Get.to(() => PaymentPackagesScreen(
-                  branchId: branchId != null && branchId > 0 ? branchId : null,
-                  phone: phone.text.trim(),
-                  email: email.text.trim(),
-                  firstName: owner.text.trim().split(' ').first,
-                  lastName: owner.text.trim().split(' ').length > 1
-                      ? owner.text.trim().split(' ').sublist(1).join(' ')
-                      : 'Account',
-                  isFromRegistration: true,
-                ));
-          } else {
-            _showPostRegistrationDialog();
-          }
+          _showPostRegistrationDialog();
         }
       }
     } else {
@@ -356,18 +340,7 @@ class _CompanyAuthScreenState extends State<CompanyAuthScreen> {
                         Get.back();
                         final branchIdStr = ConfigPreference.getBranchId();
                         final branchId = int.tryParse(branchIdStr ?? '');
-                        if (!ConfigPreference.isBranchActive()) {
-                          Get.to(() => PaymentPackagesScreen(
-                                branchId: branchId != null && branchId > 0 ? branchId : null,
-                                phone: phone.text.trim(),
-                                email: email.text.trim(),
-                                firstName: owner.text.trim().split(' ').first,
-                                lastName: owner.text.trim().split(' ').length > 1
-                                    ? owner.text.trim().split(' ').sublist(1).join(' ')
-                                    : 'Account',
-                                isFromRegistration: true,
-                              ));
-                        } else if (branchId != null && branchId > 0) {
+                        if (branchId != null && branchId > 0) {
                           Get.to(() => BranchCertificateScreen(
                                 branchId: branchId,
                                 tin: tin.text.trim(),

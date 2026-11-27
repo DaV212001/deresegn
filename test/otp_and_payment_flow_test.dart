@@ -702,7 +702,7 @@ void main() {
       expect(redirect, isNull);
     });
 
-    testWidgets('InvoiceController checkActiveSubscriptionOrPromptPayment prompts PaymentPackagesScreen when branch is inactive', (tester) async {
+    testWidgets('InvoiceController checkActiveSubscriptionOrPromptPayment blocks without pushing PaymentPackagesScreen when branch is inactive', (tester) async {
       DioConfig.isTestMode = true;
       final dio = await DioConfig.dio();
       dio.httpClientAdapter = _MockPackagesAdapter();
@@ -735,8 +735,7 @@ void main() {
 
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
-      // PaymentPackagesScreen should pop up
-      expect(find.byType(PaymentPackagesScreen), findsOneWidget);
+      expect(find.byType(PaymentPackagesScreen), findsNothing);
     });
 
     testWidgets('InvoiceController checkActiveSubscriptionOrPromptPayment allows invoice registration when active', (tester) async {
@@ -818,7 +817,7 @@ void main() {
       expect(ConfigPreference.getAccessToken(), 'mock_branch_token');
     });
 
-    testWidgets('OtpVerificationScreen checks payment status on company registration and leads unpaid user to PaymentPackagesScreen', (tester) async {
+    testWidgets('OtpVerificationScreen proceeds directly to BranchCertificateScreen without PaymentPackagesScreen', (tester) async {
       DioConfig.isTestMode = true;
       final dio = await DioConfig.dio();
       dio.httpClientAdapter = _MockPackagesAdapter(branchStatus: 'pending');
@@ -868,15 +867,6 @@ void main() {
       }
       await tester.pumpAndSettle();
 
-      // Because branch is pending (unpaid), it must lead user to PaymentPackagesScreen!
-      expect(find.byType(PaymentPackagesScreen), findsOneWidget);
-      expect(find.byKey(const Key('payment_skip_button')), findsOneWidget);
-
-      // Tap Skip on payment packages screen
-      await tester.tap(find.byKey(const Key('payment_skip_button')));
-      await tester.pumpAndSettle();
-
-      // Should advance to certificate screen (or dashboard) without clearing tokens!
       expect(find.byType(PaymentPackagesScreen), findsNothing);
       expect(find.byType(BranchCertificateScreen), findsOneWidget);
     });
@@ -982,7 +972,7 @@ void main() {
       expect(find.byType(BranchCertificateScreen), findsOneWidget);
     });
 
-    testWidgets('Invoice registration payment prompt triggers every time user tries to register an invoice while unpaid', (tester) async {
+    testWidgets('Invoice registration does not prompt PaymentPackagesScreen while payment gate is disabled', (tester) async {
       DioConfig.isTestMode = true;
       final dio = await DioConfig.dio();
       dio.httpClientAdapter = _MockPackagesAdapter();
@@ -1025,77 +1015,19 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 100));
 
-      // Attempt 1 to register invoice
       await tester.tap(find.byKey(const Key('register_invoice_btn')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(find.byType(PaymentPackagesScreen), findsOneWidget);
-
-      // User skips payment prompt (tap skip or close/back)
-      await tester.tap(find.byKey(const Key('payment_skip_button')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.byType(PaymentPackagesScreen), findsNothing);
-      expect(find.byKey(const Key('register_invoice_btn')), findsOneWidget);
-
-      // Attempt 2 to register invoice: prompt MUST trigger again!
-      await tester.tap(find.byKey(const Key('register_invoice_btn')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(find.byType(PaymentPackagesScreen), findsOneWidget);
-
-      // User skips again
-      await tester.tap(find.byKey(const Key('payment_skip_button')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(find.byType(PaymentPackagesScreen), findsNothing);
-
-      // Attempt 3 to register invoice: prompt MUST trigger again!
-      await tester.tap(find.byKey(const Key('register_invoice_btn')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(find.byType(PaymentPackagesScreen), findsOneWidget);
     });
 
-    test('ConfigPreference.isBranchActive requires package_id, future expiry, and paid_date even if status is active', () async {
-      // 1. Status 'active' alone is not enough
+    test('ConfigPreference.isBranchActive checks only status == active (App Store review mode)', () async {
       await ConfigPreference.saveBranchSubscription(status: 'active');
-      expect(ConfigPreference.isBranchActive(), isFalse);
-
-      // 2. Status 'active' with package_id <= 0 is not enough
-      await ConfigPreference.saveBranchSubscription(status: 'active', packageId: 0);
-      expect(ConfigPreference.isBranchActive(), isFalse);
-
-      // 3. Status 'active' with valid package_id but no expiry is not enough
-      await ConfigPreference.saveBranchSubscription(status: 'active', packageId: 2);
-      expect(ConfigPreference.isBranchActive(), isFalse);
-
-      // 4. Status 'active' with package_id and expired date in past is not enough
-      await ConfigPreference.saveBranchSubscription(
-        status: 'active',
-        packageId: 2,
-        expiredDate: '2020-01-01T00:00:00.000000Z',
-      );
-      expect(ConfigPreference.isBranchActive(), isFalse);
-
-      // 5. Status 'active' with package_id, future expiry, but missing paid_date is not enough
-      await ConfigPreference.saveBranchSubscription(
-        status: 'active',
-        packageId: 2,
-        expiredDate: '2099-12-31T00:00:00.000000Z',
-      );
-      expect(ConfigPreference.isBranchActive(), isFalse);
-
-      // 6. Status 'active' with package_id, future expiry, and valid paid_date -> ACTIVE!
-      await ConfigPreference.saveBranchSubscription(
-        status: 'active',
-        packageId: 2,
-        expiredDate: '2099-12-31T00:00:00.000000Z',
-        paidDate: '2026-09-07T08:50:47.000000Z',
-      );
       expect(ConfigPreference.isBranchActive(), isTrue);
 
-      // 7. Status 'pending' with package_id, future expiry, and paid_date -> Still FALSE because status != 'active'
+      await ConfigPreference.saveBranchSubscription(status: 'ACTIVE');
+      expect(ConfigPreference.isBranchActive(), isTrue);
+
       await ConfigPreference.saveBranchSubscription(
         status: 'pending',
         packageId: 2,
@@ -1105,10 +1037,9 @@ void main() {
       expect(ConfigPreference.isBranchActive(), isFalse);
     });
 
-    testWidgets('OtpVerificationScreen leads user to PaymentPackagesScreen when backend returns status active on new registration but missing package info', (tester) async {
+    testWidgets('OtpVerificationScreen leads user to BranchCertificateScreen when backend returns status active without package info', (tester) async {
       DioConfig.isTestMode = true;
       final dio = await DioConfig.dio();
-      // Backend returns status: "active", but no package_id, expired_date, or paid_date
       dio.httpClientAdapter = _MockPackagesAdapter(branchStatus: 'active');
       Get.put(AuthController());
 
@@ -1153,10 +1084,9 @@ void main() {
       }
       await tester.pumpAndSettle();
 
-      // Because backend returned active status without package/paid date, branch is NOT active
-      expect(ConfigPreference.isBranchActive(), isFalse);
-      // User MUST be led to PaymentPackagesScreen
-      expect(find.byType(PaymentPackagesScreen), findsOneWidget);
+      expect(ConfigPreference.isBranchActive(), isTrue);
+      expect(find.byType(PaymentPackagesScreen), findsNothing);
+      expect(find.byType(BranchCertificateScreen), findsOneWidget);
     });
   });
 }

@@ -7,7 +7,6 @@ import '../config/config_preference.dart';
 import '../config/dio_config.dart';
 import '../models/receipt_models.dart';
 import '../services/api_service.dart';
-import '../screens/payment_packages_screen.dart';
 import 'auth_controller.dart';
 import 'invoice_controller.dart';
 
@@ -35,18 +34,15 @@ class ReceiptController extends GetxController {
         isSubmittingReceipt.value = false;
         if (showSnackbar) {
           Get.snackbar(
-            'Subscription Required',
-            'An active package is required to register receipts. Please select a package to proceed.',
+            'Branch Inactive',
+            'Your branch account is currently inactive. Please contact support.',
             snackPosition: SnackPosition.BOTTOM,
             backgroundColor: Colors.amber.shade900,
             colorText: Colors.white,
-            icon: const Icon(Icons.payment_rounded, color: Colors.white),
+            icon: const Icon(Icons.info_outline_rounded, color: Colors.white),
             duration: const Duration(seconds: 4),
           );
         }
-        Get.to(() => PaymentPackagesScreen(
-              currentStatus: ConfigPreference.getBranchStatus() ?? 'pending',
-            ));
         return null;
       }
 
@@ -152,17 +148,14 @@ class ReceiptController extends GetxController {
       if (!ConfigPreference.isBranchActive()) {
         isSubmittingWithholding.value = false;
         Get.snackbar(
-          'Subscription Required',
-          'An active package is required to register withholding receipts. Please select a package to proceed.',
+          'Branch Inactive',
+          'Your branch account is currently inactive. Please contact support.',
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: Colors.amber.shade900,
           colorText: Colors.white,
-          icon: const Icon(Icons.payment_rounded, color: Colors.white),
+          icon: const Icon(Icons.info_outline_rounded, color: Colors.white),
           duration: const Duration(seconds: 4),
         );
-        Get.to(() => PaymentPackagesScreen(
-              currentStatus: ConfigPreference.getBranchStatus() ?? 'pending',
-            ));
         return;
       }
 
