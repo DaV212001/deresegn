@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-and-upload-ios:
-    runs-on: macos-latest
+    runs-on: xcode-27
     timeout-minutes: 45
 
     steps:
@@ -24,6 +24,11 @@ jobs:
           flutter-version: '3.44.4'
           channel: 'stable'
           cache: true
+
+      - name: Verify Xcode & iOS SDK
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
 
       - name: Install Flutter dependencies
         run: flutter pub get
